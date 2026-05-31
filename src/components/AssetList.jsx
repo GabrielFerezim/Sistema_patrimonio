@@ -6,12 +6,12 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
   const [locationFilter, setLocationFilter] = useState('Todos');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Get unique locations for the filter list
+  // Obtém localizações exclusivas para a lista de filtros
   const uniqueLocations = Array.from(
     new Set(assets.map(a => a.location).filter(Boolean))
   ).sort();
 
-  // Handle Search and Filter logic
+  // Lógica de busca e filtragem
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = 
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,7 +51,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
         </button>
       </header>
 
-      {/* Search and Filters Bar */}
+      {/* Barra de Busca e Filtros */}
       <div className="filter-bar">
         <div className="search-wrapper">
           <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -72,7 +72,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
         </div>
 
         <div className="filter-group">
-          {/* Status Filter */}
+          {/* Filtro de Status */}
           <div className="filter-item">
             <label htmlFor="filter-status">Status</label>
             <select
@@ -87,7 +87,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
             </select>
           </div>
 
-          {/* Location Filter */}
+          {/* Filtro de Localização */}
           <div className="filter-item">
             <label htmlFor="filter-location">Localização</label>
             <select
@@ -104,7 +104,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
         </div>
       </div>
 
-      {/* Inventory Table Card */}
+      {/* Tabela de Inventário */}
       {filteredAssets.length > 0 ? (
         <div className="table-card">
           <table className="inventory-table">
@@ -123,12 +123,12 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
             <tbody>
               {filteredAssets.map(asset => (
                 <tr key={asset.id}>
-                  {/* Tag */}
+                  {/* Tag/Código */}
                   <td className="asset-tag-cell">
                     <span className="tag-badge">#{asset.tag}</span>
                   </td>
                   
-                  {/* Name */}
+                  {/* Nome/Descrição */}
                   <td>
                     <div className="asset-name-group">
                       <span className="asset-name-main">{asset.name}</span>
@@ -136,10 +136,10 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
                     </div>
                   </td>
                   
-                  {/* Equipment Type */}
+                  {/* Tipo de Equipamento */}
                   <td>{asset.equipment}</td>
                   
-                  {/* Employee */}
+                  {/* Funcionário */}
                   <td className="employee-cell">
                     {asset.employee ? (
                       <div className="employee-info">
@@ -153,10 +153,10 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
                     )}
                   </td>
                   
-                  {/* Location */}
+                  {/* Localização */}
                   <td>{asset.location}</td>
                   
-                  {/* Condition */}
+                  {/* Estado */}
                   <td>
                     <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
                       {asset.condition}
@@ -170,7 +170,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
                     </span>
                   </td>
                   
-                  {/* Actions */}
+                  {/* Ações */}
                   <td className="actions-cell">
                     <button 
                       className="btn-action edit" 
@@ -230,7 +230,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal Overlay */}
+      {/* Modal Overlay de Confirmação de Exclusão */}
       {deleteConfirmId !== null && (
         <div className="modal-overlay danger">
           <div className="modal-content confirm-dialog">

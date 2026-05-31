@@ -29,7 +29,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
         notes: asset.notes || '',
       });
     } else {
-      // Suggest a new tag (e.g. PAT-XXX)
+      // Sugere uma nova tag (ex: PAT-XXX)
       const nextId = existingTags.length + 1;
       const suggestedTag = `PAT-${String(nextId).padStart(3, '0')}`;
       setFormData(prev => ({ ...prev, tag: suggestedTag }));
@@ -42,11 +42,11 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // Professional UX: If status is not 'Em Uso', employee should be empty
+      // UX Profissional: Se o status não for 'Em Uso', o funcionário deve estar vazio
       if (name === 'status' && value !== 'Em Uso') {
         updated.employee = '';
       }
-      // If employee is typed, auto-set status to 'Em Uso'
+      // Se o funcionário for digitado, define automaticamente o status para 'Em Uso'
       if (name === 'employee' && value.trim() !== '' && prev.status !== 'Em Uso') {
         updated.status = 'Em Uso';
       }
@@ -54,7 +54,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
       return updated;
     });
 
-    // Clear error for that field
+    // Limpa o erro para aquele campo
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -89,7 +89,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
       onSave({
         ...formData,
         id: isEdit ? asset.id : Date.now(),
-        // Normalize fields
+        // Normaliza os campos
         tag: formData.tag.trim().toUpperCase(),
         name: formData.name.trim(),
         employee: formData.status === 'Em Uso' ? formData.employee.trim() : '',
@@ -112,7 +112,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
 
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-grid">
-            {/* Asset Tag */}
+            {/* Tag do Patrimônio */}
             <div className="form-group">
               <label htmlFor="tag">Nº Patrimônio (Tag/Código) *</label>
               <input
@@ -127,7 +127,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               {errors.tag && <span className="error-text">{errors.tag}</span>}
             </div>
 
-            {/* Asset Name */}
+            {/* Nome do Patrimônio */}
             <div className="form-group">
               <label htmlFor="name">Nome do Patrimônio *</label>
               <input
@@ -142,7 +142,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               {errors.name && <span className="error-text">{errors.name}</span>}
             </div>
 
-            {/* Equipment Type */}
+            {/* Tipo de Equipamento */}
             <div className="form-group">
               <label htmlFor="equipment">Equipamento *</label>
               <select
@@ -166,7 +166,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               {errors.equipment && <span className="error-text">{errors.equipment}</span>}
             </div>
 
-            {/* Location */}
+            {/* Localização */}
             <div className="form-group">
               <label htmlFor="location">Localização (Departamento/Sala) *</label>
               <input
@@ -196,7 +196,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               </select>
             </div>
 
-            {/* Condition */}
+            {/* Estado de Conservação */}
             <div className="form-group">
               <label htmlFor="condition">Estado de Conservação *</label>
               <div className="radio-group">
@@ -223,7 +223,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               </div>
             </div>
 
-            {/* Employee Name (Conditional style) */}
+            {/* Nome do Funcionário (Estilização condicional) */}
             <div className="form-group full-width">
               <label htmlFor="employee" className={formData.status !== 'Em Uso' ? 'disabled-label' : ''}>
                 Funcionário Responsável {formData.status === 'Em Uso' ? '*' : '(Disponível apenas em Uso)'}
@@ -241,7 +241,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               {errors.employee && <span className="error-text">{errors.employee}</span>}
             </div>
 
-            {/* Notes */}
+            {/* Observações */}
             <div className="form-group full-width">
               <label htmlFor="notes">Observações</label>
               <textarea

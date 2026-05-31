@@ -3,9 +3,11 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import AssetList from './components/AssetList';
 import AssetForm from './components/AssetForm';
+import Login from './components/Login';
+import EmployeesList from './components/EmployeesList';
 import './App.css';
 
-// Initial mock data to present a populated system out of the box
+// Dados simulados iniciais para apresentar o sistema populado
 const initialAssets = [
   {
     id: 1,
@@ -83,7 +85,17 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch all assets from DB
+  // Estado de Autenticação
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const session = localStorage.getItem('trynova_session');
+    return !!session;
+  });
+  const [user, setUser] = useState(() => {
+    const session = localStorage.getItem('trynova_session');
+    return session ? JSON.parse(session) : null;
+  });
+
+  // Busca todos os patrimônios do banco de dados
   const fetchAssets = async () => {
     setIsLoading(true);
     try {
@@ -95,7 +107,7 @@ function App() {
     } catch (err) {
       console.error("Erro ao carregar do banco de dados:", err);
       setError("Erro ao se conectar ao banco de dados Neon. Exibindo dados locais offline.");
-      // Fallback to LocalStorage
+      // Fallback para o LocalStorage
       const saved = localStorage.getItem('trynova_patrimonio');
       if (saved) {
         try {
@@ -112,21 +124,25 @@ function App() {
   };
 
   useEffect(() => {
-    fetchAssets();
-  }, []);
+    if (isLoggedIn) {
+      fetchAssets();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isLoggedIn]);
 
-  // Sync back to localstorage for fallback/cache
+  // Sincroniza de volta no localstorage para fallback/cache
   useEffect(() => {
     if (assets.length > 0) {
       localStorage.setItem('trynova_patrimonio', JSON.stringify(assets));
     }
   }, [assets]);
 
-  // CRUD Handlers
+  // Manipuladores de CRUD
   const handleSaveAsset = async (savedAsset) => {
     try {
       if (editingAsset) {
-        // Edit mode (PUT)
+        // Modo edição (PUT)
         const response = await fetch(`/api/assets/${savedAsset.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -139,7 +155,7 @@ function App() {
         const updated = await response.json();
         setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
       } else {
-        // Create mode (POST)
+        // Modo criação (POST)
         const response = await fetch('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -192,15 +208,34 @@ function App() {
     setActiveTab('assets');
   };
 
-  // Get list of tags for uniqueness validation
+  const handleLoginSuccess = (userData) => {
+    localStorage.setItem('trynova_session', JSON.stringify(userData));
+    setUser(userData);
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Tem certeza de que deseja sair?')) {
+      localStorage.removeItem('trynova_session');
+      setUser(null);
+      setIsLoggedIn(false);
+      setAssets([]);
+    }
+  };
+
+  // Obtém a lista de tags para validação de unicidade
   const existingTags = assets.map(a => a.tag);
+
+  if (!isLoggedIn) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="app-layout">
-      {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Navegação do Menu Lateral */}
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
 
-      {/* Main Content Area */}
+      {/* Área de Conteúdo Principal */}
       <main className="main-content">
         {error && (
           <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
@@ -218,6 +253,10 @@ function App() {
             assets={assets} 
             onViewAll={handleViewAllAssets} 
           />
+        ) : activeTab === 'employees' ? (
+          <EmployeesList 
+            assets={assets} 
+          />
         ) : (
           <AssetList 
             assets={assets} 
@@ -228,7 +267,7 @@ function App() {
         )}
       </main>
 
-      {/* Modal Form Overlay */}
+      {/* Formulário Modal Overlay */}
       {isFormOpen && (
         <AssetForm 
           asset={editingAsset}

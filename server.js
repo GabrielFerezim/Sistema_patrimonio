@@ -11,7 +11,7 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Neon connection string
+// String de conexão do Neon
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
@@ -19,20 +19,20 @@ if (!connectionString) {
   process.exit(1);
 }
 
-// Configure pg client pool
+// Configura o pool do cliente pg
 const { Pool } = pg;
 const pool = new Pool({
   connectionString,
   ssl: {
-    rejectUnauthorized: false // Required for Neon SSL connection
+    rejectUnauthorized: false // Obrigatório para conexão SSL do Neon
   }
 });
 
-// Auto-initialize DB Table
+// Auto-inicialização da tabela do banco de dados
 async function initDb() {
   const client = await pool.connect();
   try {
-    // Create Table
+    // Cria a tabela
     await client.query(`
       CREATE TABLE IF NOT EXISTS assets (
         id SERIAL PRIMARY KEY,
@@ -47,7 +47,7 @@ async function initDb() {
       );
     `);
     
-    // Check if table is empty, seed if necessary
+    // Verifica se a tabela está vazia, insere dados iniciais se necessário
     const res = await client.query('SELECT COUNT(*) FROM assets');
     const count = parseInt(res.rows[0].count, 10);
     
@@ -131,12 +131,12 @@ async function initDb() {
   }
 }
 
-// Call DB initialization
+// Chama a inicialização do banco de dados
 initDb();
 
-// CRUD Routes
+// Rotas CRUD
 
-// GET: Fetch all assets
+// GET: Busca todos os patrimônios
 app.get('/api/assets', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM assets ORDER BY id DESC');
@@ -147,7 +147,7 @@ app.get('/api/assets', async (req, res) => {
   }
 });
 
-// POST: Add new asset
+// POST: Adiciona novo patrimônio
 app.post('/api/assets', async (req, res) => {
   const { tag, name, equipment, employee, location, status, condition, notes } = req.body;
   try {
@@ -159,7 +159,7 @@ app.post('/api/assets', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    if (err.code === '23505') { // unique violation
+    if (err.code === '23505') { // violação de chave única
       res.status(400).json({ error: 'Já existe um patrimônio com esta Tag.' });
     } else {
       res.status(500).json({ error: 'Erro ao criar patrimônio' });
@@ -167,7 +167,7 @@ app.post('/api/assets', async (req, res) => {
   }
 });
 
-// PUT: Update asset
+// PUT: Atualiza patrimônio
 app.put('/api/assets/:id', async (req, res) => {
   const { id } = req.params;
   const { tag, name, equipment, employee, location, status, condition, notes } = req.body;
@@ -193,7 +193,7 @@ app.put('/api/assets/:id', async (req, res) => {
   }
 });
 
-// DELETE: Delete asset
+// DELETE: Exclui patrimônio
 app.delete('/api/assets/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -205,6 +205,16 @@ app.delete('/api/assets/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao excluir patrimônio' });
+  }
+});
+
+// POST: Validação de login
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === 'admin' && password === 'admin123') {
+    res.json({ success: true, username: 'admin', role: 'Administrador' });
+  } else {
+    res.status(401).json({ error: 'Usuário ou senha inválidos' });
   }
 });
 

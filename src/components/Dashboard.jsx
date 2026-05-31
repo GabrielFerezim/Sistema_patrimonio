@@ -1,7 +1,7 @@
 import React from 'react';
 
 const Dashboard = ({ assets, onViewAll }) => {
-  // Calculations
+  // Cálculos
   const totalAssets = assets.length;
   
   const inUseCount = assets.filter(a => a.status === 'Em Uso').length;
@@ -11,12 +11,12 @@ const Dashboard = ({ assets, onViewAll }) => {
   const novoCount = assets.filter(a => a.condition === 'Novo').length;
   const usadoCount = assets.filter(a => a.condition === 'Usado').length;
 
-  // Percentage calculations
+  // Cálculos de porcentagem
   const inUsePercent = totalAssets ? Math.round((inUseCount / totalAssets) * 100) : 0;
   const inStockPercent = totalAssets ? Math.round((inStockCount / totalAssets) * 100) : 0;
   const maintenancePercent = totalAssets ? Math.round((maintenanceCount / totalAssets) * 100) : 0;
 
-  // Locations breakdown
+  // Distribuição de localizações
   const locationsMap = assets.reduce((acc, curr) => {
     acc[curr.location] = (acc[curr.location] || 0) + 1;
     return acc;
@@ -24,12 +24,12 @@ const Dashboard = ({ assets, onViewAll }) => {
 
   const locationsSorted = Object.entries(locationsMap)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5); // top 5 locations
+    .slice(0, 5); // top 5 localizações
 
-  // Recent assets (last 4 added)
+  // Patrimônios recentes (últimos 4 adicionados)
   const recentAssets = [...assets].reverse().slice(0, 4);
 
-  // SVG Gauge helper parameters
+  // Parâmetros auxiliares do Gráfico SVG
   const radius = 35;
   const circumference = 2 * Math.PI * radius;
   
@@ -46,9 +46,9 @@ const Dashboard = ({ assets, onViewAll }) => {
         </div>
       </header>
 
-      {/* KPI Cards Grid */}
+      {/* Grade de Cartões de KPI */}
       <div className="kpi-grid">
-        {/* Total Assets */}
+        {/* Total de Patrimônios */}
         <div className="kpi-card total">
           <div className="kpi-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -64,7 +64,7 @@ const Dashboard = ({ assets, onViewAll }) => {
           <div className="kpi-bg-glow"></div>
         </div>
 
-        {/* In Use */}
+        {/* Em Uso */}
         <div className="kpi-card in-use">
           <div className="kpi-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -80,7 +80,7 @@ const Dashboard = ({ assets, onViewAll }) => {
           <div className="kpi-bg-glow"></div>
         </div>
 
-        {/* In Stock */}
+        {/* Em Estoque */}
         <div className="kpi-card in-stock">
           <div className="kpi-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -98,7 +98,7 @@ const Dashboard = ({ assets, onViewAll }) => {
           <div className="kpi-bg-glow"></div>
         </div>
 
-        {/* Under Maintenance */}
+        {/* Em Manutenção */}
         <div className="kpi-card maintenance">
           <div className="kpi-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -114,14 +114,14 @@ const Dashboard = ({ assets, onViewAll }) => {
         </div>
       </div>
 
-      {/* Charts Section */}
+      {/* Seção de Gráficos */}
       <div className="charts-grid">
-        {/* Status Distribution Gauges */}
+        {/* Gráficos de Distribuição de Status */}
         <div className="chart-card">
           <h3 className="chart-title">Status dos Equipamentos</h3>
           
           <div className="gauges-container">
-            {/* Gauge 1 */}
+            {/* Gráfico 1 */}
             <div className="gauge-item">
               <div className="gauge-svg-wrapper">
                 <svg width="90" height="90" viewBox="0 0 90 90">
@@ -141,7 +141,7 @@ const Dashboard = ({ assets, onViewAll }) => {
               <span className="gauge-label">Em Uso</span>
             </div>
 
-            {/* Gauge 2 */}
+            {/* Gráfico 2 */}
             <div className="gauge-item">
               <div className="gauge-svg-wrapper">
                 <svg width="90" height="90" viewBox="0 0 90 90">
@@ -161,7 +161,7 @@ const Dashboard = ({ assets, onViewAll }) => {
               <span className="gauge-label">Em Estoque</span>
             </div>
 
-            {/* Gauge 3 */}
+            {/* Gráfico 3 */}
             <div className="gauge-item">
               <div className="gauge-svg-wrapper">
                 <svg width="90" height="90" viewBox="0 0 90 90">
@@ -194,7 +194,7 @@ const Dashboard = ({ assets, onViewAll }) => {
           </div>
         </div>
 
-        {/* Location Distribution Bar Chart */}
+        {/* Gráfico de Barras de Distribuição por Localização */}
         <div className="chart-card">
           <h3 className="chart-title">Patrimônios por Localização</h3>
           {locationsSorted.length > 0 ? (
@@ -224,7 +224,7 @@ const Dashboard = ({ assets, onViewAll }) => {
         </div>
       </div>
 
-      {/* Recent Assets & Quick Action */}
+      {/* Patrimônios Recentes & Ação Rápida */}
       <div className="recent-assets-section">
         <div className="section-header">
           <h3 className="section-title">Últimos Patrimônios Cadastrados</h3>
