@@ -6,7 +6,6 @@ import cors from 'cors';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -16,7 +15,6 @@ const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   console.error("ERRO: A variável de ambiente DATABASE_URL não está configurada!");
-  process.exit(1);
 }
 
 // Configura o pool do cliente pg
@@ -30,6 +28,7 @@ const pool = new Pool({
 
 // Auto-inicialização da tabela do banco de dados
 async function initDb() {
+  if (!connectionString) return;
   const client = await pool.connect();
   try {
     // Cria a tabela
@@ -218,6 +217,12 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Servidor de API rodando na porta ${port}`);
-});
+// Inicialização local (se não estiver rodando na Vercel como Serverless Function)
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const port = process.env.PORT || 3001;
+  app.listen(port, () => {
+    console.log(`Servidor de API rodando localmente na porta ${port}`);
+  });
+}
+
+export default app;
