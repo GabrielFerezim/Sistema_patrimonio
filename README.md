@@ -249,16 +249,10 @@ Este projeto demonstra competências práticas em:
 
 ## 📷 Preview
 
-> Adicione aqui screenshots do sistema para destacar a interface visual.
-
-Exemplo:
-
-* Tela de Login
-* Dashboard
-* Gestão de Inventário
-* Gestão de Funcionários
-
----
+<img width="1919" height="944" alt="image" src="https://github.com/user-attachments/assets/f4b88a60-fb9a-40bf-be44-278d50a4454f" />
+<img width="1919" height="945" alt="image" src="https://github.com/user-attachments/assets/e74cc8f0-dbb5-4eae-8ee5-0b4e1e9adc85" />
+<img width="1919" height="941" alt="image" src="https://github.com/user-attachments/assets/1b845732-8db7-40da-86b0-9c92e992c94c" />
+<img width="1919" height="940" alt="image" src="https://github.com/user-attachments/assets/6b463851-2a21-4273-8172-2293466784a9" />
 
 ## 👨‍💻 Desenvolvido por
 
