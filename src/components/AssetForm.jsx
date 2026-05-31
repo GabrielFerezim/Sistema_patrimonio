@@ -87,6 +87,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
     e.preventDefault();
     if (validateForm()) {
       onSave({
+        ...(isEdit ? asset : {}), // Preserva campos não editados no formulário, como last_verified
         ...formData,
         id: isEdit ? asset.id : Date.now(),
         // Normaliza os campos

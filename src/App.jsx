@@ -18,7 +18,8 @@ const initialAssets = [
     location: 'Tecnologia da Informação',
     status: 'Em Uso',
     condition: 'Novo',
-    notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.'
+    notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.',
+    last_verified: new Date().toISOString()
   },
   {
     id: 2,
@@ -29,7 +30,8 @@ const initialAssets = [
     location: 'Marketing',
     status: 'Em Uso',
     condition: 'Usado',
-    notes: 'Resolução 2560x1080. Sem detalhes.'
+    notes: 'Resolução 2560x1080. Sem detalhes.',
+    last_verified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     id: 3,
@@ -40,7 +42,8 @@ const initialAssets = [
     location: 'Diretoria',
     status: 'Em Uso',
     condition: 'Novo',
-    notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.'
+    notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.',
+    last_verified: null
   },
   {
     id: 4,
@@ -51,7 +54,8 @@ const initialAssets = [
     location: 'Estoque Central',
     status: 'Em Estoque',
     condition: 'Novo',
-    notes: 'Modelo ergonômico NR17, cor preta.'
+    notes: 'Modelo ergonômico NR17, cor preta.',
+    last_verified: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     id: 5,
@@ -62,7 +66,8 @@ const initialAssets = [
     location: 'Vendas',
     status: 'Em Uso',
     condition: 'Usado',
-    notes: 'Celular corporativo. Tela trincada no canto inferior.'
+    notes: 'Celular corporativo. Tela trincada no canto inferior.',
+    last_verified: null
   },
   {
     id: 6,
@@ -73,7 +78,8 @@ const initialAssets = [
     location: 'Administração',
     status: 'Manutenção',
     condition: 'Usado',
-    notes: 'Enviado para manutenção da placa de rede física em 15/05/2026.'
+    notes: 'Enviado para manutenção da placa de rede física em 15/05/2026.',
+    last_verified: null
   }
 ];
 
@@ -204,6 +210,28 @@ function App() {
     setIsFormOpen(true);
   };
 
+  const handleVerifyAsset = async (id) => {
+    try {
+      const response = await fetch(`/api/assets/${id}/verify`, {
+        method: 'POST'
+      });
+      if (!response.ok) {
+        throw new Error('Falha ao verificar patrimônio no banco de dados.');
+      }
+      const updated = await response.json();
+      setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
+    } catch (err) {
+      console.error("Erro ao verificar patrimônio:", err);
+      // Fallback local caso dê erro ou offline (Banco de dados não conectado)
+      setAssets(prev => prev.map(item => {
+        if (item.id === id) {
+          return { ...item, last_verified: new Date().toISOString() };
+        }
+        return item;
+      }));
+    }
+  };
+
   const handleViewAllAssets = () => {
     setActiveTab('assets');
   };
@@ -263,6 +291,7 @@ function App() {
             onEdit={handleEditAsset} 
             onDelete={handleDeleteAsset} 
             onAddNew={handleAddNewAsset} 
+            onVerify={handleVerifyAsset}
           />
         )}
       </main>

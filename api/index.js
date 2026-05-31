@@ -45,6 +45,11 @@ async function initDb() {
         notes TEXT
       );
     `);
+
+    // Garante que a coluna last_verified existe (migração automática)
+    await client.query(`
+      ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_verified TIMESTAMP;
+    `);
     
     // Verifica se a tabela está vazia, insere dados iniciais se necessário
     const res = await client.query('SELECT COUNT(*) FROM assets');
@@ -52,6 +57,13 @@ async function initDb() {
     
     if (count === 0) {
       console.log("Banco de dados vazio. Semeando dados iniciais...");
+      
+      // Datas simuladas para verificação
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
       const initialAssets = [
         {
           tag: 'PAT-001',
@@ -61,7 +73,8 @@ async function initDb() {
           location: 'Tecnologia da Informação',
           status: 'Em Uso',
           condition: 'Novo',
-          notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.'
+          notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.',
+          last_verified: new Date() // Verificado hoje
         },
         {
           tag: 'PAT-002',
@@ -71,7 +84,8 @@ async function initDb() {
           location: 'Marketing',
           status: 'Em Uso',
           condition: 'Usado',
-          notes: 'Resolução 2560x1080. Sem detalhes.'
+          notes: 'Resolução 2560x1080. Sem detalhes.',
+          last_verified: twoDaysAgo // Verificado há 2 dias
         },
         {
           tag: 'PAT-003',
@@ -81,7 +95,8 @@ async function initDb() {
           location: 'Diretoria',
           status: 'Em Uso',
           condition: 'Novo',
-          notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.'
+          notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.',
+          last_verified: null // Nunca verificado
         },
         {
           tag: 'PAT-004',
@@ -91,7 +106,8 @@ async function initDb() {
           location: 'Estoque Central',
           status: 'Em Estoque',
           condition: 'Novo',
-          notes: 'Modelo ergonômico NR17, cor preta.'
+          notes: 'Modelo ergonômico NR17, cor preta.',
+          last_verified: fiveDaysAgo // Verificado há 5 dias
         },
         {
           tag: 'PAT-005',
@@ -101,7 +117,8 @@ async function initDb() {
           location: 'Vendas',
           status: 'Em Uso',
           condition: 'Usado',
-          notes: 'Celular corporativo. Tela trincada no canto inferior.'
+          notes: 'Celular corporativo. Tela trincada no canto inferior.',
+          last_verified: null // Nunca verificado
         },
         {
           tag: 'PAT-006',
@@ -111,15 +128,16 @@ async function initDb() {
           location: 'Administração',
           status: 'Manutenção',
           condition: 'Usado',
-          notes: 'Enviado para manutenção da placa de rede física em 15/05/2026.'
+          notes: 'Enviado para manutenção da placa de rede física em 15/05/2026.',
+          last_verified: null // Nunca verificado
         }
       ];
 
       for (const asset of initialAssets) {
         await client.query(`
-          INSERT INTO assets (tag, name, equipment, employee, location, status, condition, notes)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `, [asset.tag, asset.name, asset.equipment, asset.employee || null, asset.location, asset.status, asset.condition, asset.notes]);
+          INSERT INTO assets (tag, name, equipment, employee, location, status, condition, notes, last_verified)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [asset.tag, asset.name, asset.equipment, asset.employee || null, asset.location, asset.status, asset.condition, asset.notes, asset.last_verified]);
       }
       console.log("Dados semeados com sucesso!");
     }
@@ -148,13 +166,13 @@ app.get('/api/assets', async (req, res) => {
 
 // POST: Adiciona novo patrimônio
 app.post('/api/assets', async (req, res) => {
-  const { tag, name, equipment, employee, location, status, condition, notes } = req.body;
+  const { tag, name, equipment, employee, location, status, condition, notes, last_verified } = req.body;
   try {
     const result = await pool.query(`
-      INSERT INTO assets (tag, name, equipment, employee, location, status, condition, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO assets (tag, name, equipment, employee, location, status, condition, notes, last_verified)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [tag, name, equipment, employee || null, location, status, condition, notes]);
+    `, [tag, name, equipment, employee || null, location, status, condition, notes, last_verified || null]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -169,14 +187,14 @@ app.post('/api/assets', async (req, res) => {
 // PUT: Atualiza patrimônio
 app.put('/api/assets/:id', async (req, res) => {
   const { id } = req.params;
-  const { tag, name, equipment, employee, location, status, condition, notes } = req.body;
+  const { tag, name, equipment, employee, location, status, condition, notes, last_verified } = req.body;
   try {
     const result = await pool.query(`
       UPDATE assets 
-      SET tag = $1, name = $2, equipment = $3, employee = $4, location = $5, status = $6, condition = $7, notes = $8
-      WHERE id = $9
+      SET tag = $1, name = $2, equipment = $3, employee = $4, location = $5, status = $6, condition = $7, notes = $8, last_verified = $9
+      WHERE id = $10
       RETURNING *
-    `, [tag, name, equipment, employee || null, location, status, condition, notes, id]);
+    `, [tag, name, equipment, employee || null, location, status, condition, notes, last_verified || null, id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Patrimônio não encontrado' });
@@ -189,6 +207,27 @@ app.put('/api/assets/:id', async (req, res) => {
     } else {
       res.status(500).json({ error: 'Erro ao atualizar patrimônio' });
     }
+  }
+});
+
+// POST: Marca patrimônio como verificado (atualiza last_verified para NOW)
+app.post('/api/assets/:id/verify', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`
+      UPDATE assets 
+      SET last_verified = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Patrimônio não encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao verificar patrimônio' });
   }
 });
 
