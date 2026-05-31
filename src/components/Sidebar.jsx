@@ -64,6 +64,19 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
           </button>
 
           <button
+            className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stock')}
+          >
+            {/* Ícone de Estoque (Layers) */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
+            </svg>
+            <span>Estoque</span>
+          </button>
+
+          <button
             className={`nav-item ${activeTab === 'assets' ? 'active' : ''}`}
             onClick={() => setActiveTab('assets')}
           >
@@ -117,6 +130,18 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
             <rect x="3" y="16" width="7" height="5" />
           </svg>
           <span>Dashboard</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+          onClick={() => setActiveTab('stock')}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          <span>Estoque</span>
         </button>
 
         <button

@@ -7,14 +7,14 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
   const [verificationFilter, setVerificationFilter] = useState('Pendentes'); // Inicia focado em pendentes para facilitar auditoria
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Auxiliares de Verificação
-  const isVerifiedToday = (dateStr) => {
+  // Auxiliares de Verificação (Ciclo de 30 Dias)
+  const isVerifiedWithin30Days = (dateStr) => {
     if (!dateStr) return false;
     const date = new Date(dateStr);
     const now = new Date();
-    return date.getDate() === now.getDate() &&
-           date.getMonth() === now.getMonth() &&
-           date.getFullYear() === now.getFullYear();
+    const diffTime = now - date;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 30;
   };
 
   const formatLastVerified = (dateStr) => {
@@ -61,9 +61,9 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
     if (verificationFilter === 'Verificados') {
       matchesVerification = !!asset.last_verified;
     } else if (verificationFilter === 'Pendentes') {
-      matchesVerification = !isVerifiedToday(asset.last_verified);
+      matchesVerification = !isVerifiedWithin30Days(asset.last_verified);
     } else if (verificationFilter === 'VerificadosHoje') {
-      matchesVerification = isVerifiedToday(asset.last_verified);
+      matchesVerification = isVerifiedWithin30Days(asset.last_verified);
     }
 
     return matchesSearch && matchesStatus && matchesLocation && matchesVerification;
@@ -78,9 +78,9 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
     setDeleteConfirmId(null);
   };
 
-  // Métricas do Painel de Auditoria Diária
+  // Métricas do Painel de Auditoria Mensal (30 Dias)
   const totalAssets = assets.length;
-  const verifiedCount = assets.filter(a => isVerifiedToday(a.last_verified)).length;
+  const verifiedCount = assets.filter(a => isVerifiedWithin30Days(a.last_verified)).length;
   const verifiedPercent = totalAssets ? Math.round((verifiedCount / totalAssets) * 100) : 0;
 
   return (
@@ -112,7 +112,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
             <div>
               <h3 className="audit-card-title">Auditoria de Patrimônios</h3>
               <p className="audit-card-desc">
-                <strong>{verifiedCount}</strong> de <strong>{totalAssets}</strong> itens verificados hoje
+                <strong>{verifiedCount}</strong> de <strong>{totalAssets}</strong> itens verificados este mês (últimos 30 dias)
               </p>
             </div>
           </div>
@@ -158,9 +158,9 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
               onChange={(e) => setVerificationFilter(e.target.value)}
             >
               <option value="Todos">Todos os Itens</option>
-              <option value="Pendentes">Pendentes Hoje ⌛</option>
-              <option value="VerificadosHoje">Verificados Hoje ✅</option>
-              <option value="Verificados">Qualquer Verificação</option>
+              <option value="Pendentes">Pendentes (Não conferidos há 30+ dias) ⌛</option>
+              <option value="VerificadosHoje">Verificados este Mês (Últimos 30 dias) ✅</option>
+              <option value="Verificados">Qualquer Histórico de Auditoria</option>
             </select>
           </div>
 
@@ -216,7 +216,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
               </thead>
               <tbody>
                 {filteredAssets.map(asset => {
-                  const verifiedToday = isVerifiedToday(asset.last_verified);
+                  const verifiedToday = isVerifiedWithin30Days(asset.last_verified);
                   return (
                     <tr key={asset.id} className={verifiedToday ? 'row-verified-today' : ''}>
                       {/* Tag/Código */}
@@ -338,7 +338,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
           <div className="mobile-only-view mobile-assets-cards-container">
             <div className="mobile-assets-cards">
               {filteredAssets.map(asset => {
-                const verified = isVerifiedToday(asset.last_verified);
+                const verified = isVerifiedWithin30Days(asset.last_verified);
                 return (
                   <div 
                     key={asset.id} 
@@ -424,7 +424,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
-                          Auditado Hoje
+                          Auditado este Mês
                         </button>
                       )}
 

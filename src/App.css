@@ -2131,4 +2131,261 @@
   transform: translateX(-2px) !important;
 }
 
+/* ==========================================================================
+   12. Stock List & Quick Assignment Styles
+   ========================================================================= */
+.stock-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stock-kpi-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  transition: var(--transition-smooth);
+  width: fit-content;
+  min-width: 250px;
+}
+
+.stock-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+}
+
+.stock-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: rgba(59, 130, 246, 0.08);
+  color: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stock-kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stock-kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-kpi-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+  margin-top: 0.15rem;
+}
+
+/* Stock Grid Layout */
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.stock-item-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  gap: 0.85rem;
+}
+
+.stock-item-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.stock-item-card.assigning-mode {
+  border-left: 4px solid var(--primary-light);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%);
+}
+
+.stock-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stock-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.stock-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.stock-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.stock-detail .label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stock-detail .val {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.btn-deliver {
+  width: 100%;
+  margin-top: 0.5rem;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.btn-deliver:hover {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* Quick Assignment Form Panel */
+.stock-assign-form {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  animation: slideDownAssign 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownAssign {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stock-assign-form .form-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 0.25rem 0;
+  border-left: 3px solid var(--primary-light);
+  padding-left: 0.5rem;
+}
+
+.stock-assign-form label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+/* Autocomplete search suggestions styling */
+.form-group-autocomplete {
+  display: flex;
+  flex-direction: column;
+}
+
+.autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.autocomplete-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  max-height: 140px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+}
+
+.autocomplete-suggestions li {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-medium);
+  transition: var(--transition-smooth);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  text-align: left;
+}
+
+.autocomplete-suggestions li:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-suggestions li:hover {
+  background-color: var(--primary-glow);
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
+.form-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.8rem !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Mobile responsive constraints */
+@media (max-width: 768px) {
+  .stock-kpi-card {
+    width: 100%;
+  }
+  
+  .stock-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 

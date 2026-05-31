@@ -5,6 +5,7 @@ import AssetList from './components/AssetList';
 import AssetForm from './components/AssetForm';
 import Login from './components/Login';
 import EmployeesList from './components/EmployeesList';
+import StockList from './components/StockList';
 import './App.css';
 
 // Dados simulados iniciais para apresentar o sistema populado
@@ -232,6 +233,36 @@ function App() {
     }
   };
 
+  const handleAssignAsset = async (id, employeeName, location) => {
+    const asset = assets.find(a => a.id === id);
+    if (!asset) return;
+    const updatedAsset = {
+      ...asset,
+      status: 'Em Uso',
+      employee: employeeName,
+      location: location || asset.location,
+      last_verified: new Date().toISOString()
+    };
+    
+    try {
+      const response = await fetch(`/api/assets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedAsset)
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Falha ao vincular funcionário.');
+      }
+      const updated = await response.json();
+      setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
+    } catch (err) {
+      console.error("Erro ao vincular:", err);
+      // Fallback local
+      setAssets(prev => prev.map(item => item.id === id ? updatedAsset : item));
+    }
+  };
+
   const handleViewAllAssets = () => {
     setActiveTab('assets');
   };
@@ -280,6 +311,11 @@ function App() {
           <Dashboard 
             assets={assets} 
             onViewAll={handleViewAllAssets} 
+          />
+        ) : activeTab === 'stock' ? (
+          <StockList 
+            assets={assets} 
+            onAssign={handleAssignAsset} 
           />
         ) : activeTab === 'employees' ? (
           <EmployeesList 
