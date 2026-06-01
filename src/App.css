@@ -2388,4 +2388,709 @@
   }
 }
 
+/* ==========================================================================
+   13. Sectors Grid & Cards Layout
+   ========================================================================== */
+.sectors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1.75rem;
+  margin-top: 1rem;
+}
+
+.sector-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition-smooth);
+}
+
+.sector-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: #cbd5e1;
+}
+
+.sector-card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(185deg, #ffffff 0%, #f8fafc 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sector-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.sector-card-stats-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-top: 0.25rem;
+  display: inline-block;
+}
+
+.sector-card-body {
+  padding: 1.25rem;
+  flex-grow: 1;
+  background-color: #fcfdfe;
+}
+
+.employees-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* Accordion modifications for sector card integration */
+.sector-card .employee-accordion-card {
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.sector-card .employee-accordion-card:hover {
+  border-color: var(--primary-glow);
+}
+
+.sector-card .employee-accordion-card.expanded {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-md);
+}
+
+.sector-card .employee-accordion-header {
+  padding: 0.85rem 1rem;
+}
+
+.sector-card .employee-avatarlarge {
+  width: 38px;
+  height: 38px;
+  font-size: 1rem;
+}
+
+.sector-card .employee-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sector-card .employee-asset-count-badge {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.employee-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.employee-actions .btn-action {
+  width: 28px;
+  height: 28px;
+  margin-left: 0;
+}
+
+.employee-actions .btn-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sector-card .employee-accordion-content {
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid var(--border-color);
+  background-color: #ffffff;
+}
+
+.sector-card .inventory-table th {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.7rem;
+}
+
+.sector-card .inventory-table td {
+  padding: 0.75rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.sector-card .employee-asset-notes {
+  max-width: 140px;
+  font-size: 0.75rem;
+}
+
+/* Modal form extensions */
+.small-modal {
+  max-width: 450px !important;
+}
+
+@media (max-width: 768px) {
+  .sectors-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* ==========================================================================
+   14. Team Color Coding Styles
+   ========================================================================== */
+.team-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  box-shadow: var(--shadow-sm);
+}
+
+/* C&A (Verde) */
+.employee-accordion-card.team-ca {
+  border-left: 4px solid #10b981;
+}
+.team-badge.team-ca {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+.employee-avatarlarge.team-ca {
+  background-color: #d1fae5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+/* Latam (Azul) */
+.employee-accordion-card.team-latam {
+  border-left: 4px solid #3b82f6;
+}
+.team-badge.team-latam {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+.employee-avatarlarge.team-latam {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+/* Prosegur (Rosa) */
+.employee-accordion-card.team-prosegur {
+  border-left: 4px solid #ec4899;
+}
+.team-badge.team-prosegur {
+  background-color: #fce7f3;
+  color: #9d174d;
+  border: 1px solid rgba(236, 72, 153, 0.15);
+}
+.employee-avatarlarge.team-prosegur {
+  background-color: #fce7f3;
+  color: #be185d;
+  border-color: #fbcfe8;
+}
+
+/* Nenhuma/Outros (Cinza) */
+.employee-accordion-card.team-nenhuma,
+.employee-accordion-card.team-none {
+  border-left: 4px solid #94a3b8;
+}
+.employee-avatarlarge.team-nenhuma,
+.employee-avatarlarge.team-none {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+/* ==========================================================================
+   15. Sector Sections & Employee Profile Cards Layout
+   ========================================================================== */
+.sector-section {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+}
+
+.sector-section:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: #cbd5e1;
+}
+
+.sector-section-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1.5px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+.sector-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sector-section-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1e40af;
+  background-color: #dbeafe;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.employees-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.employee-profile-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+  overflow: hidden;
+  text-align: center;
+}
+
+.employee-profile-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.profile-card-top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.profile-card-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.profile-btn-action {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: var(--transition-smooth);
+}
+
+.profile-btn-action:hover {
+  background-color: #f1f5f9;
+}
+
+.profile-btn-action.edit:hover {
+  color: var(--primary-light);
+}
+
+.profile-btn-action.delete:hover {
+  background-color: var(--color-danger-glow);
+  color: var(--color-danger);
+}
+
+.profile-card-avatar-wrapper {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.85rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+.profile-card-avatar {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-family: var(--font-title);
+}
+
+.profile-card-identity {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.profile-card-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-card-role {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-card-details {
+  width: 100%;
+  border-top: 1px solid var(--border-color);
+  padding: 0.85rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.profile-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--text-medium);
+}
+
+.profile-detail-row .detail-icon {
+  font-size: 1.05rem;
+  opacity: 0.85;
+}
+
+.btn-profile-view-assets {
+  width: 100%;
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  color: var(--text-medium);
+  margin-top: auto;
+}
+
+.btn-profile-view-assets:hover {
+  background-color: var(--primary-glow);
+  color: var(--primary-light);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Team Color Schemes for Profile Cards */
+/* C&A (Verde) */
+.employee-profile-card.team-ca {
+  border-top: 4px solid #10b981;
+}
+.profile-card-avatar-wrapper.team-ca {
+  background-color: #d1fae5;
+  color: #047857;
+  border: 2px solid #a7f3d0;
+}
+
+/* Latam (Azul) */
+.employee-profile-card.team-latam {
+  border-top: 4px solid #3b82f6;
+}
+.profile-card-avatar-wrapper.team-latam {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border: 2px solid #bfdbfe;
+}
+
+/* Prosegur (Rosa) */
+.employee-profile-card.team-prosegur {
+  border-top: 4px solid #ec4899;
+}
+.profile-card-avatar-wrapper.team-prosegur {
+  background-color: #fce7f3;
+  color: #be185d;
+  border: 2px solid #fbcfe8;
+}
+
+/* Nenhuma/Outra (Cinza) */
+.employee-profile-card.team-nenhuma,
+.employee-profile-card.team-none {
+  border-top: 4px solid #94a3b8;
+}
+.profile-card-avatar-wrapper.team-nenhuma,
+.profile-card-avatar-wrapper.team-none {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+@media (max-width: 768px) {
+  .employees-profile-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* ==========================================================================
+   16. Layout Toggle and Directory Table Styles
+   ========================================================================== */
+.layout-toggle-group {
+  display: inline-flex;
+  background-color: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  gap: 0.25rem;
+}
+
+.layout-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.layout-toggle-btn.active {
+  background-color: #ffffff;
+  color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.layout-toggle-btn:not(.active):hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--text-main);
+}
+
+/* Directory Table */
+.employees-dir-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.employees-dir-table th {
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  color: var(--text-medium);
+  border-bottom: 2px solid var(--border-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #f8fafc;
+}
+
+.employees-dir-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  color: var(--text-main);
+  background-color: #ffffff;
+}
+
+.employees-dir-table th.actions-header,
+.employees-dir-table td.actions-cell {
+  text-align: right;
+}
+
+.employee-table-row {
+  transition: background-color 0.2s ease;
+}
+
+.employee-table-row:hover td {
+  background-color: #f8fafc;
+}
+
+/* Table Row Side Colors (Team Highlights) */
+.employee-table-row.team-ca td:first-child {
+  border-left: 4px solid #10b981;
+}
+
+.employee-table-row.team-latam td:first-child {
+  border-left: 4px solid #3b82f6;
+}
+
+.employee-table-row.team-prosegur td:first-child {
+  border-left: 4px solid #ec4899;
+}
+
+.employee-table-row.team-nenhuma td:first-child,
+.employee-table-row.team-none td:first-child {
+  border-left: 4px solid #94a3b8;
+}
+
+/* Small Avatar for Table */
+.employee-avatarsmall {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-title);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.employee-avatarsmall.team-ca {
+  background-color: #d1fae5;
+  color: #047857;
+  border: 1.5px solid #a7f3d0;
+}
+
+.employee-avatarsmall.team-latam {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border: 1.5px solid #bfdbfe;
+}
+
+.employee-avatarsmall.team-prosegur {
+  background-color: #fce7f3;
+  color: #be185d;
+  border: 1.5px solid #fbcfe8;
+}
+
+.employee-avatarsmall.team-nenhuma,
+.employee-avatarsmall.team-none {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+}
+
+/* Cells formatting */
+.emp-identity-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.emp-name-main {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.emp-role-text {
+  font-size: 0.85rem;
+  color: var(--text-medium);
+  font-weight: 500;
+}
+
+.team-badge-none {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.emp-ramal-cell strong {
+  font-family: monospace;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background-color: #f1f5f9;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.emp-ramal-cell .unassigned {
+  color: var(--text-muted);
+}
+
+.assets-count-badge-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-medium);
+  transition: all 0.2s ease;
+}
+
+.employee-table-row:hover .assets-count-badge-compact {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-sm);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.actions-cell .btn-action {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: var(--transition-smooth);
+}
+
+.actions-cell .btn-action:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.actions-cell .btn-action.edit:hover {
+  color: var(--primary-light);
+  border-color: rgba(59, 130, 246, 0.3);
+  background-color: var(--primary-glow);
+}
+
+.actions-cell .btn-action.delete:hover {
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: var(--color-danger-glow);
+}
+
+.actions-cell .btn-action.view-assets-list-btn:hover {
+  color: var(--primary-light);
+  border-color: rgba(59, 130, 246, 0.3);
+  background-color: var(--primary-glow);
+}
+
+
+
 

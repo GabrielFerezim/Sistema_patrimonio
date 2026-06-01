@@ -84,8 +84,16 @@ const initialAssets = [
   }
 ];
 
+const initialEmployees = [
+  { id: 1, name: 'Thiago Alencar', sector: 'Tecnologia da Informação', ramal: '4001', team: 'C&A', role: 'Analista de Suporte' },
+  { id: 2, name: 'Mariana Costa', sector: 'Marketing', ramal: '4002', team: 'Latam', role: 'Coordenadora de Marketing' },
+  { id: 3, name: 'Carlos Eduardo', sector: 'Diretoria', ramal: '4003', team: 'Prosegur', role: 'Diretor Executivo' },
+  { id: 4, name: 'Aline Schmidt', sector: 'Vendas', ramal: '4004', team: 'Latam', role: 'Executiva de Vendas' }
+];
+
 function App() {
   const [assets, setAssets] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
@@ -130,13 +138,42 @@ function App() {
     }
   };
 
+  // Busca todos os funcionários do banco de dados
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees');
+      if (!response.ok) throw new Error('Falha ao conectar ao banco de dados Neon.');
+      const data = await response.json();
+      setEmployees(data);
+    } catch (err) {
+      console.error("Erro ao carregar funcionários do banco de dados:", err);
+      const saved = localStorage.getItem('trynova_employees');
+      if (saved) {
+        try {
+          setEmployees(JSON.parse(saved));
+        } catch (e) {
+          setEmployees(initialEmployees);
+        }
+      } else {
+        setEmployees(initialEmployees);
+      }
+    }
+  };
+
   useEffect(() => {
     if (isLoggedIn) {
       fetchAssets();
+      fetchEmployees();
     } else {
       setIsLoading(false);
     }
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      localStorage.setItem('trynova_employees', JSON.stringify(employees));
+    }
+  }, [employees]);
 
   // Sincroniza de volta no localstorage para fallback/cache
   useEffect(() => {
@@ -203,6 +240,105 @@ function App() {
     } catch (err) {
       console.error("Erro ao excluir:", err);
       alert(err.message);
+    }
+  };
+
+  const handleSaveEmployee = async (savedEmployee) => {
+    try {
+      if (savedEmployee.id && typeof savedEmployee.id === 'number' && savedEmployee.id < 1500000000000) {
+        // Edit mode (PUT)
+        const response = await fetch(`/api/employees/${savedEmployee.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savedEmployee)
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Falha ao atualizar funcionário.');
+        }
+        const updated = await response.json();
+        setEmployees(prev => prev.map(item => item.id === updated.id ? updated : item));
+        
+        // Update assets locally if name changed
+        if (savedEmployee.oldName && savedEmployee.oldName !== updated.name) {
+          setAssets(prev => prev.map(asset => {
+            if (asset.employee === savedEmployee.oldName) {
+              return { ...asset, employee: updated.name };
+            }
+            return asset;
+          }));
+        }
+      } else {
+        // Create mode (POST)
+        const response = await fetch('/api/employees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savedEmployee)
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || 'Falha ao cadastrar funcionário.');
+        }
+        const created = await response.json();
+        setEmployees(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Erro ao salvar funcionário:", err);
+      // Local fallback
+      if (savedEmployee.id) {
+        setEmployees(prev => prev.map(item => item.id === savedEmployee.id ? { id: savedEmployee.id, name: savedEmployee.name, sector: savedEmployee.sector, ramal: savedEmployee.ramal, team: savedEmployee.team, role: savedEmployee.role } : item));
+        if (savedEmployee.oldName && savedEmployee.oldName !== savedEmployee.name) {
+          setAssets(prev => prev.map(asset => {
+            if (asset.employee === savedEmployee.oldName) {
+              return { ...asset, employee: savedEmployee.name };
+            }
+            return asset;
+          }));
+        }
+      } else {
+        const newEmp = { id: Date.now(), name: savedEmployee.name, sector: savedEmployee.sector, ramal: savedEmployee.ramal, team: savedEmployee.team, role: savedEmployee.role };
+        setEmployees(prev => [...prev, newEmp].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      }
+    }
+  };
+
+  const handleDeleteEmployee = async (id, name) => {
+    try {
+      const response = await fetch(`/api/employees/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Falha ao excluir funcionário.');
+      }
+      setEmployees(prev => prev.filter(item => item.id !== id));
+      // Local fallback for assets status update on cascade
+      setAssets(prev => prev.map(asset => {
+        if (asset.employee === name) {
+          return {
+            ...asset,
+            employee: null,
+            status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status
+          };
+        }
+        return asset;
+      }));
+      setError(null);
+    } catch (err) {
+      console.error("Erro ao excluir funcionário:", err);
+      // Local fallback
+      setEmployees(prev => prev.filter(item => item.id !== id));
+      setAssets(prev => prev.map(asset => {
+        if (asset.employee === name) {
+          return {
+            ...asset,
+            employee: null,
+            status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status
+          };
+        }
+        return asset;
+      }));
     }
   };
 
@@ -315,11 +451,15 @@ function App() {
         ) : activeTab === 'stock' ? (
           <StockList 
             assets={assets} 
+            employees={employees}
             onAssign={handleAssignAsset} 
           />
         ) : activeTab === 'employees' ? (
           <EmployeesList 
             assets={assets} 
+            employees={employees}
+            onSaveEmployee={handleSaveEmployee}
+            onDeleteEmployee={handleDeleteEmployee}
           />
         ) : (
           <AssetList 
@@ -337,6 +477,7 @@ function App() {
         <AssetForm 
           asset={editingAsset}
           existingTags={existingTags}
+          employees={employees}
           onSave={handleSaveAsset} 
           onClose={() => {
             setIsFormOpen(false);

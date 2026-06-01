@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
+const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => {
   const isEdit = !!asset;
   
   const [formData, setFormData] = useState({
@@ -46,9 +46,15 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
       if (name === 'status' && value !== 'Em Uso') {
         updated.employee = '';
       }
-      // Se o funcionário for digitado, define automaticamente o status para 'Em Uso'
-      if (name === 'employee' && value.trim() !== '' && prev.status !== 'Em Uso') {
-        updated.status = 'Em Uso';
+      // Se o funcionário for selecionado, define automaticamente o status para 'Em Uso' e sua localização para o setor do funcionário
+      if (name === 'employee' && value.trim() !== '') {
+        if (prev.status !== 'Em Uso') {
+          updated.status = 'Em Uso';
+        }
+        const selectedEmp = employees.find(emp => emp.name === value);
+        if (selectedEmp && selectedEmp.sector) {
+          updated.location = selectedEmp.sector;
+        }
       }
       
       return updated;
@@ -229,16 +235,21 @@ const AssetForm = ({ asset, onSave, onClose, existingTags }) => {
               <label htmlFor="employee" className={formData.status !== 'Em Uso' ? 'disabled-label' : ''}>
                 Funcionário Responsável {formData.status === 'Em Uso' ? '*' : '(Disponível apenas em Uso)'}
               </label>
-              <input
-                type="text"
+              <select
                 id="employee"
                 name="employee"
                 value={formData.employee}
                 onChange={handleChange}
-                placeholder={formData.status === 'Em Uso' ? "Nome do funcionário" : "Só aplicável quando estiver 'Em Uso'"}
                 disabled={formData.status !== 'Em Uso'}
                 className={errors.employee ? 'input-error' : ''}
-              />
+              >
+                <option value="">{employees.length === 0 ? 'Nenhum funcionário cadastrado' : 'Selecione um funcionário...'}</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.name}>
+                    {emp.name} ({emp.sector})
+                  </option>
+                ))}
+              </select>
               {errors.employee && <span className="error-text">{errors.employee}</span>}
             </div>
 

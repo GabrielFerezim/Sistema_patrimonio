@@ -1,36 +1,113 @@
 import React, { useState } from 'react';
 
-const EmployeesList = ({ assets }) => {
+const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmployee }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedEmployee, setExpandedEmployee] = useState(null);
+  const [layoutMode, setLayoutMode] = useState('list'); // 'list' ou 'grid'
+  
+  // Modal states for CRUD Employee
+  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [employeeName, setEmployeeName] = useState('');
+  const [employeeSector, setEmployeeSector] = useState('Tecnologia da Informação');
+  const [employeeRole, setEmployeeRole] = useState('');
+  const [employeeRamal, setEmployeeRamal] = useState('');
+  const [employeeTeam, setEmployeeTeam] = useState('Nenhuma');
+  const [validationError, setValidationError] = useState('');
 
-  // 1. Agrupa os patrimônios ativos por funcionário
-  const employeeGroups = {};
+  // Asset viewer modal state
+  const [activeEmployeeAssets, setActiveEmployeeAssets] = useState(null);
 
-  assets.forEach(asset => {
-    // Apenas mapeia se o status for 'Em Uso' e o funcionário estiver preenchido
-    if (asset.status === 'Em Uso' && asset.employee && asset.employee.trim() !== '') {
-      const name = asset.employee.trim();
-      const normalizedKey = name.toLowerCase();
+  const openAddEmployeeModal = () => {
+    setEditingEmployee(null);
+    setEmployeeName('');
+    setEmployeeSector('Tecnologia da Informação');
+    setEmployeeRole('');
+    setEmployeeRamal('');
+    setEmployeeTeam('Nenhuma');
+    setValidationError('');
+    setIsEmployeeModalOpen(true);
+  };
 
-      if (!employeeGroups[normalizedKey]) {
-        employeeGroups[normalizedKey] = {
-          name: name,
-          assets: []
-        };
-      }
-      employeeGroups[normalizedKey].assets.push(asset);
+  const openEditEmployeeModal = (emp) => {
+    setEditingEmployee(emp);
+    setEmployeeName(emp.name);
+    setEmployeeSector(emp.sector || 'Tecnologia da Informação');
+    setEmployeeRole(emp.role || '');
+    setEmployeeRamal(emp.ramal || '');
+    setEmployeeTeam(emp.team || 'Nenhuma');
+    setValidationError('');
+    setIsEmployeeModalOpen(true);
+  };
+
+  const closeEmployeeModal = () => {
+    setIsEmployeeModalOpen(false);
+    setEditingEmployee(null);
+    setEmployeeName('');
+    setEmployeeSector('Tecnologia da Informação');
+    setEmployeeRole('');
+    setEmployeeRamal('');
+    setEmployeeTeam('Nenhuma');
+    setValidationError('');
+  };
+
+  const handleEmployeeFormSubmit = (e) => {
+    e.preventDefault();
+    if (!employeeName.trim() || !employeeSector.trim() || !employeeRole.trim()) {
+      setValidationError('Por favor, preencha todos os campos obrigatórios (Nome, Cargo, Setor).');
+      return;
     }
+
+    // Verifica nomes duplicados (ignorando o que está sendo editado)
+    const isDuplicate = employees.some(emp => 
+      emp.name.toLowerCase().trim() === employeeName.toLowerCase().trim() && 
+      (!editingEmployee || emp.id !== editingEmployee.id)
+    );
+
+    if (isDuplicate) {
+      setValidationError('Já existe um funcionário cadastrado com este nome.');
+      return;
+    }
+
+    const savedData = {
+      name: employeeName.trim(),
+      sector: employeeSector.trim(),
+      role: employeeRole.trim(),
+      ramal: employeeRamal.trim(),
+      team: employeeTeam,
+    };
+
+    if (editingEmployee) {
+      savedData.id = editingEmployee.id;
+      savedData.oldName = editingEmployee.name;
+    }
+
+    onSaveEmployee(savedData);
+    closeEmployeeModal();
+  };
+
+  const handleDeleteClick = (emp) => {
+    if (window.confirm(`Tem certeza de que deseja excluir o funcionário "${emp.name}"? Todos os patrimônios em uso por ele voltarão para o estoque.`)) {
+      onDeleteEmployee(emp.id, emp.name);
+    }
+  };
+
+  // Mapeia os funcionários atuais e busca seus patrimônios
+  const employeesWithAssets = employees.map(emp => {
+    const empAssets = assets.filter(
+      asset => asset.status === 'Em Uso' && asset.employee && asset.employee.trim().toLowerCase() === emp.name.trim().toLowerCase()
+    );
+    return {
+      ...emp,
+      assets: empAssets
+    };
   });
 
-  // 2. Converte os grupos em um array
-  const employees = Object.values(employeeGroups).sort((a, b) => 
-    a.name.localeCompare(b.name, 'pt-BR')
-  );
-
-  // 3. Filtra pelo termo de busca
-  const filteredEmployees = employees.filter(emp =>
+  // Filtra pelo termo de busca
+  const filteredEmployees = employeesWithAssets.filter(emp =>
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (emp.team && emp.team.toLowerCase().includes(searchTerm.toLowerCase())) ||
     emp.assets.some(asset => 
       asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,24 +115,47 @@ const EmployeesList = ({ assets }) => {
     )
   );
 
-  const toggleExpand = (key) => {
-    setExpandedEmployee(expandedEmployee === key ? null : key);
-  };
+  // Agrupa os funcionários filtrados por setor
+  const sectorGroups = {};
+  filteredEmployees.forEach(emp => {
+    const sectorName = emp.sector || 'Sem Setor';
+    const sectorKey = sectorName.trim().toLowerCase();
+
+    if (!sectorGroups[sectorKey]) {
+      sectorGroups[sectorKey] = {
+        name: sectorName,
+        employees: []
+      };
+    }
+    sectorGroups[sectorKey].employees.push(emp);
+  });
+
+  // Converte os grupos de setores em um array ordenado
+  const sectors = Object.values(sectorGroups).sort((a, b) => 
+    a.name.localeCompare(b.name, 'pt-BR')
+  );
 
   // Métricas
   const totalEmployees = employees.length;
+  const totalSectors = new Set(employees.map(e => e.sector.trim().toLowerCase())).size;
   const totalAssignedAssets = assets.filter(a => a.status === 'Em Uso' && a.employee).length;
-  const maxAssetsEmployee = employees.reduce((max, current) => {
-    return (current.assets.length > (max?.assets?.length || 0)) ? current : max;
-  }, null);
 
   return (
     <div className="employees-list-container">
       <header className="page-header">
         <div>
           <h1 className="page-title">Funcionários</h1>
-          <p className="page-subtitle">Acompanhe a distribuição e responsabilidade dos equipamentos por colaborador</p>
+          <p className="page-subtitle">Acompanhe a distribuição e responsabilidade dos equipamentos por colaborador e setor</p>
         </div>
+        <button className="btn btn-primary" onClick={openAddEmployeeModal}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <line x1="19" y1="8" x2="19" y2="14" />
+            <line x1="22" y1="11" x2="16" y2="11" />
+          </svg>
+          Cadastrar Funcionário
+        </button>
       </header>
 
       {/* Grade de KPIs Resumidos */}
@@ -71,8 +171,20 @@ const EmployeesList = ({ assets }) => {
               </svg>
             </div>
             <div className="emp-kpi-info">
-              <span className="emp-kpi-label">Colaboradores Responsáveis</span>
+              <span className="emp-kpi-label">Total de Colaboradores</span>
               <span className="emp-kpi-value">{totalEmployees}</span>
+            </div>
+          </div>
+
+          <div className="emp-kpi-card">
+            <div className="emp-kpi-icon active-user">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <div className="emp-kpi-info">
+              <span className="emp-kpi-label">Setores Registrados</span>
+              <span className="emp-kpi-value">{totalSectors}</span>
             </div>
           </div>
 
@@ -87,36 +199,19 @@ const EmployeesList = ({ assets }) => {
               <span className="emp-kpi-value">{totalAssignedAssets}</span>
             </div>
           </div>
-
-          {maxAssetsEmployee && (
-            <div className="emp-kpi-card">
-              <div className="emp-kpi-icon active-user">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                </svg>
-              </div>
-              <div className="emp-kpi-info">
-                <span className="emp-kpi-label">Maior Responsabilidade</span>
-                <span className="emp-kpi-value truncate" title={`${maxAssetsEmployee.name} (${maxAssetsEmployee.assets.length} Itens)`}>
-                  {maxAssetsEmployee.name}
-                </span>
-                <span className="emp-kpi-subtext">{maxAssetsEmployee.assets.length} equipamentos</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Barra de Filtros */}
+      {/* Barra de Filtros e Alternador de Layout */}
       <div className="filter-bar">
-        <div className="search-wrapper">
+        <div className="search-wrapper" style={{ flexGrow: 1 }}>
           <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <input
             type="text"
-            placeholder="Pesquisar por funcionário ou equipamento..."
+            placeholder="Pesquisar por funcionário, cargo, setor, equipe ou equipamento..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -126,79 +221,241 @@ const EmployeesList = ({ assets }) => {
             </button>
           )}
         </div>
+
+        {/* Botão de Alternância de Layout (Design Profissional Enterprise) */}
+        <div className="layout-toggle-group">
+          <button 
+            type="button"
+            className={`layout-toggle-btn ${layoutMode === 'list' ? 'active' : ''}`}
+            onClick={() => setLayoutMode('list')}
+            title="Visualização em Lista de Diretório"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            Tabela
+          </button>
+          <button 
+            type="button"
+            className={`layout-toggle-btn ${layoutMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setLayoutMode('grid')}
+            title="Visualização em Cards de Perfil"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Cards
+          </button>
+        </div>
       </div>
 
-      {/* Grade/Lista de Funcionários */}
-      {filteredEmployees.length > 0 ? (
-        <div className="employees-list">
-          {filteredEmployees.map(emp => {
-            const key = emp.name.toLowerCase();
-            const isExpanded = expandedEmployee === key;
+      {/* Listagem de Setores e Grades de Cards/Tabelas */}
+      {sectors.length > 0 ? (
+        <div className="sectors-layout-container">
+          {sectors.map(sector => {
+            const sectorEmployeeCount = sector.employees.length;
+            const sectorAssetCount = sector.employees.reduce((acc, emp) => acc + emp.assets.length, 0);
 
             return (
-              <div key={key} className={`employee-accordion-card ${isExpanded ? 'expanded' : ''}`}>
-                {/* Cabeçalho do Accordion */}
-                <div className="employee-accordion-header" onClick={() => toggleExpand(key)}>
-                  <div className="employee-identity">
-                    <div className="employee-avatarlarge">
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="employee-meta-info">
-                      <h3 className="employee-card-name">{emp.name}</h3>
-                      <span className="employee-asset-count-badge">
-                        {emp.assets.length} {emp.assets.length === 1 ? 'equipamento' : 'equipamentos'} em posse
-                      </span>
-                    </div>
-                  </div>
+              <div key={sector.name} className="sector-section">
+                <header className="sector-section-header">
+                  <h3 className="sector-section-title">
+                    🏢 {sector.name}
+                    <span className="sector-section-badge">
+                      {sectorEmployeeCount} {sectorEmployeeCount === 1 ? 'colaborador' : 'colaboradores'} • {sectorAssetCount} {sectorAssetCount === 1 ? 'patrimônio' : 'patrimônios'}
+                    </span>
+                  </h3>
+                </header>
+                
+                {layoutMode === 'grid' ? (
+                  /* MODO CARDS (GRID VIEW) */
+                  <div className="employees-profile-grid">
+                    {sector.employees.map(emp => {
+                      const sanitizedTeam = (emp.team || 'none').toLowerCase().replace(/[^a-z]/g, '');
+                      const teamClass = `team-${sanitizedTeam}`;
 
-                  <div className="employee-arrow-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </div>
-                </div>
+                      return (
+                        <div key={emp.id} className={`employee-profile-card ${teamClass}`}>
+                          {/* Top Row: Actions + Team Badge */}
+                          <div className="profile-card-top">
+                            <div className="profile-card-actions">
+                              <button className="profile-btn-action edit" onClick={() => openEditEmployeeModal(emp)} title="Editar Funcionário">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button className="profile-btn-action delete" onClick={() => handleDeleteClick(emp)} title="Excluir Funcionário">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                            
+                            {emp.team && emp.team !== 'Nenhuma' && (
+                              <span className={`team-badge ${teamClass}`}>
+                                {emp.team}
+                              </span>
+                            )}
+                          </div>
 
-                {/* Conteúdo do Accordion (Lista de Patrimônios) */}
-                {isExpanded && (
-                  <div className="employee-accordion-content">
-                    <div className="table-card">
-                      <table className="inventory-table">
-                        <thead>
-                          <tr>
-                            <th>Nº Patrimônio</th>
-                            <th>Nome / Descrição</th>
-                            <th>Tipo</th>
-                            <th>Localização</th>
-                            <th>Estado</th>
-                            <th>Observações</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {emp.assets.map(asset => (
-                            <tr key={asset.id}>
-                              <td className="asset-tag-cell">
-                                <span className="tag-badge">#{asset.tag}</span>
+                          {/* Avatar */}
+                          <div className={`profile-card-avatar-wrapper ${teamClass}`}>
+                            <div className="profile-card-avatar">
+                              {emp.name.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+
+                          {/* Employee Identity */}
+                          <div className="profile-card-identity">
+                            <h4 className="profile-card-name" title={emp.name}>{emp.name}</h4>
+                            <p className="profile-card-role" title={emp.role || 'Sem Cargo'}>
+                              {emp.role || 'Sem Cargo'}
+                            </p>
+                          </div>
+
+                          {/* Details */}
+                          <div className="profile-card-details">
+                            <div className="profile-detail-row">
+                              <span className="detail-icon">☎</span>
+                              <span className="detail-text">
+                                Ramal: <strong>{emp.ramal || '-'}</strong>
+                              </span>
+                            </div>
+                            <div className="profile-detail-row">
+                              <span className="detail-icon">📦</span>
+                              <span className="detail-text">
+                                Posse: <strong>{emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</strong>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* View Assets Action Button */}
+                          <button 
+                            className="btn btn-secondary btn-profile-view-assets" 
+                            onClick={() => setActiveEmployeeAssets(emp)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                              <line x1="12" y1="22.08" x2="12" y2="12" />
+                            </svg>
+                            Ver Patrimônios
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* MODO LISTA/TABELA (TABULAR DIRECTORY VIEW - DEFAULT) */
+                  <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+                    <table className="employees-dir-table">
+                      <thead>
+                        <tr>
+                          <th>Colaborador</th>
+                          <th>Cargo</th>
+                          <th>Equipe</th>
+                          <th>Ramal</th>
+                          <th>Patrimônios em Posse</th>
+                          <th className="actions-header">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sector.employees.map(emp => {
+                          const sanitizedTeam = (emp.team || 'none').toLowerCase().replace(/[^a-z]/g, '');
+                          const teamClass = `team-${sanitizedTeam}`;
+
+                          return (
+                            <tr key={emp.id} className={`employee-table-row ${teamClass}`}>
+                              {/* Colaborador (Avatar + Nome) */}
+                              <td className="emp-identity-cell">
+                                <div className={`employee-avatarsmall ${teamClass}`}>
+                                  {emp.name.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="emp-name-main">{emp.name}</span>
                               </td>
-                              <td>
-                                <span className="asset-name-main">{asset.name}</span>
+                              
+                              {/* Cargo */}
+                              <td className="emp-role-cell">
+                                <span className="emp-role-text">{emp.role || '-'}</span>
                               </td>
-                              <td>{asset.equipment}</td>
-                              <td>{asset.location}</td>
+                              
+                              {/* Equipe */}
                               <td>
-                                <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
-                                  {asset.condition}
+                                {emp.team && emp.team !== 'Nenhuma' ? (
+                                  <span className={`team-badge ${teamClass}`}>
+                                    {emp.team}
+                                  </span>
+                                ) : (
+                                  <span className="team-badge-none">-</span>
+                                )}
+                              </td>
+                              
+                              {/* Ramal */}
+                              <td className="emp-ramal-cell">
+                                {emp.ramal ? (
+                                  <strong>{emp.ramal}</strong>
+                                ) : (
+                                  <span className="unassigned">-</span>
+                                )}
+                              </td>
+                              
+                              {/* Quantidade de Patrimônios */}
+                              <td className="emp-assets-cell">
+                                <span className="assets-count-badge-compact">
+                                  📦 {emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}
                                 </span>
                               </td>
-                              <td>
-                                <span className="employee-asset-notes" title={asset.notes || 'Sem observações'}>
-                                  {asset.notes || '-'}
-                                </span>
+                              
+                              {/* Ações */}
+                              <td className="actions-cell">
+                                <button 
+                                  className="btn-action edit" 
+                                  onClick={() => openEditEmployeeModal(emp)} 
+                                  title="Editar Funcionário"
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                </button>
+                                <button 
+                                  className="btn-action delete" 
+                                  onClick={() => handleDeleteClick(emp)} 
+                                  title="Excluir Funcionário"
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                                <button 
+                                  className="btn-action view-assets-list-btn" 
+                                  onClick={() => setActiveEmployeeAssets(emp)} 
+                                  title="Ver Patrimônios"
+                                  style={{ color: 'var(--primary-light)' }}
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                                  </svg>
+                                </button>
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -213,12 +470,206 @@ const EmployeesList = ({ assets }) => {
               <circle cx="9" cy="7" r="4"></circle>
             </svg>
           </div>
-          <h3>Nenhum colaborador com patrimônio</h3>
+          <h3>Nenhum funcionário encontrado</h3>
           <p>
             {searchTerm 
               ? 'Nenhum resultado corresponde à sua pesquisa.' 
-              : 'Não há colaboradores com patrimônios ativos definidos como "Em Uso" no momento.'}
+              : 'Não há funcionários cadastrados no sistema. Clique em "Cadastrar Funcionário" para começar.'}
           </p>
+        </div>
+      )}
+
+      {/* Modal de Cadastro/Edição de Funcionário */}
+      {isEmployeeModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <header className="modal-header">
+              <h2>{editingEmployee ? 'Editar Funcionário' : 'Cadastrar Novo Funcionário'}</h2>
+              <button className="modal-close-btn" onClick={closeEmployeeModal} aria-label="Fechar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <form onSubmit={handleEmployeeFormSubmit} className="modal-form">
+              {validationError && (
+                <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', border: '1px solid #fca5a5' }}>
+                  {validationError}
+                </div>
+              )}
+
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label htmlFor="empName">Nome do Funcionário *</label>
+                  <input
+                    type="text"
+                    id="empName"
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    placeholder="Ex: Gabriel Ferezim"
+                    required
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="empRole">Cargo *</label>
+                  <input
+                    type="text"
+                    id="empRole"
+                    value={employeeRole}
+                    onChange={(e) => setEmployeeRole(e.target.value)}
+                    placeholder="Ex: Assistente de T.I I"
+                    required
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="empSector">Setor / Departamento *</label>
+                  <select
+                    id="empSector"
+                    value={employeeSector}
+                    onChange={(e) => setEmployeeSector(e.target.value)}
+                    required
+                  >
+                    <option value="Tecnologia da Informação">Tecnologia da Informação</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Vendas">Vendas</option>
+                    <option value="Diretoria">Diretoria</option>
+                    <option value="Administração">Administração</option>
+                    <option value="Financeiro">Financeiro</option>
+                    <option value="Recursos Humanos">Recursos Humanos</option>
+                  </select>
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="empTeam">Equipe / Cliente *</label>
+                  <select
+                    id="empTeam"
+                    value={employeeTeam}
+                    onChange={(e) => setEmployeeTeam(e.target.value)}
+                    required
+                  >
+                    <option value="Nenhuma">Nenhuma / Outra</option>
+                    <option value="C&A">C&A</option>
+                    <option value="Latam">Latam</option>
+                    <option value="Prosegur">Prosegur</option>
+                  </select>
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="empRamal">Ramal</label>
+                  <input
+                    type="text"
+                    id="empRamal"
+                    value={employeeRamal}
+                    onChange={(e) => setEmployeeRamal(e.target.value)}
+                    placeholder="Ex: 4002"
+                  />
+                </div>
+              </div>
+
+              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={closeEmployeeModal}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {editingEmployee ? 'Salvar Alterações' : 'Cadastrar'}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exibição de Patrimônios (Viewer Modal) */}
+      {activeEmployeeAssets && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '750px', width: '90%' }}>
+            <header className="modal-header">
+              <div>
+                <h2>Patrimônios em Posse</h2>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Colaborador: <strong>{activeEmployeeAssets.name}</strong> ({activeEmployeeAssets.role})
+                </p>
+              </div>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setActiveEmployeeAssets(null)} 
+                aria-label="Fechar"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <div className="modal-body" style={{ padding: '1rem 0' }}>
+              {activeEmployeeAssets.assets.length > 0 ? (
+                <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+                  <table className="inventory-table">
+                    <thead>
+                      <tr>
+                        <th>Nº Patrimônio</th>
+                        <th>Nome / Descrição</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Observações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeEmployeeAssets.assets.map(asset => (
+                        <tr key={asset.id}>
+                          <td className="asset-tag-cell">
+                            <span className="tag-badge">#{asset.tag}</span>
+                          </td>
+                          <td>
+                            <span className="asset-name-main">{asset.name}</span>
+                          </td>
+                          <td>{asset.equipment}</td>
+                          <td>
+                            <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
+                              {asset.condition}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="employee-asset-notes" title={asset.notes || 'Sem observações'} style={{ maxWidth: '240px' }}>
+                              {asset.notes || '-'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="empty-state-list" style={{ padding: '2rem 1rem' }}>
+                  <div className="empty-icon-wrapper">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="2" y="2" width="20" height="20" rx="2" ry="2" />
+                      <line x1="9" y1="22" x2="9" y2="16" />
+                      <line x1="15" y1="22" x2="15" y2="16" />
+                      <line x1="2" y1="16" x2="22" y2="16" />
+                    </svg>
+                  </div>
+                  <h3>Nenhum patrimônio em posse</h3>
+                  <p>Este funcionário não possui equipamentos em uso no momento.</p>
+                </div>
+              )}
+            </div>
+
+            <footer className="form-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={() => setActiveEmployeeAssets(null)}
+              >
+                Fechar
+              </button>
+            </footer>
+          </div>
         </div>
       )}
     </div>

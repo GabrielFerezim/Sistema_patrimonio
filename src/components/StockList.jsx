@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 
-const StockList = ({ assets, onAssign }) => {
+const StockList = ({ assets, employees = [], onAssign }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [assigningId, setAssigningId] = useState(null);
   const [employeeInput, setEmployeeInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // 1. Filtra itens em estoque
   const stockAssets = assets.filter(a => a.status === 'Em Estoque');
@@ -18,36 +17,23 @@ const StockList = ({ assets, onAssign }) => {
     asset.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 3. Extrai lista de funcionários existentes para o Autocomplete
-  const existingEmployees = Array.from(
-    new Set(assets.map(a => a.employee).filter(e => e && e.trim() !== ''))
-  ).sort();
-
-  // 4. Filtra sugestões baseadas no que o usuário digitou
-  const filteredSuggestions = existingEmployees.filter(emp =>
-    emp.toLowerCase().includes(employeeInput.toLowerCase()) &&
-    emp.toLowerCase() !== employeeInput.toLowerCase()
-  );
-
   const handleStartAssign = (asset) => {
     setAssigningId(asset.id);
     setEmployeeInput('');
     // Sugere a localização atual do item
     setLocationInput(asset.location || '');
-    setShowSuggestions(false);
   };
 
   const handleCancelAssign = () => {
     setAssigningId(null);
     setEmployeeInput('');
     setLocationInput('');
-    setShowSuggestions(false);
   };
 
   const handleSubmitAssign = (e, id) => {
     e.preventDefault();
     if (!employeeInput.trim()) {
-      alert('Por favor, informe o nome do funcionário responsável.');
+      alert('Por favor, informe o funcionário responsável.');
       return;
     }
     onAssign(id, employeeInput.trim(), locationInput.trim());
@@ -56,9 +42,13 @@ const StockList = ({ assets, onAssign }) => {
     setLocationInput('');
   };
 
-  const handleSelectSuggestion = (name) => {
-    setEmployeeInput(name);
-    setShowSuggestions(false);
+  const handleEmployeeChange = (e) => {
+    const val = e.target.value;
+    setEmployeeInput(val);
+    const selectedEmp = employees.find(emp => emp.name === val);
+    if (selectedEmp && selectedEmp.sector) {
+      setLocationInput(selectedEmp.sector);
+    }
   };
 
   return (
@@ -158,36 +148,21 @@ const StockList = ({ assets, onAssign }) => {
                   >
                     <h4 className="form-title">Entregar Equipamento</h4>
                     
-                    <div className="form-group-autocomplete">
+                    <div className="form-group">
                       <label htmlFor="employee-input">Funcionário Responsável *</label>
-                      <div className="autocomplete-wrapper">
-                        <input
-                          id="employee-input"
-                          type="text"
-                          placeholder="Digite o nome do funcionário..."
-                          value={employeeInput}
-                          onChange={(e) => {
-                            setEmployeeInput(e.target.value);
-                            setShowSuggestions(true);
-                          }}
-                          onFocus={() => setShowSuggestions(true)}
-                          autoComplete="off"
-                          required
-                        />
-                        {/* Lista de sugestões autocompletar */}
-                        {showSuggestions && employeeInput.trim().length > 0 && filteredSuggestions.length > 0 && (
-                          <ul className="autocomplete-suggestions">
-                            {filteredSuggestions.map(name => (
-                              <li 
-                                key={name}
-                                onClick={() => handleSelectSuggestion(name)}
-                              >
-                                {name}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                      <select
+                        id="employee-input"
+                        value={employeeInput}
+                        onChange={handleEmployeeChange}
+                        required
+                      >
+                        <option value="">{employees.length === 0 ? 'Nenhum funcionário cadastrado' : 'Selecione um funcionário...'}</option>
+                        {employees.map(emp => (
+                          <option key={emp.id} value={emp.name}>
+                            {emp.name} ({emp.sector})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="form-group">
