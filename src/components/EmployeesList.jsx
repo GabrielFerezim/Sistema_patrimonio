@@ -268,7 +268,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               <div key={sector.name} className="sector-section">
                 <header className="sector-section-header">
                   <h3 className="sector-section-title">
-                    🏢 {sector.name}
+                     {sector.name}
                     <span className="sector-section-badge">
                       {sectorEmployeeCount} {sectorEmployeeCount === 1 ? 'colaborador' : 'colaboradores'} • {sectorAssetCount} {sectorAssetCount === 1 ? 'patrimônio' : 'patrimônios'}
                     </span>
@@ -311,7 +311,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                           {/* Avatar */}
                           <div className={`profile-card-avatar-wrapper ${teamClass}`}>
                             <div className="profile-card-avatar">
-                              {emp.name.charAt(0).toUpperCase()}
+                              {emp.name.charAt(0).toUpperCase()} {/* charArt serve para exibir a inicial do nome */}
                             </div>
                           </div>
 
@@ -540,6 +540,9 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                     <option value="Administração">Administração</option>
                     <option value="Financeiro">Financeiro</option>
                     <option value="Recursos Humanos">Recursos Humanos</option>
+                    <option value="Administração / Financeiro">Administração / Financeiro</option>
+                    <option value="Departamento Pessoal">Departamento Pessoal</option>
+                    <option value="GESTÃO PATRIMONIAL | Renovações">GESTÃO PATRIMONIAL | Renovações</option>
                   </select>
                 </div>
 
