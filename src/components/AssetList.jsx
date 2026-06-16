@@ -14,6 +14,7 @@ const AssetList = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [sortBy, setSortBy] = useState('tag-asc');
 
   // Função para realçar o termo pesquisado na busca
   const highlightText = (text, search) => {
@@ -78,6 +79,23 @@ const AssetList = ({
     const matchesEquipment = equipmentFilter === 'Todos' || asset.equipment === equipmentFilter;
 
     return matchesSearch && matchesStatus && matchesLocation && matchesEquipment;
+  });
+
+  // Ordenação Alfabética ou numérica de patrimônio (Tag/Código)
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
+    if (sortBy === 'name-asc') {
+      return a.name.localeCompare(b.name, 'pt-BR');
+    }
+    if (sortBy === 'name-desc') {
+      return b.name.localeCompare(a.name, 'pt-BR');
+    }
+    if (sortBy === 'tag-asc') {
+      return a.tag.localeCompare(b.tag, undefined, { numeric: true, sensitivity: 'base' });
+    }
+    if (sortBy === 'tag-desc') {
+      return b.tag.localeCompare(a.tag, undefined, { numeric: true, sensitivity: 'base' });
+    }
+    return 0;
   });
 
   const handleDeleteClick = (id) => {
@@ -166,6 +184,21 @@ const AssetList = ({
                 ))}
               </select>
             </div>
+
+            {/* Ordenação */}
+            <div className="filter-item">
+              <label htmlFor="filter-sort">Ordenar por</label>
+              <select
+                id="filter-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="tag-asc">Nº Patrimônio (Menor ao Maior)</option>
+                <option value="tag-desc">Nº Patrimônio (Maior ao Menor)</option>
+                <option value="name-asc">Nome (A-Z)</option>
+                <option value="name-desc">Nome (Z-A)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -195,7 +228,7 @@ const AssetList = ({
       </div>
 
       {/* Visualização 1: Tabela de Inventário (Desktop-only) */}
-      {filteredAssets.length > 0 ? (
+      {sortedAssets.length > 0 ? (
         <>
           <div className="table-card desktop-only-view">
             <table className="inventory-table">
@@ -212,7 +245,7 @@ const AssetList = ({
                 </tr>
               </thead>
               <tbody>
-                {filteredAssets.map(asset => {
+                {sortedAssets.map(asset => {
                   return (
                     <tr key={asset.id}>
                       {/* Tag/Código */}
@@ -295,14 +328,14 @@ const AssetList = ({
             </table>
             
             <div className="table-footer">
-              Mostrando {filteredAssets.length} de {assets.length} patrimônios cadastrados.
+              Mostrando {sortedAssets.length} de {assets.length} patrimônios cadastrados.
             </div>
           </div>
 
           {/* Visualização 2: Cards de Patrimônio (Mobile-only-view) */}
           <div className="mobile-only-view mobile-assets-cards-container">
             <div className="mobile-assets-cards">
-              {filteredAssets.map(asset => {
+              {sortedAssets.map(asset => {
                 return (
                   <div key={asset.id} className="asset-mobile-card">
                     <div className="card-header">

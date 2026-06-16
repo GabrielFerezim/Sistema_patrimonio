@@ -633,6 +633,21 @@
   border-radius: var(--radius-sm);
 }
 
+.asset-id-cell {
+  font-family: var(--font-title);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.id-badge {
+  background-color: rgba(99, 102, 241, 0.1); /* Indigo tint for ID */
+  color: var(--primary-light);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
 .asset-name-group {
   display: flex;
   flex-direction: column;
