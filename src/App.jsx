@@ -99,6 +99,37 @@ function App() {
   const [editingAsset, setEditingAsset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Tema Escuro (Light / Dark)
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('trynova_theme') || 'light';
+  });
+
+  // Filtros elevados para navegação inteligente do Dashboard
+  const [assetStatusFilter, setAssetStatusFilter] = useState('Todos');
+  const [assetLocationFilter, setAssetLocationFilter] = useState('Todos');
+  const [assetEquipmentFilter, setAssetEquipmentFilter] = useState('Todos');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('trynova_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const handleNavigateToAssetsWithFilter = (filterType, filterValue) => {
+    if (filterType === 'status') {
+      setAssetStatusFilter(filterValue);
+    } else if (filterType === 'location') {
+      setAssetLocationFilter(filterValue);
+    } else if (filterType === 'equipment') {
+      setAssetEquipmentFilter(filterValue);
+    }
+    setActiveTab('assets');
+  };
 
   // Estado de Autenticação
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -347,28 +378,6 @@ function App() {
     setIsFormOpen(true);
   };
 
-  const handleVerifyAsset = async (id) => {
-    try {
-      const response = await fetch(`/api/assets/${id}/verify`, {
-        method: 'POST'
-      });
-      if (!response.ok) {
-        throw new Error('Falha ao verificar patrimônio no banco de dados.');
-      }
-      const updated = await response.json();
-      setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
-    } catch (err) {
-      console.error("Erro ao verificar patrimônio:", err);
-      // Fallback local caso dê erro ou offline (Banco de dados não conectado)
-      setAssets(prev => prev.map(item => {
-        if (item.id === id) {
-          return { ...item, last_verified: new Date().toISOString() };
-        }
-        return item;
-      }));
-    }
-  };
-
   const handleAssignAsset = async (id, employeeName, location) => {
     const asset = assets.find(a => a.id === id);
     if (!asset) return;
@@ -400,6 +409,9 @@ function App() {
   };
 
   const handleViewAllAssets = () => {
+    setAssetStatusFilter('Todos');
+    setAssetLocationFilter('Todos');
+    setAssetEquipmentFilter('Todos');
     setActiveTab('assets');
   };
 
@@ -426,9 +438,17 @@ function App() {
   }
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Navegação do Menu Lateral */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onLogout={handleLogout} 
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
 
       {/* Área de Conteúdo Principal */}
       <main className="main-content">
@@ -447,6 +467,7 @@ function App() {
           <Dashboard 
             assets={assets} 
             onViewAll={handleViewAllAssets} 
+            onNavigateToAssets={handleNavigateToAssetsWithFilter}
           />
         ) : activeTab === 'stock' ? (
           <StockList 
@@ -467,7 +488,12 @@ function App() {
             onEdit={handleEditAsset} 
             onDelete={handleDeleteAsset} 
             onAddNew={handleAddNewAsset} 
-            onVerify={handleVerifyAsset}
+            statusFilter={assetStatusFilter}
+            setStatusFilter={setAssetStatusFilter}
+            locationFilter={assetLocationFilter}
+            setLocationFilter={setAssetLocationFilter}
+            equipmentFilter={assetEquipmentFilter}
+            setEquipmentFilter={setAssetEquipmentFilter}
           />
         )}
       </main>

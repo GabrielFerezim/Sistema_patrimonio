@@ -45,8 +45,32 @@
   --radius-full: 9999px;
   
   /* Dimensões de Layout */
-  --sidebar-width: 260px;
+  --sidebar-width: 210px;
   --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tema Escuro - Inversão de Cores */
+[data-theme='dark'] {
+  --bg-app: #0b1329;           /* Azul Escuro Profundo */
+  --bg-sidebar: #111a36;       /* Azul Escuro Sidebar */
+  --bg-sidebar-hover: #1b264f; /* Hover da Sidebar */
+  --bg-card: #152243;          /* Fundo do Cartão */
+  
+  --text-main: #f8fafc;        /* Slate 50 */
+  --text-medium: #cbd5e1;      /* Slate 300 */
+  --text-muted: #94a3b8;       /* Slate 400 */
+  --text-light: #64748b;       /* Slate 500 */
+  
+  --border-color: #1e293b;     /* Slate 800 */
+  --border-focus: #3b82f6;     /* Blue 500 */
+  
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+body, .sidebar, .main-content, .table-card, .kpi-card, .chart-card, .btn, input, select, textarea, .asset-mobile-card, .employee-profile-card, .sector-section-header, tr, td {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Reset Moderno & Estilos Base */

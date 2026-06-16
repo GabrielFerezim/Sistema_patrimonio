@@ -1,48 +1,67 @@
 import React, { useState } from 'react';
 
-const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
+const AssetList = ({ 
+  assets, 
+  onEdit, 
+  onDelete, 
+  onAddNew,
+  statusFilter,
+  setStatusFilter,
+  locationFilter,
+  setLocationFilter,
+  equipmentFilter,
+  setEquipmentFilter
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Todos');
-  const [locationFilter, setLocationFilter] = useState('Todos');
-  const [verificationFilter, setVerificationFilter] = useState('Pendentes'); // Inicia focado em pendentes para facilitar auditoria
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Auxiliares de Verificação (Ciclo de 30 Dias)
-  const isVerifiedWithin30Days = (dateStr) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffTime = now - date;
-    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    return diffDays >= 0 && diffDays <= 30;
+  // Função para realçar o termo pesquisado na busca
+  const highlightText = (text, search) => {
+    if (!text) return '-';
+    if (!search || !search.trim()) return text;
+    
+    const regex = new RegExp(`(${search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? <mark key={index} className="search-highlight">{part}</mark> : part
+    );
   };
 
-  const formatLastVerified = (dateStr) => {
-    if (!dateStr) return 'Pendente';
-    const date = new Date(dateStr);
-    const now = new Date();
+  // Exportador de Relatório CSV
+  const exportToCSV = () => {
+    const headers = ['Nº Patrimônio', 'Nome', 'Tipo', 'Colaborador', 'Localização', 'Status', 'Estado', 'Última Verificação', 'Observações'];
+    const rows = filteredAssets.map(asset => [
+      asset.tag,
+      asset.name,
+      asset.equipment,
+      asset.employee || 'Disponível',
+      asset.location,
+      asset.status,
+      asset.condition,
+      asset.last_verified ? new Date(asset.last_verified).toLocaleDateString('pt-BR') : 'Nunca',
+      asset.notes || ''
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
     
-    // Zera horas para comparação de dias civis
-    const dDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const dNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diffTime = dNow - dDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return 'Verificado hoje';
-    }
-    if (diffDays === 1) {
-      return 'Verificado ontem';
-    }
-    if (diffDays < 7) {
-      return `Verificado há ${diffDays} dias`;
-    }
-    return `Verificado em ${date.toLocaleDateString('pt-BR')}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `inventario_patrimonio_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  // Obtém localizações exclusivas para a lista de filtros
+  // Obtém localizações e equipamentos exclusivos para a lista de filtros
   const uniqueLocations = Array.from(
     new Set(assets.map(a => a.location).filter(Boolean))
+  ).sort();
+
+  const uniqueEquipments = Array.from(
+    new Set(assets.map(a => a.equipment).filter(Boolean))
   ).sort();
 
   // Lógica de busca e filtragem
@@ -56,17 +75,9 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
 
     const matchesStatus = statusFilter === 'Todos' || asset.status === statusFilter;
     const matchesLocation = locationFilter === 'Todos' || asset.location === locationFilter;
-    
-    let matchesVerification = true;
-    if (verificationFilter === 'Verificados') {
-      matchesVerification = !!asset.last_verified;
-    } else if (verificationFilter === 'Pendentes') {
-      matchesVerification = !isVerifiedWithin30Days(asset.last_verified);
-    } else if (verificationFilter === 'VerificadosHoje') {
-      matchesVerification = isVerifiedWithin30Days(asset.last_verified);
-    }
+    const matchesEquipment = equipmentFilter === 'Todos' || asset.equipment === equipmentFilter;
 
-    return matchesSearch && matchesStatus && matchesLocation && matchesVerification;
+    return matchesSearch && matchesStatus && matchesLocation && matchesEquipment;
   });
 
   const handleDeleteClick = (id) => {
@@ -78,120 +89,107 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
     setDeleteConfirmId(null);
   };
 
-  // Métricas do Painel de Auditoria Mensal (30 Dias)
-  const totalAssets = assets.length;
-  const verifiedCount = assets.filter(a => isVerifiedWithin30Days(a.last_verified)).length;
-  const verifiedPercent = totalAssets ? Math.round((verifiedCount / totalAssets) * 100) : 0;
-
   return (
     <div className="asset-list-container">
       <header className="page-header">
         <div>
           <h1 className="page-title">Patrimônios</h1>
-          <p className="page-subtitle">Gerencie o estoque, distribuição e faça a auditoria física dos bens</p>
+          <p className="page-subtitle">Gerencie o estoque, distribuição e cadastro dos bens da empresa</p>
         </div>
-        <button className="btn btn-primary btn-add-asset" onClick={onAddNew}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px' }}>
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Cadastrar Patrimônio
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary btn-export" onClick={exportToCSV} title="Exportar dados filtrados para planilha CSV">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px' }}>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar CSV
+          </button>
+          <button className="btn btn-primary btn-add-asset" onClick={onAddNew}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px' }}>
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Cadastrar Patrimônio
+          </button>
+        </div>
       </header>
 
-      {/* Painel de Auditoria Rápida */}
-      <div className="audit-progress-card">
-        <div className="audit-progress-header">
-          <div className="audit-progress-info">
-            <div className="audit-icon-wrapper-badge">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="audit-svg-icon">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="audit-card-title">Auditoria de Patrimônios</h3>
-              <p className="audit-card-desc">
-                <strong>{verifiedCount}</strong> de <strong>{totalAssets}</strong> itens verificados este mês (últimos 30 dias)
-              </p>
-            </div>
-          </div>
-          <span className={`audit-progress-percentage ${verifiedPercent === 100 ? 'complete' : ''}`}>
-            {verifiedPercent}%
-          </span>
-        </div>
-        <div className="audit-progress-bar-container">
-          <div 
-            className={`audit-progress-bar-fill ${verifiedPercent === 100 ? 'complete' : ''}`} 
-            style={{ width: `${verifiedPercent}%` }}
-          ></div>
-        </div>
-      </div>
-
-      {/* Barra de Busca e Filtros */}
+      {/* Barra de Busca e Filtros Redesenhada (Sleek & Premium) */}
       <div className="filter-bar">
-        <div className="search-wrapper">
-          <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input
-            type="text"
-            placeholder="Pesquisar por nome, patrimônio, funcionário..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button className="clear-search-btn" onClick={() => setSearchTerm('')} title="Limpar busca">
-              &times;
-            </button>
-          )}
+        <div className="filter-row-top">
+          <div className="search-wrapper">
+            <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              placeholder="Pesquisar por nome, patrimônio, funcionário..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button className="clear-search-btn" onClick={() => setSearchTerm('')} title="Limpar busca">
+                &times;
+              </button>
+            )}
+          </div>
+
+          <div className="filter-dropdowns">
+            {/* Filtro de Localização */}
+            <div className="filter-item">
+              <label htmlFor="filter-location">Localização</label>
+              <select
+                id="filter-location"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+              >
+                <option value="Todos">Todas as Localizações</option>
+                {uniqueLocations.map(loc => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro de Equipamento */}
+            <div className="filter-item">
+              <label htmlFor="filter-equipment">Equipamento</label>
+              <select
+                id="filter-equipment"
+                value={equipmentFilter}
+                onChange={(e) => setEquipmentFilter(e.target.value)}
+              >
+                <option value="Todos">Todos os Tipos</option>
+                {uniqueEquipments.map(eq => (
+                  <option key={eq} value={eq}>{eq}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="filter-group">
-          {/* Filtro de Auditoria */}
-          <div className="filter-item">
-            <label htmlFor="filter-verification">Auditoria</label>
-            <select
-              id="filter-verification"
-              value={verificationFilter}
-              onChange={(e) => setVerificationFilter(e.target.value)}
-            >
-              <option value="Todos">Todos os Itens</option>
-              <option value="Pendentes">Pendentes (Não conferidos há 30+ dias) ⌛</option>
-              <option value="VerificadosHoje">Verificados este Mês (Últimos 30 dias) ✅</option>
-              <option value="Verificados">Qualquer Histórico de Auditoria</option>
-            </select>
-          </div>
-
-          {/* Filtro de Status */}
-          <div className="filter-item">
-            <label htmlFor="filter-status">Status</label>
-            <select
-              id="filter-status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="Todos">Todos os Status</option>
-              <option value="Em Uso">Em Uso</option>
-              <option value="Em Estoque">Em Estoque</option>
-              <option value="Manutenção">Em Manutenção</option>
-            </select>
-          </div>
-
-          {/* Filtro de Localização */}
-          <div className="filter-item">
-            <label htmlFor="filter-location">Localização</label>
-            <select
-              id="filter-location"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-            >
-              <option value="Todos">Todas as Localizações</option>
-              {uniqueLocations.map(loc => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
-            </select>
+        {/* Filtro de Status por Chips Interativos */}
+        <div className="status-chips-container">
+          <span className="filter-label">Filtrar por Status:</span>
+          <div className="status-chips">
+            {[
+              { label: 'Todos', value: 'Todos', count: assets.length, classType: 'todos' },
+              { label: 'Em Uso', value: 'Em Uso', count: assets.filter(a => a.status === 'Em Uso').length, classType: 'em-uso' },
+              { label: 'Em Estoque', value: 'Em Estoque', count: assets.filter(a => a.status === 'Em Estoque').length, classType: 'em-estoque' },
+              { label: 'Manutenção', value: 'Manutenção', count: assets.filter(a => a.status === 'Manutenção').length, classType: 'manutencao' }
+            ].map(chip => (
+              <button
+                key={chip.value}
+                type="button"
+                className={`status-chip ${chip.classType} ${statusFilter === chip.value ? 'active' : ''}`}
+                onClick={() => setStatusFilter(chip.value)}
+              >
+                <span className="status-chip-dot"></span>
+                <span className="status-chip-label">{chip.label}</span>
+                <span className="status-chip-count">{chip.count}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -209,31 +207,29 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                   <th>Funcionário</th>
                   <th>Localização</th>
                   <th>Estado</th>
-                  <th>Auditado</th>
                   <th>Status</th>
                   <th className="actions-header">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAssets.map(asset => {
-                  const verifiedToday = isVerifiedWithin30Days(asset.last_verified);
                   return (
-                    <tr key={asset.id} className={verifiedToday ? 'row-verified-today' : ''}>
+                    <tr key={asset.id}>
                       {/* Tag/Código */}
                       <td className="asset-tag-cell">
-                        <span className="tag-badge">#{asset.tag}</span>
+                        <span className="tag-badge">#{highlightText(asset.tag, searchTerm)}</span>
                       </td>
                       
                       {/* Nome/Descrição */}
                       <td>
                         <div className="asset-name-group">
-                          <span className="asset-name-main">{asset.name}</span>
-                          {asset.notes && <span className="asset-notes-tooltip" title={asset.notes}>{asset.notes}</span>}
+                          <span className="asset-name-main">{highlightText(asset.name, searchTerm)}</span>
+                          {asset.notes && <span className="asset-notes-tooltip" title={asset.notes}>{highlightText(asset.notes, searchTerm)}</span>}
                         </div>
                       </td>
                       
                       {/* Tipo de Equipamento */}
-                      <td>{asset.equipment}</td>
+                      <td>{highlightText(asset.equipment, searchTerm)}</td>
                       
                       {/* Funcionário */}
                       <td className="employee-cell">
@@ -242,7 +238,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                             <div className="employee-avatar">
                               {asset.employee.charAt(0).toUpperCase()}
                             </div>
-                            <span>{asset.employee}</span>
+                            <span>{highlightText(asset.employee, searchTerm)}</span>
                           </div>
                         ) : (
                           <span className="unassigned-badge">Disponível</span>
@@ -250,30 +246,12 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                       </td>
                       
                       {/* Localização */}
-                      <td>{asset.location}</td>
+                      <td>{highlightText(asset.location, searchTerm)}</td>
                       
                       {/* Estado */}
                       <td>
                         <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
                           {asset.condition}
-                        </span>
-                      </td>
-
-                      {/* Data de Verificação */}
-                      <td>
-                        <span className={`verification-badge ${verifiedToday ? 'verified' : 'pending'}`}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '4px' }}>
-                            {verifiedToday ? (
-                              <polyline points="20 6 9 17 4 12" />
-                            ) : (
-                              <>
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="12" />
-                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                              </>
-                            )}
-                          </svg>
-                          {formatLastVerified(asset.last_verified)}
                         </span>
                       </td>
                       
@@ -286,19 +264,6 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                       
                       {/* Ações */}
                       <td className="actions-cell">
-                        {/* Botão de Verificação Rápida */}
-                        {!verifiedToday && (
-                          <button 
-                            className="btn-action verify" 
-                            onClick={() => onVerify(asset.id)} 
-                            title="Confirmar Presença (Verificar)"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </button>
-                        )}
-                        
                         <button 
                           className="btn-action edit" 
                           onClick={() => onEdit(asset)} 
@@ -338,14 +303,10 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
           <div className="mobile-only-view mobile-assets-cards-container">
             <div className="mobile-assets-cards">
               {filteredAssets.map(asset => {
-                const verified = isVerifiedWithin30Days(asset.last_verified);
                 return (
-                  <div 
-                    key={asset.id} 
-                    className={`asset-mobile-card ${verified ? 'card-verified' : ''}`}
-                  >
+                  <div key={asset.id} className="asset-mobile-card">
                     <div className="card-header">
-                      <span className="tag-badge">#{asset.tag}</span>
+                      <span className="tag-badge">#{highlightText(asset.tag, searchTerm)}</span>
                       <div className="card-badges">
                         <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
                           {asset.condition}
@@ -356,16 +317,16 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                       </div>
                     </div>
 
-                    <h3 className="card-title">{asset.name}</h3>
+                    <h3 className="card-title">{highlightText(asset.name, searchTerm)}</h3>
 
                     <div className="card-body-details">
                       <div className="detail-item">
                         <span className="detail-label">Equipamento:</span>
-                        <span className="detail-val">{asset.equipment}</span>
+                        <span className="detail-val">{highlightText(asset.equipment, searchTerm)}</span>
                       </div>
                       <div className="detail-item">
                         <span className="detail-label">Localização:</span>
-                        <span className="detail-val">{asset.location}</span>
+                        <span className="detail-val">{highlightText(asset.location, searchTerm)}</span>
                       </div>
                       <div className="detail-item">
                         <span className="detail-label">Responsável:</span>
@@ -373,62 +334,23 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                           {asset.employee ? (
                             <span className="card-employee-tag">
                               <span className="card-avatar">{asset.employee.charAt(0).toUpperCase()}</span>
-                              {asset.employee}
+                              {highlightText(asset.employee, searchTerm)}
                             </span>
                           ) : (
                             <span className="unassigned-badge">Disponível</span>
                           )}
                         </span>
                       </div>
-                      <div className="detail-item verification-row">
-                        <span className="detail-label">Auditado:</span>
-                        <span className={`verification-badge ${verified ? 'verified' : 'pending'}`}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '4px' }}>
-                            {verified ? (
-                              <polyline points="20 6 9 17 4 12" />
-                            ) : (
-                              <>
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="12" />
-                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                              </>
-                            )}
-                          </svg>
-                          {formatLastVerified(asset.last_verified)}
-                        </span>
-                      </div>
                     </div>
 
                     {asset.notes && (
                       <div className="card-notes">
-                        <strong>Obs:</strong> {asset.notes}
+                        <strong>Obs:</strong> {highlightText(asset.notes, searchTerm)}
                       </div>
                     )}
 
                     <div className="card-actions">
-                      {!verified ? (
-                        <button 
-                          className="btn btn-verify-quick" 
-                          onClick={() => onVerify(asset.id)}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Confirmar Verificação
-                        </button>
-                      ) : (
-                        <button 
-                          className="btn btn-verify-quick verified" 
-                          disabled
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Auditado este Mês
-                        </button>
-                      )}
-
-                      <div className="card-actions-secondary">
+                      <div className="card-actions-secondary" style={{ width: '100%' }}>
                         <button 
                           className="btn-action-mobile edit" 
                           onClick={() => onEdit(asset)} 
@@ -438,6 +360,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
+                          <span>Editar</span>
                         </button>
                         <button 
                           className="btn-action-mobile delete" 
@@ -448,6 +371,7 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           </svg>
+                          <span>Excluir</span>
                         </button>
                       </div>
                     </div>
@@ -470,14 +394,14 @@ const AssetList = ({ assets, onEdit, onDelete, onAddNew, onVerify }) => {
           </div>
           <h3>Nenhum patrimônio encontrado</h3>
           <p>Tente alterar os termos da sua busca ou filtros selecionados.</p>
-          {(searchTerm || statusFilter !== 'Todos' || locationFilter !== 'Todos' || verificationFilter !== 'Todos') && (
+          {(searchTerm || statusFilter !== 'Todos' || locationFilter !== 'Todos' || equipmentFilter !== 'Todos') && (
             <button 
               className="btn btn-secondary" 
               onClick={() => {
                 setSearchTerm('');
                 setStatusFilter('Todos');
                 setLocationFilter('Todos');
-                setVerificationFilter('Todos');
+                setEquipmentFilter('Todos');
               }}
             >
               Limpar Filtros
