@@ -129,11 +129,6 @@ const Login = ({ onLoginSuccess }) => {
             )}
           </button>
         </form>
-
-        <div className="login-footer">
-          <p className="login-hint">Dica de Acesso:</p>
-          <p className="login-credentials">Usuário: <code>admin</code> | Senha: <code>admin123</code></p>
-        </div>
       </div>
     </div>
   );
