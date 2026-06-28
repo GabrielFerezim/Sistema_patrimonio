@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmployee }) => {
+const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmployee, onDecommission }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [layoutMode, setLayoutMode] = useState('list'); // 'list' ou 'grid'
   const [selectedSectorTab, setSelectedSectorTab] = useState('Todos');
@@ -16,7 +16,9 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
   const [validationError, setValidationError] = useState('');
 
   // Asset viewer modal state
-  const [activeEmployeeAssets, setActiveEmployeeAssets] = useState(null);
+  const [activeEmployeeId, setActiveEmployeeId] = useState(null);
+  const [decommissionAsset, setDecommissionAsset] = useState(null);
+  const [decommissionReason, setDecommissionReason] = useState('');
 
   // Expanded sub-rows for assets
   const [expandedRows, setExpandedRows] = useState({});
@@ -113,6 +115,11 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     };
   });
 
+  const activeEmployee = employees.find(e => e.id === activeEmployeeId);
+  const activeEmployeeAssetsList = activeEmployee ? assets.filter(
+    asset => asset.status === 'Em Uso' && asset.employee && asset.employee.trim().toLowerCase() === activeEmployee.name.trim().toLowerCase()
+  ) : [];
+
   // Obtém a lista estática de setores para as abas
   const allSectors = Array.from(
     new Set(employees.map(e => e.sector).filter(Boolean))
@@ -141,7 +148,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     if (!text) return '-';
     if (!search || !search.trim()) return text;
     
-    const regex = new RegExp(`(${search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const regex = new RegExp(`(${search.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
     
     return parts.map((part, index) => 
@@ -428,7 +435,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                           {/* View Assets Action Button */}
                           <button 
                             className="btn btn-secondary btn-profile-view-assets" 
-                            onClick={() => setActiveEmployeeAssets(emp)}
+                            onClick={() => setActiveEmployeeId(emp.id)}
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
                               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -536,7 +543,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                                   </button>
                                   <button 
                                     className="btn-action view-assets-list-btn" 
-                                    onClick={() => setActiveEmployeeAssets(emp)} 
+                                    onClick={() => setActiveEmployeeId(emp.id)} 
                                     title="Ver Histórico Completo"
                                     style={{ color: 'var(--primary-light)' }}
                                   >
@@ -556,16 +563,30 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                                       {emp.assets.length > 0 ? (
                                         <div className="compact-assets-grid">
                                           {emp.assets.map(asset => (
-                                            <div key={asset.id} className="compact-asset-item">
-                                              <div className="compact-asset-tag">#{highlightText(asset.tag, searchTerm)}</div>
-                                              <div className="compact-asset-info">
-                                                <span className="compact-asset-name">{highlightText(asset.name, searchTerm)}</span>
-                                                <span className="compact-asset-type">{highlightText(asset.equipment, searchTerm)}</span>
+                                            <div key={asset.id} className="compact-asset-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', overflow: 'hidden', flexGrow: 1 }}>
+                                                <div className="compact-asset-tag" style={{ alignSelf: 'flex-start' }}>#{highlightText(asset.tag, searchTerm)}</div>
+                                                <div className="compact-asset-info">
+                                                  <span className="compact-asset-name">{highlightText(asset.name, searchTerm)}</span>
+                                                  <span className="compact-asset-type">{highlightText(asset.equipment, searchTerm)}</span>
+                                                </div>
                                               </div>
-                                              <div className="compact-asset-meta">
+                                              <div className="compact-asset-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
                                                 <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
                                                   {asset.condition}
                                                 </span>
+                                                <button
+                                                  type="button"
+                                                  className="btn-action decommission"
+                                                  onClick={() => setDecommissionAsset(asset)}
+                                                  title="Dar Baixa (Aposentar item)"
+                                                  style={{ width: '26px', height: '26px', minHeight: 'auto', padding: 0 }}
+                                                >
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <line x1="8" y1="12" x2="16" y2="12" />
+                                                  </svg>
+                                                </button>
                                               </div>
                                             </div>
                                           ))}
@@ -713,19 +734,19 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
       )}
 
       {/* Modal de Exibição de Patrimônios (Viewer Modal) */}
-      {activeEmployeeAssets && (
+      {activeEmployee && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '750px', width: '90%' }}>
             <header className="modal-header">
               <div>
                 <h2>Patrimônios em Posse</h2>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Colaborador: <strong>{activeEmployeeAssets.name}</strong> ({activeEmployeeAssets.role})
+                  Colaborador: <strong>{activeEmployee.name}</strong> ({activeEmployee.role})
                 </p>
               </div>
               <button 
                 className="modal-close-btn" 
-                onClick={() => setActiveEmployeeAssets(null)} 
+                onClick={() => setActiveEmployeeId(null)} 
                 aria-label="Fechar"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -736,8 +757,8 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
             </header>
 
             <div className="modal-body">
-              {activeEmployeeAssets.assets.length > 0 ? (
-                <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+              {activeEmployeeAssetsList.length > 0 ? (
+                <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
                   <table className="inventory-table">
                     <thead>
                       <tr>
@@ -746,10 +767,11 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                         <th>Tipo</th>
                         <th>Estado</th>
                         <th>Observações</th>
+                        <th style={{ textAlign: 'right' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {activeEmployeeAssets.assets.map(asset => (
+                      {activeEmployeeAssetsList.map(asset => (
                         <tr key={asset.id}>
                           <td className="asset-tag-cell">
                             <span className="tag-badge">#{asset.tag}</span>
@@ -764,9 +786,23 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                             </span>
                           </td>
                           <td>
-                            <span className="employee-asset-notes" title={asset.notes || 'Sem observações'} style={{ maxWidth: '240px' }}>
+                            <span className="employee-asset-notes" title={asset.notes || 'Sem observações'} style={{ maxWidth: '200px' }}>
                               {asset.notes || '-'}
                             </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              className="btn-action decommission"
+                              onClick={() => setDecommissionAsset(asset)}
+                              title="Dar Baixa (Aposentar item)"
+                              style={{ width: '28px', height: '28px' }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="8" y1="12" x2="16" y2="12" />
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -793,11 +829,69 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               <button 
                 type="button" 
                 className="btn btn-primary" 
-                onClick={() => setActiveEmployeeAssets(null)}
+                onClick={() => setActiveEmployeeId(null)}
               >
                 Fechar
               </button>
             </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Overlay de Confirmação de Baixa */}
+      {decommissionAsset !== null && (
+        <div className="modal-overlay warning warning-decommission">
+          <div className="modal-content confirm-dialog" style={{ maxWidth: '480px' }}>
+            <div className="confirm-icon-wrapper" style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-glow)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </div>
+            <h2>Dar Baixa no Equipamento?</h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginBottom: '1rem' }}>
+              Você está prestes a dar baixa no patrimônio <strong>{decommissionAsset.name}</strong> (#{decommissionAsset.tag}). 
+              Ele será desvinculado de <strong>{decommissionAsset.employee}</strong> e marcado permanentemente como inativo.
+            </p>
+            
+            <div className="form-group" style={{ width: '100%', textAlign: 'left', marginBottom: '1.5rem' }}>
+              <label htmlFor="decommission-reason-emp" style={{ fontWeight: '600', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block', color: 'var(--text-main)' }}>
+                Motivo da Baixa (Opcional):
+              </label>
+              <textarea
+                id="decommission-reason-emp"
+                rows="3"
+                style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                placeholder="Ex: Defeito sem conserto, obsolescência, doação, perda..."
+                value={decommissionReason}
+                onChange={(e) => setDecommissionReason(e.target.value)}
+              />
+            </div>
+            
+            <div className="confirm-buttons">
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setDecommissionAsset(null);
+                  setDecommissionReason('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary" 
+                style={{ backgroundColor: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}
+                onClick={() => {
+                  onDecommission(decommissionAsset.id, decommissionReason);
+                  setDecommissionAsset(null);
+                  setDecommissionReason('');
+                }}
+              >
+                Confirmar Baixa
+              </button>
+            </div>
           </div>
         </div>
       )}

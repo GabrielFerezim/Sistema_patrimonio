@@ -4,6 +4,7 @@ const AssetList = ({
   assets, 
   onEdit, 
   onDelete, 
+  onDecommission,
   onAddNew,
   statusFilter,
   setStatusFilter,
@@ -14,6 +15,8 @@ const AssetList = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [decommissionAsset, setDecommissionAsset] = useState(null);
+  const [decommissionReason, setDecommissionReason] = useState('');
   const [sortBy, setSortBy] = useState('tag-asc');
 
   // Função para realçar o termo pesquisado na busca
@@ -21,7 +24,7 @@ const AssetList = ({
     if (!text) return '-';
     if (!search || !search.trim()) return text;
     
-    const regex = new RegExp(`(${search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+    const regex = new RegExp(`(${search.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
     
     return parts.map((part, index) => 
@@ -210,7 +213,8 @@ const AssetList = ({
               { label: 'Todos', value: 'Todos', count: assets.length, classType: 'todos' },
               { label: 'Em Uso', value: 'Em Uso', count: assets.filter(a => a.status === 'Em Uso').length, classType: 'em-uso' },
               { label: 'Em Estoque', value: 'Em Estoque', count: assets.filter(a => a.status === 'Em Estoque').length, classType: 'em-estoque' },
-              { label: 'Manutenção', value: 'Manutenção', count: assets.filter(a => a.status === 'Manutenção').length, classType: 'manutencao' }
+              { label: 'Manutenção', value: 'Manutenção', count: assets.filter(a => a.status === 'Manutenção').length, classType: 'manutencao' },
+              { label: 'Baixados', value: 'Baixado', count: assets.filter(a => a.status === 'Baixado').length, classType: 'baixado' }
             ].map(chip => (
               <button
                 key={chip.value}
@@ -307,6 +311,19 @@ const AssetList = ({
                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
+
+                        {asset.status !== 'Baixado' && (
+                          <button 
+                            className="btn-action decommission" 
+                            onClick={() => setDecommissionAsset(asset)} 
+                            title="Dar Baixa (Desativar)"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="8" y1="12" x2="16" y2="12" />
+                            </svg>
+                          </button>
+                        )}
                         
                         <button 
                           className="btn-action delete" 
@@ -395,6 +412,22 @@ const AssetList = ({
                           </svg>
                           <span>Editar</span>
                         </button>
+
+                        {asset.status !== 'Baixado' && (
+                          <button 
+                            className="btn-action-mobile decommission" 
+                            onClick={() => setDecommissionAsset(asset)} 
+                            title="Dar Baixa"
+                            style={{ color: 'var(--color-warning)' }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="8" y1="12" x2="16" y2="12" />
+                            </svg>
+                            <span>Baixa</span>
+                          </button>
+                        )}
+                        
                         <button 
                           className="btn-action-mobile delete" 
                           onClick={() => handleDeleteClick(asset.id)} 
@@ -462,6 +495,75 @@ const AssetList = ({
               </button>
               <button className="btn btn-danger" onClick={confirmDelete}>
                 Excluir de vez
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Overlay de Confirmação de Baixa */}
+      {decommissionAsset !== null && (
+        <div className="modal-overlay warning warning-decommission">
+          <div className="modal-content confirm-dialog" style={{ maxWidth: '480px' }}>
+            <div className="confirm-icon-wrapper" style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-glow)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </div>
+            <h2>Dar Baixa no Patrimônio?</h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginBottom: '1rem' }}>
+              Você está prestes a dar baixa no patrimônio <strong>{decommissionAsset.name}</strong> (#{decommissionAsset.tag}). 
+              Ele será desvinculado de qualquer funcionário e marcado permanentemente como inativo.
+            </p>
+            
+            {decommissionAsset.employee && (
+              <div className="decommission-alert-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span>Este equipamento está atualmente com o funcionário <strong>{decommissionAsset.employee}</strong> e será desvinculado.</span>
+              </div>
+            )}
+            
+            <div className="form-group" style={{ width: '100%', textAlign: 'left', marginBottom: '1.5rem' }}>
+              <label htmlFor="decommission-reason" style={{ fontWeight: '600', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block', color: 'var(--text-main)' }}>
+                Motivo da Baixa (Opcional):
+              </label>
+              <textarea
+                id="decommission-reason"
+                rows="3"
+                style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                placeholder="Ex: Defeito sem conserto, obsolescência, doação, perda..."
+                value={decommissionReason}
+                onChange={(e) => setDecommissionReason(e.target.value)}
+              />
+            </div>
+            
+            <div className="confirm-buttons">
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setDecommissionAsset(null);
+                  setDecommissionReason('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary" 
+                style={{ backgroundColor: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}
+                onClick={() => {
+                  onDecommission(decommissionAsset.id, decommissionReason);
+                  setDecommissionAsset(null);
+                  setDecommissionReason('');
+                }}
+              >
+                Confirmar Baixa
               </button>
             </div>
           </div>

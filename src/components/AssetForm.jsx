@@ -200,6 +200,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
                 <option value="Em Uso">Em Uso</option>
                 <option value="Em Estoque">Em Estoque</option>
                 <option value="Manutenção">Em Manutenção</option>
+                <option value="Baixado">Baixado (Desativado)</option>
               </select>
             </div>
 

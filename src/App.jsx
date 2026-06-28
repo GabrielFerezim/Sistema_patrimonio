@@ -408,6 +408,44 @@ function App() {
     }
   };
 
+  const handleDecommissionAsset = async (id, reason) => {
+    const asset = assets.find(a => a.id === id);
+    if (!asset) return;
+
+    let updatedNotes = asset.notes || '';
+    if (reason && reason.trim()) {
+      const todayStr = new Date().toLocaleDateString('pt-BR');
+      const prefix = updatedNotes.trim() ? `${updatedNotes}\n` : '';
+      updatedNotes = `${prefix}[Baixa em ${todayStr}]: ${reason.trim()}`;
+    }
+
+    const updatedAsset = {
+      ...asset,
+      status: 'Baixado',
+      employee: '',
+      notes: updatedNotes,
+      last_verified: new Date().toISOString()
+    };
+
+    try {
+      const response = await fetch(`/api/assets/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedAsset)
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Falha ao dar baixa no patrimônio.');
+      }
+      const updated = await response.json();
+      setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
+    } catch (err) {
+      console.error("Erro ao dar baixa:", err);
+      // Fallback local
+      setAssets(prev => prev.map(item => item.id === id ? updatedAsset : item));
+    }
+  };
+
   const handleViewAllAssets = () => {
     setAssetStatusFilter('Todos');
     setAssetLocationFilter('Todos');
@@ -474,6 +512,7 @@ function App() {
             assets={assets} 
             employees={employees}
             onAssign={handleAssignAsset} 
+            onDecommission={handleDecommissionAsset}
           />
         ) : activeTab === 'employees' ? (
           <EmployeesList 
@@ -481,12 +520,14 @@ function App() {
             employees={employees}
             onSaveEmployee={handleSaveEmployee}
             onDeleteEmployee={handleDeleteEmployee}
+            onDecommission={handleDecommissionAsset}
           />
         ) : (
           <AssetList 
             assets={assets} 
             onEdit={handleEditAsset} 
             onDelete={handleDeleteAsset} 
+            onDecommission={handleDecommissionAsset}
             onAddNew={handleAddNewAsset} 
             statusFilter={assetStatusFilter}
             setStatusFilter={setAssetStatusFilter}
