@@ -73,6 +73,15 @@ async function initDb() {
     await client.query(`
       ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR(100);
     `);
+    await client.query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS signed_term TEXT;
+    `);
+    await client.query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS signed_term_name VARCHAR(255);
+    `);
+    await client.query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS signed_term_at TIMESTAMP;
+    `);
 
     // Semeia funcionários iniciais se a tabela estiver vazia
     const empRes = await client.query('SELECT COUNT(*) FROM employees');
@@ -409,6 +418,73 @@ app.delete('/api/employees/:id', async (req, res) => {
     await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Erro ao excluir funcionário' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST: Upload do termo de responsabilidade assinado
+app.post('/api/employees/:id/term', async (req, res) => {
+  const { id } = req.params;
+  const { fileBase64, fileName } = req.body;
+  if (!fileBase64 || !fileName) {
+    return res.status(400).json({ error: 'Arquivo inválido.' });
+  }
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `UPDATE employees
+       SET signed_term = $1, signed_term_name = $2, signed_term_at = NOW()
+       WHERE id = $3
+       RETURNING id, name, signed_term_name, signed_term_at`,
+      [fileBase64, fileName, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Funcionário não encontrado.' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao salvar termo assinado.' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET: Download do termo de responsabilidade assinado
+app.get('/api/employees/:id/term', async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT signed_term, signed_term_name, signed_term_at FROM employees WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0 || !result.rows[0].signed_term) {
+      return res.status(404).json({ error: 'Nenhum termo encontrado.' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar termo assinado.' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE: Remove termo assinado
+app.delete('/api/employees/:id/term', async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `UPDATE employees SET signed_term = NULL, signed_term_name = NULL, signed_term_at = NULL WHERE id = $1`,
+      [id]
+    );
+    res.json({ message: 'Termo removido com sucesso.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao remover termo.' });
   } finally {
     client.release();
   }

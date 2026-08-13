@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { gerarTermoResponsabilidade } from '../utils/gerarTermo';
+import TermActionsDropdown from './TermActionsDropdown';
 
 const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmployee, onDecommission }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,6 +24,86 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
 
   // Expanded sub-rows for assets
   const [expandedRows, setExpandedRows] = useState({});
+
+  // Termo de Responsabilidade — upload de termo assinado por funcionário
+  const [termUploadingId, setTermUploadingId] = useState(null);
+  const [termData, setTermData] = useState({}); // { [empId]: { signed_term_name, signed_term_at, signed_term } }
+  const termFileInputRef = useRef(null);
+  const [pendingTermEmpId, setPendingTermEmpId] = useState(null);
+
+  const handleDownloadTermo = (emp) => {
+    gerarTermoResponsabilidade(emp, assets);
+  };
+
+  const handleUploadTermClick = (empId) => {
+    setPendingTermEmpId(empId);
+    termFileInputRef.current.value = '';
+    termFileInputRef.current.click();
+  };
+
+  const handleTermFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !pendingTermEmpId) return;
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('Arquivo muito grande. O tamanho máximo permitido é 5MB.');
+      return;
+    }
+    setTermUploadingId(pendingTermEmpId);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target.result;
+        try {
+          const res = await fetch(`/api/employees/${pendingTermEmpId}/term`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setTermData(prev => ({
+              ...prev,
+              [pendingTermEmpId]: { signed_term_name: data.signed_term_name, signed_term_at: data.signed_term_at, signed_term: base64 },
+            }));
+          } else {
+            // fallback local
+            setTermData(prev => ({
+              ...prev,
+              [pendingTermEmpId]: { signed_term_name: file.name, signed_term_at: new Date().toISOString(), signed_term: base64 },
+            }));
+          }
+        } catch {
+          setTermData(prev => ({
+            ...prev,
+            [pendingTermEmpId]: { signed_term_name: file.name, signed_term_at: new Date().toISOString(), signed_term: base64 },
+          }));
+        } finally {
+          setTermUploadingId(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setTermUploadingId(null);
+    }
+  };
+
+  const handleRemoveTerm = async (empId) => {
+    if (!window.confirm('Deseja remover o termo assinado deste funcionário?')) return;
+    try {
+      await fetch(`/api/employees/${empId}/term`, { method: 'DELETE' });
+    } catch { /* fallback local */ }
+    setTermData(prev => { const n = { ...prev }; delete n[empId]; return n; });
+  };
+
+  const handleDownloadSignedTerm = (empId) => {
+    const t = termData[empId];
+    if (!t) return;
+    const link = document.createElement('a');
+    link.href = t.signed_term;
+    link.download = t.signed_term_name || 'termo_assinado';
+    link.click();
+  };
 
   const toggleRowExpanded = (id) => {
     setExpandedRows(prev => ({
@@ -380,18 +462,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                           {/* Top Row: Actions + Team Badge */}
                           <div className="profile-card-top">
                             <div className="profile-card-actions">
-                              <button className="profile-btn-action edit" onClick={() => openEditEmployeeModal(emp)} title="Editar Funcionário">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                              </button>
-                              <button className="profile-btn-action delete" onClick={() => handleDeleteClick(emp)} title="Excluir Funcionário">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                              </button>
+                              {/* As ações foram movidas para o dropdown no rodapé do card */}
                             </div>
                             
                             {emp.team && emp.team !== 'Nenhuma' && (
@@ -432,18 +503,20 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                             </div>
                           </div>
 
-                          {/* View Assets Action Button */}
-                          <button 
-                            className="btn btn-secondary btn-profile-view-assets" 
-                            onClick={() => setActiveEmployeeId(emp.id)}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                              <line x1="12" y1="22.08" x2="12" y2="12" />
-                            </svg>
-                            Ver Patrimônios
-                          </button>
+                          {/* Ações Unificadas */}
+                          <div className="profile-term-section" style={{ padding: '0.5rem 0', borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                            <TermActionsDropdown 
+                              employee={emp}
+                              termInfo={termData[emp.id]}
+                              onDownload={handleDownloadTermo}
+                              onUploadClick={handleUploadTermClick}
+                              onRemove={handleRemoveTerm}
+                              onDownloadSigned={handleDownloadSignedTerm}
+                              onEdit={openEditEmployeeModal}
+                              onDelete={handleDeleteClick}
+                              onViewAssets={setActiveEmployeeId}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -519,45 +592,24 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                                   </button>
                                 </td>
                                 
-                                {/* Ações */}
-                                <td className="actions-cell">
-                                  <button 
-                                    className="btn-action edit" 
-                                    onClick={() => openEditEmployeeModal(emp)} 
-                                    title="Editar Funcionário"
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                      <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                    </svg>
-                                  </button>
-                                  <button 
-                                    className="btn-action delete" 
-                                    onClick={() => handleDeleteClick(emp)} 
-                                    title="Excluir Funcionário"
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="3 6 5 6 21 6" />
-                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                    </svg>
-                                  </button>
-                                  <button 
-                                    className="btn-action view-assets-list-btn" 
-                                    onClick={() => setActiveEmployeeId(emp.id)} 
-                                    title="Ver Histórico Completo"
-                                    style={{ color: 'var(--primary-light)' }}
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                      <line x1="12" y1="22.08" x2="12" y2="12" />
-                                    </svg>
-                                  </button>
+                                {/* Ações Unificadas */}
+                                <td className="actions-cell" style={{ textAlign: 'right' }}>
+                                  <TermActionsDropdown 
+                                    employee={emp}
+                                    termInfo={termData[emp.id]}
+                                    onDownload={handleDownloadTermo}
+                                    onUploadClick={handleUploadTermClick}
+                                    onRemove={handleRemoveTerm}
+                                    onDownloadSigned={handleDownloadSignedTerm}
+                                    onEdit={openEditEmployeeModal}
+                                    onDelete={handleDeleteClick}
+                                    onViewAssets={setActiveEmployeeId}
+                                  />
                                 </td>
                               </tr>
-                              {isExpanded && (
-                                <tr className="employee-details-row">
-                                  <td colSpan="6">
+                                {isExpanded && (
+                                  <tr className="employee-details-row">
+                                    <td colSpan="6">
                                     <div className="employee-expanded-panel">
                                       <h5 className="panel-title">🎒 Equipamentos Vinculados ({emp.assets.length})</h5>
                                       {emp.assets.length > 0 ? (
@@ -895,7 +947,16 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
           </div>
         </div>
       )}
+      {/* Input oculto para upload do termo assinado */}
+      <input
+        ref={termFileInputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        style={{ display: 'none' }}
+        onChange={handleTermFileChange}
+      />
     </div>
+
   );
 };
 

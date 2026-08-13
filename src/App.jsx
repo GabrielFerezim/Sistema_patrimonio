@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
+import EmployeesList from './components/EmployeesList';
+import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import AssetList from './components/AssetList';
 import AssetForm from './components/AssetForm';
 import Login from './components/Login';
-import EmployeesList from './components/EmployeesList';
 import StockList from './components/StockList';
 import './App.css';
 
@@ -101,15 +101,22 @@ function App() {
   const [error, setError] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Tema Escuro (Light / Dark)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('trynova_theme') || 'light';
   });
 
-  // Filtros elevados para navegação inteligente do Dashboard
   const [assetStatusFilter, setAssetStatusFilter] = useState('Todos');
   const [assetLocationFilter, setAssetLocationFilter] = useState('Todos');
   const [assetEquipmentFilter, setAssetEquipmentFilter] = useState('Todos');
+
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const session = localStorage.getItem('trynova_session');
+    return !!session;
+  });
+  const [user, setUser] = useState(() => {
+    const session = localStorage.getItem('trynova_session');
+    return session ? JSON.parse(session) : null;
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -131,17 +138,6 @@ function App() {
     setActiveTab('assets');
   };
 
-  // Estado de Autenticação
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const session = localStorage.getItem('trynova_session');
-    return !!session;
-  });
-  const [user, setUser] = useState(() => {
-    const session = localStorage.getItem('trynova_session');
-    return session ? JSON.parse(session) : null;
-  });
-
-  // Busca todos os patrimônios do banco de dados
   const fetchAssets = async () => {
     setIsLoading(true);
     try {
@@ -151,9 +147,8 @@ function App() {
       setAssets(data);
       setError(null);
     } catch (err) {
-      console.error("Erro ao carregar do banco de dados:", err);
-      setError("Erro ao se conectar ao banco de dados Neon. Exibindo dados locais offline.");
-      // Fallback para o LocalStorage
+      console.error('Erro ao carregar do banco de dados:', err);
+      setError('Erro ao se conectar ao banco de dados Neon. Exibindo dados locais offline.');
       const saved = localStorage.getItem('trynova_patrimonio');
       if (saved) {
         try {
@@ -169,7 +164,6 @@ function App() {
     }
   };
 
-  // Busca todos os funcionários do banco de dados
   const fetchEmployees = async () => {
     try {
       const response = await fetch('/api/employees');
@@ -177,7 +171,7 @@ function App() {
       const data = await response.json();
       setEmployees(data);
     } catch (err) {
-      console.error("Erro ao carregar funcionários do banco de dados:", err);
+      console.error('Erro ao carregar funcionários do banco de dados:', err);
       const saved = localStorage.getItem('trynova_employees');
       if (saved) {
         try {
@@ -206,18 +200,15 @@ function App() {
     }
   }, [employees]);
 
-  // Sincroniza de volta no localstorage para fallback/cache
   useEffect(() => {
     if (assets.length > 0) {
       localStorage.setItem('trynova_patrimonio', JSON.stringify(assets));
     }
   }, [assets]);
 
-  // Manipuladores de CRUD
   const handleSaveAsset = async (savedAsset) => {
     try {
       if (editingAsset) {
-        // Modo edição (PUT)
         const response = await fetch(`/api/assets/${savedAsset.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -230,7 +221,6 @@ function App() {
         const updated = await response.json();
         setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
       } else {
-        // Modo criação (POST)
         const response = await fetch('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -247,7 +237,7 @@ function App() {
       setEditingAsset(null);
       setError(null);
     } catch (err) {
-      console.error("Erro ao salvar:", err);
+      console.error('Erro ao salvar:', err);
       alert(err.message);
     }
   };
@@ -259,9 +249,7 @@ function App() {
 
   const handleDeleteAsset = async (id) => {
     try {
-      const response = await fetch(`/api/assets/${id}`, {
-        method: 'DELETE'
-      });
+      const response = await fetch(`/api/assets/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || 'Falha ao excluir patrimônio.');
@@ -269,7 +257,17 @@ function App() {
       setAssets(prev => prev.filter(item => item.id !== id));
       setError(null);
     } catch (err) {
-      console.error("Erro ao excluir:", err);
+      console.error('Erro ao excluir:', err);
+      alert(err.message);
+    }
+  };
+
+  const handleDecommissionAsset = async (assetId) => {
+    try {
+      setAssets(prev => prev.map(a => (a.id === assetId ? { ...a, status: 'decommissioned' } : a)));
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao descomissionar:', err);
       alert(err.message);
     }
   };
@@ -277,7 +275,6 @@ function App() {
   const handleSaveEmployee = async (savedEmployee) => {
     try {
       if (savedEmployee.id && typeof savedEmployee.id === 'number' && savedEmployee.id < 1500000000000) {
-        // Edit mode (PUT)
         const response = await fetch(`/api/employees/${savedEmployee.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -289,8 +286,6 @@ function App() {
         }
         const updated = await response.json();
         setEmployees(prev => prev.map(item => item.id === updated.id ? updated : item));
-        
-        // Update assets locally if name changed
         if (savedEmployee.oldName && savedEmployee.oldName !== updated.name) {
           setAssets(prev => prev.map(asset => {
             if (asset.employee === savedEmployee.oldName) {
@@ -300,7 +295,6 @@ function App() {
           }));
         }
       } else {
-        // Create mode (POST)
         const response = await fetch('/api/employees', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -315,8 +309,7 @@ function App() {
       }
       setError(null);
     } catch (err) {
-      console.error("Erro ao salvar funcionário:", err);
-      // Local fallback
+      console.error('Erro ao salvar funcionário:', err);
       if (savedEmployee.id) {
         setEmployees(prev => prev.map(item => item.id === savedEmployee.id ? { id: savedEmployee.id, name: savedEmployee.name, sector: savedEmployee.sector, ramal: savedEmployee.ramal, team: savedEmployee.team, role: savedEmployee.role } : item));
         if (savedEmployee.oldName && savedEmployee.oldName !== savedEmployee.name) {
@@ -336,37 +329,25 @@ function App() {
 
   const handleDeleteEmployee = async (id, name) => {
     try {
-      const response = await fetch(`/api/employees/${id}`, {
-        method: 'DELETE'
-      });
+      const response = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errData = await response.json();
         throw new Error(errData.error || 'Falha ao excluir funcionário.');
       }
       setEmployees(prev => prev.filter(item => item.id !== id));
-      // Local fallback for assets status update on cascade
       setAssets(prev => prev.map(asset => {
         if (asset.employee === name) {
-          return {
-            ...asset,
-            employee: null,
-            status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status
-          };
+          return { ...asset, employee: null, status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status };
         }
         return asset;
       }));
       setError(null);
     } catch (err) {
-      console.error("Erro ao excluir funcionário:", err);
-      // Local fallback
+      console.error('Erro ao excluir funcionário:', err);
       setEmployees(prev => prev.filter(item => item.id !== id));
       setAssets(prev => prev.map(asset => {
         if (asset.employee === name) {
-          return {
-            ...asset,
-            employee: null,
-            status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status
-          };
+          return { ...asset, employee: null, status: asset.status === 'Em Uso' ? 'Em Estoque' : asset.status };
         }
         return asset;
       }));
@@ -388,7 +369,26 @@ function App() {
       location: location || asset.location,
       last_verified: new Date().toISOString()
     };
-    
+    const existingSameCategory = assets.find(a => a.employee === employeeName && a.equipment === updatedAsset.equipment && a.id !== id && a.status === 'Em Uso');
+    if (existingSameCategory) {
+      const prevUpdated = { ...existingSameCategory, status: 'Em Estoque', employee: '' };
+      try {
+        const respPrev = await fetch(`/api/assets/${existingSameCategory.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(prevUpdated)
+        });
+        if (!respPrev.ok) {
+          const errPrev = await respPrev.json();
+          throw new Error(errPrev.error || 'Falha ao devolver equipamento ao estoque.');
+        }
+        const updatedPrev = await respPrev.json();
+        setAssets(prev => prev.map(item => item.id === updatedPrev.id ? updatedPrev : item));
+      } catch (e) {
+        console.error('Erro ao mover equipamento anterior para estoque:', e);
+        setAssets(prev => prev.map(item => item.id === existingSameCategory.id ? prevUpdated : item));
+      }
+    }
     try {
       const response = await fetch(`/api/assets/${id}`, {
         method: 'PUT',
@@ -402,31 +402,20 @@ function App() {
       const updated = await response.json();
       setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
     } catch (err) {
-      console.error("Erro ao vincular:", err);
-      // Fallback local
+      console.error('Erro ao vincular:', err);
       setAssets(prev => prev.map(item => item.id === id ? updatedAsset : item));
     }
   };
 
-  const handleDecommissionAsset = async (id, reason) => {
+  const handleSendToStockAsset = async (id) => {
     const asset = assets.find(a => a.id === id);
     if (!asset) return;
-
-    let updatedNotes = asset.notes || '';
-    if (reason && reason.trim()) {
-      const todayStr = new Date().toLocaleDateString('pt-BR');
-      const prefix = updatedNotes.trim() ? `${updatedNotes}\n` : '';
-      updatedNotes = `${prefix}[Baixa em ${todayStr}]: ${reason.trim()}`;
-    }
-
     const updatedAsset = {
       ...asset,
-      status: 'Baixado',
+      status: 'Em Estoque',
       employee: '',
-      notes: updatedNotes,
       last_verified: new Date().toISOString()
     };
-
     try {
       const response = await fetch(`/api/assets/${id}`, {
         method: 'PUT',
@@ -435,13 +424,12 @@ function App() {
       });
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error || 'Falha ao dar baixa no patrimônio.');
+        throw new Error(errData.error || 'Falha ao enviar equipamento para estoque.');
       }
       const updated = await response.json();
       setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
     } catch (err) {
-      console.error("Erro ao dar baixa:", err);
-      // Fallback local
+      console.error('Erro ao enviar para estoque:', err);
       setAssets(prev => prev.map(item => item.id === id ? updatedAsset : item));
     }
   };
@@ -450,7 +438,7 @@ function App() {
     setAssetStatusFilter('Todos');
     setAssetLocationFilter('Todos');
     setAssetEquipmentFilter('Todos');
-    setActiveTab('assets');
+    setActiveTab('patrimonios');
   };
 
   const handleLoginSuccess = (userData) => {
@@ -468,7 +456,6 @@ function App() {
     }
   };
 
-  // Obtém a lista de tags para validação de unicidade
   const existingTags = assets.map(a => a.tag);
 
   if (!isLoggedIn) {
@@ -476,83 +463,80 @@ function App() {
   }
 
   return (
-    <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Navegação do Menu Lateral */}
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onLogout={handleLogout} 
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        theme={theme}
-        toggleTheme={toggleTheme}
-      />
-
-      {/* Área de Conteúdo Principal */}
-      <main className="main-content">
+    <Layout
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      onLogout={handleLogout}
+      collapsed={sidebarCollapsed}
+      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      theme={theme}
+      toggleTheme={toggleTheme}
+    >
+      <>
         {error && (
           <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
             {error}
           </div>
         )}
-        
+
         {isLoading ? (
           <div className="spinner-container">
             <div className="spinner"></div>
             <p>Conectando ao banco de dados Neon Postgres...</p>
           </div>
         ) : activeTab === 'dashboard' ? (
-          <Dashboard 
-            assets={assets} 
-            onViewAll={handleViewAllAssets} 
+          <Dashboard
+            assets={assets}
+            onViewAll={handleViewAllAssets}
             onNavigateToAssets={handleNavigateToAssetsWithFilter}
           />
         ) : activeTab === 'stock' ? (
-          <StockList 
-            assets={assets} 
+          <StockList
+            assets={assets}
             employees={employees}
-            onAssign={handleAssignAsset} 
+            onAssign={handleAssignAsset}
             onDecommission={handleDecommissionAsset}
           />
         ) : activeTab === 'employees' ? (
-          <EmployeesList 
-            assets={assets} 
+          <EmployeesList
+            assets={assets}
             employees={employees}
             onSaveEmployee={handleSaveEmployee}
             onDeleteEmployee={handleDeleteEmployee}
             onDecommission={handleDecommissionAsset}
           />
         ) : (
-          <AssetList 
-            assets={assets} 
-            onEdit={handleEditAsset} 
-            onDelete={handleDeleteAsset} 
+          <AssetList
+            assets={assets}
+            employees={employees}
+            onEdit={handleEditAsset}
+            onDelete={handleDeleteAsset}
             onDecommission={handleDecommissionAsset}
-            onAddNew={handleAddNewAsset} 
+            onAddNew={handleAddNewAsset}
             statusFilter={assetStatusFilter}
             setStatusFilter={setAssetStatusFilter}
             locationFilter={assetLocationFilter}
             setLocationFilter={setAssetLocationFilter}
             equipmentFilter={assetEquipmentFilter}
             setEquipmentFilter={setAssetEquipmentFilter}
+            onSendToStock={handleSendToStockAsset}
           />
         )}
-      </main>
 
-      {/* Formulário Modal Overlay */}
-      {isFormOpen && (
-        <AssetForm 
-          asset={editingAsset}
-          existingTags={existingTags}
-          employees={employees}
-          onSave={handleSaveAsset} 
-          onClose={() => {
-            setIsFormOpen(false);
-            setEditingAsset(null);
-          }} 
-        />
-      )}
-    </div>
+        {isFormOpen && (
+          <AssetForm
+            asset={editingAsset}
+            existingTags={existingTags}
+            employees={employees}
+            onSave={handleSaveAsset}
+            onClose={() => {
+              setIsFormOpen(false);
+              setEditingAsset(null);
+            }}
+          />
+        )}
+      </>
+    </Layout>
   );
 }
 

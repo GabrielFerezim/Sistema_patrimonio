@@ -8,7 +8,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
   useEffect(() => {
     if (activeTab === 'dashboard') {
       setPaineisOpen(true);
-    } else if (['stock', 'assets', 'employees'].includes(activeTab)) {
+    } else if (activeTab === 'stock') {
+      setGerenciarOpen(true);
+    } else if (activeTab === 'patrimonios' || activeTab === 'assets') {
       setGerenciarOpen(true);
     }
   }, [activeTab]);
@@ -18,41 +20,33 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
       {/* Cabeçalho do Mobile (Top Header) */}
       <header className="mobile-top-header">
         <div className="brand-logo-mobile">
-          <svg width="140" height="32" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="4" width="32" height="32" rx="6" fill="#152243" />
-            <rect x="7.5" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-            <rect x="20" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-            <path d="M7.5 10 h4.5 L24.5 30 h-4.5 Z" fill="#3b82f6" />
-            <text x="44" y="27" fontFamily="'Outfit', 'Inter', sans-serif" fontSize="20" fontWeight="700" fill="#475569" letterSpacing="1.5">
-              TRYNOVA
-            </text>
-          </svg>
+          <img src="/trynova_logo.png" alt="Trynova" style={{ height: '32px', objectFit: 'contain' }} />
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button className="mobile-theme-btn" onClick={toggleTheme} title="Alternar Tema">
             {theme === 'dark' ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             )}
           </button>
           <button className="mobile-logout-btn" onClick={onLogout} title="Sair do Sistema">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
           </button>
         </div>
@@ -60,73 +54,60 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
 
       {/* Menu Lateral Clássico (Desktop) */}
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-        {/* Marca / Logo */}
+        {/* Marca / Logo + Botão Hambúrguer */}
         <div className="brand">
           {!collapsed ? (
-            <svg width="100%" height="32" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ maxWidth: '145px' }}>
-              {/* Caixa Azul Escura */}
-              <rect x="2" y="4" width="32" height="32" rx="6" fill="#152243" />
-
-              {/* Símbolo N Estilizado */}
-              <rect x="7.5" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-              <rect x="20" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-              <path d="M7.5 10 h4.5 L24.5 30 h-4.5 Z" fill="#3b82f6" />
-
-              {/* Texto: TRYNOVA */}
-              <text x="44" y="27" fontFamily="'Outfit', 'Inter', sans-serif" fontSize="20" fontWeight="700" fill="#475569" letterSpacing="1.5">
-                TRYNOVA
-              </text>
-            </svg>
+            <img
+              src="/trynova_logo.png"
+              alt="Trynova"
+              className="brand-logo-full"
+            />
           ) : (
-            <svg width="32" height="32" viewBox="0 0 36 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Caixa Azul Escura */}
-              <rect x="2" y="4" width="32" height="32" rx="6" fill="#152243" />
-
-              {/* Símbolo N Estilizado */}
-              <rect x="7.5" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-              <rect x="20" y="10" width="4.5" height="20" rx="1" fill="#1e40af" />
-              <path d="M7.5 10 h4.5 L24.5 30 h-4.5 Z" fill="#3b82f6" />
-            </svg>
+            <img
+              src="/trynova_icon.png"
+              alt="Trynova"
+              className="brand-logo-icon"
+            />
           )}
-
-          <button className="hamburger-btn" onClick={onToggleCollapse} title={collapsed ? "Expandir menu" : "Recolher menu"}>
+          <button className="hamburger-btn" onClick={onToggleCollapse} title={collapsed ? 'Expandir menu' : 'Recolher menu'}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
         </div>
 
-        <div className="brand-divider"></div>
+
+        <div className="brand-divider" />
 
         {/* Menu de Navegação */}
         <nav className="nav-menu">
           {/* Seção 1: Painéis */}
           <div className="nav-category-group">
-            <div 
-              className="nav-category-header" 
+            <div
+              className="nav-category-header"
               onClick={() => !collapsed && setPaineisOpen(!paineisOpen)}
               title={collapsed ? undefined : "Expandir/Recolher Painéis"}
             >
               <span>PAINÉIS</span>
-              <svg 
-                className={`chevron-icon ${paineisOpen ? 'open' : ''}`} 
-                width="12" 
-                height="12" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className={`chevron-icon ${paineisOpen ? 'open' : ''}`}
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <polyline points="9 18 15 12 9 6"></polyline>
+                <polyline points="9 18 15 12 9 6" />
               </svg>
             </div>
-            
             <div className={`nav-category-content-wrapper ${paineisOpen ? 'expanded' : 'collapsed'}`}>
               <div className="nav-category-content">
+                {/* Dashboard Button */}
                 <button
                   className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                   onClick={() => setActiveTab('dashboard')}
@@ -146,29 +127,40 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
 
           {/* Seção 2: Gerenciamento */}
           <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
-            <div 
-              className="nav-category-header" 
+            <div
+              className="nav-category-header"
               onClick={() => !collapsed && setGerenciarOpen(!gerenciarOpen)}
               title={collapsed ? undefined : "Expandir/Recolher Gerenciamento"}
             >
               <span>GERENCIAMENTO</span>
-              <svg 
-                className={`chevron-icon ${gerenciarOpen ? 'open' : ''}`} 
-                width="12" 
-                height="12" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className={`chevron-icon ${gerenciarOpen ? 'open' : ''}`}
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <polyline points="9 18 15 12 9 6"></polyline>
+                <polyline points="9 18 15 12 9 6" />
               </svg>
             </div>
-
             <div className={`nav-category-content-wrapper ${gerenciarOpen ? 'expanded' : 'collapsed'}`}>
               <div className="nav-category-content">
+                <button
+                  className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('employees')}
+                  title={collapsed ? "Funcionários" : undefined}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M4 21v-2a4 4 0 0 1 3-3.87" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>Funcionários</span>
+                </button>
                 <button
                   className={`nav-item ${activeTab === 'assets' ? 'active' : ''}`}
                   onClick={() => setActiveTab('assets')}
@@ -194,20 +186,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
                   </svg>
                   <span>Estoque</span>
                 </button>
-
-                <button
-                  className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('employees')}
-                  title={collapsed ? "Funcionários" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  </svg>
-                  <span>Funcionários</span>
-                </button>
               </div>
             </div>
           </div>
@@ -224,22 +202,22 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
             {theme === 'dark' ? (
               <>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5"></circle>
-                  <line x1="12" y1="1" x2="12" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="23"></line>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                  <line x1="1" y1="12" x2="3" y2="12"></line>
-                  <line x1="21" y1="12" x2="23" y2="12"></line>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
                 <span>Tema Claro</span>
               </>
             ) : (
               <>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
                 <span>Tema Escuro</span>
               </>
@@ -253,9 +231,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
             title={collapsed ? "Sair" : undefined}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
             <span>Sair</span>
           </button>
@@ -299,19 +277,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, collapsed, onToggleCollaps
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
           <span>Patrimônios</span>
-        </button>
-
-        <button
-          className={`mobile-nav-item ${activeTab === 'employees' ? 'active' : ''}`}
-          onClick={() => setActiveTab('employees')}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span>Funcionários</span>
         </button>
       </nav>
     </>
