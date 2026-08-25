@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 
-const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => {
+export default function AssetForm({ asset, onSave, onClose, existingTags = [], employees = [], spaces = [] }) {
   const isEdit = !!asset;
   
   const [formData, setFormData] = useState({
     name: '',
-    equipment: '',
+    equipment: 'Notebook',
     tag: '',
     employee: '',
-    location: '',
+    location: 'Tecnologia da Informação',
     status: 'Em Estoque',
     condition: 'Novo',
+    serial_number: '',
+    purchase_date: '',
+    value: '',
     notes: '',
   });
 
@@ -20,19 +23,28 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
     if (asset) {
       setFormData({
         name: asset.name || '',
-        equipment: asset.equipment || '',
+        equipment: asset.equipment || 'Notebook',
         tag: asset.tag || '',
         employee: asset.employee || '',
-        location: asset.location || '',
+        location: asset.location || 'Tecnologia da Informação',
         status: asset.status || 'Em Estoque',
         condition: asset.condition || 'Novo',
+        serial_number: asset.serial_number || '',
+        purchase_date: asset.purchase_date || '',
+        value: asset.value ? String(asset.value) : '',
         notes: asset.notes || '',
       });
     } else {
-      // Sugere uma nova tag (ex: PAT-XXX)
-      const nextId = existingTags.length + 1;
-      const suggestedTag = `PAT-${String(nextId).padStart(3, '0')}`;
-      setFormData(prev => ({ ...prev, tag: suggestedTag }));
+      // Sugestão automática de próxima tag (ex: PAT-007)
+      const numericTags = existingTags
+        .map(t => {
+          const match = String(t).match(/\d+/);
+          return match ? parseInt(match[0], 10) : 0;
+        })
+        .filter(n => !isNaN(n));
+      const maxTagNum = numericTags.length > 0 ? Math.max(...numericTags) : existingTags.length;
+      const nextTag = `PAT-${String(maxTagNum + 1).padStart(3, '0')}`;
+      setFormData(prev => ({ ...prev, tag: nextTag }));
     }
   }, [asset, existingTags]);
 
@@ -42,11 +54,12 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // UX Profissional: Se o status não for 'Em Uso', o funcionário deve estar vazio
+      // Se mudar status para fora de "Em Uso", limpa colaborador
       if (name === 'status' && value !== 'Em Uso') {
         updated.employee = '';
       }
-      // Se o funcionário for selecionado, define automaticamente o status para 'Em Uso' e sua localização para o setor do funcionário
+
+      // Se selecionar colaborador, define status como "Em Uso" e atualiza localização
       if (name === 'employee' && value.trim() !== '') {
         if (prev.status !== 'Em Uso') {
           updated.status = 'Em Uso';
@@ -60,7 +73,6 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
       return updated;
     });
 
-    // Limpa o erro para aquele campo
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -72,17 +84,21 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
     if (!formData.equipment.trim()) newErrors.equipment = 'O tipo de equipamento é obrigatório.';
     
     if (!formData.tag.trim()) {
-      newErrors.tag = 'O número do patrimônio é obrigatório.';
-    } else if (!isEdit && existingTags.includes(formData.tag.trim())) {
-      newErrors.tag = 'Este número de patrimônio já está cadastrado.';
-    } else if (isEdit && asset.tag !== formData.tag.trim() && existingTags.includes(formData.tag.trim())) {
-      newErrors.tag = 'Este número de patrimônio já está cadastrado.';
+      newErrors.tag = 'A tag/código do patrimônio é obrigatória.';
+    } else {
+      const cleanTag = formData.tag.trim().toUpperCase();
+      const isDuplicate = existingTags.some(t => 
+        String(t).toUpperCase() === cleanTag && (!isEdit || String(asset.tag).toUpperCase() !== cleanTag)
+      );
+      if (isDuplicate) {
+        newErrors.tag = 'Este número de patrimônio já está cadastrado.';
+      }
     }
 
     if (!formData.location.trim()) newErrors.location = 'A localização é obrigatória.';
     
     if (formData.status === 'Em Uso' && !formData.employee.trim()) {
-      newErrors.employee = 'Defina um funcionário para equipamentos em uso.';
+      newErrors.employee = 'Defina um colaborador responsável para equipamentos em uso.';
     }
 
     setErrors(newErrors);
@@ -93,22 +109,29 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
     e.preventDefault();
     if (validateForm()) {
       onSave({
-        ...(isEdit ? asset : {}), // Preserva campos não editados no formulário, como last_verified
+        ...(isEdit ? asset : {}),
         ...formData,
         id: isEdit ? asset.id : Date.now(),
-        // Normaliza os campos
         tag: formData.tag.trim().toUpperCase(),
         name: formData.name.trim(),
-        employee: formData.status === 'Em Uso' ? formData.employee.trim() : '',
+        employee: formData.status === 'Em Uso' ? formData.employee.trim() : null,
+        serial_number: formData.serial_number ? formData.serial_number.trim() : null,
+        value: formData.value ? parseFloat(formData.value) : null,
+        notes: formData.notes ? formData.notes.trim() : null,
       });
     }
   };
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content" style={{ maxWidth: '620px' }}>
         <header className="modal-header">
-          <h2>{isEdit ? 'Editar Patrimônio' : 'Cadastrar Novo Patrimônio'}</h2>
+          <div>
+            <h2>{isEdit ? 'Editar Patrimônio' : 'Cadastrar Novo Patrimônio'}</h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Preencha os dados e especificações técnicas do equipamento
+            </p>
+          </div>
           <button className="modal-close-btn" onClick={onClose} aria-label="Fechar">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -119,9 +142,9 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
 
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-grid">
-            {/* Tag do Patrimônio */}
+            {/* Tag / Código */}
             <div className="form-group">
-              <label htmlFor="tag">Nº Patrimônio (Tag/Código) *</label>
+              <label htmlFor="tag">Nº Patrimônio (Tag) *</label>
               <input
                 type="text"
                 id="tag"
@@ -134,24 +157,9 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
               {errors.tag && <span className="error-text">{errors.tag}</span>}
             </div>
 
-            {/* Nome do Patrimônio */}
-            <div className="form-group">
-              <label htmlFor="name">Nome do Patrimônio *</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Ex: Notebook Dell Latitude 3420"
-                className={errors.name ? 'input-error' : ''}
-              />
-              {errors.name && <span className="error-text">{errors.name}</span>}
-            </div>
-
             {/* Tipo de Equipamento */}
             <div className="form-group">
-              <label htmlFor="equipment">Equipamento *</label>
+              <label htmlFor="equipment">Tipo de Equipamento *</label>
               <select
                 id="equipment"
                 name="equipment"
@@ -159,7 +167,6 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
                 onChange={handleChange}
                 className={errors.equipment ? 'input-error' : ''}
               >
-                <option value="">Selecione...</option>
                 <option value="Notebook">Notebook</option>
                 <option value="Desktop">Desktop (Computador)</option>
                 <option value="Monitor">Monitor</option>
@@ -168,23 +175,64 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
                 <option value="Cadeira Ergonômica">Cadeira Ergonômica</option>
                 <option value="Impressora">Impressora</option>
                 <option value="Servidor/Rede">Equipamento de Rede / Servidor</option>
+                <option value="Nobreak/Filtro">Nobreak / Estabilizador</option>
                 <option value="Outros">Outros</option>
               </select>
               {errors.equipment && <span className="error-text">{errors.equipment}</span>}
             </div>
 
-            {/* Localização */}
+            {/* Nome / Modelo */}
+            <div className="form-group full-width">
+              <label htmlFor="name">Nome / Descrição do Equipamento *</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Ex: Dell Latitude 3420 14'' Core i5 16GB"
+                className={errors.name ? 'input-error' : ''}
+              />
+              {errors.name && <span className="error-text">{errors.name}</span>}
+            </div>
+
+            {/* Número de Série */}
             <div className="form-group">
-              <label htmlFor="location">Localização (Departamento/Sala) *</label>
+              <label htmlFor="serial_number">Número de Série (S/N)</label>
+              <input
+                type="text"
+                id="serial_number"
+                name="serial_number"
+                value={formData.serial_number}
+                onChange={handleChange}
+                placeholder="Ex: BR-DL-3420-XX"
+              />
+            </div>
+
+            {/* Localização / Setor */}
+            <div className="form-group">
+              <label htmlFor="location">Localização / Setor / Espaço *</label>
               <input
                 type="text"
                 id="location"
                 name="location"
+                list="location-options"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Ex: TI, Marketing, Estoque Central"
+                placeholder="Ex: Sala de Reunião - 2º Andar, Estoque..."
                 className={errors.location ? 'input-error' : ''}
               />
+              <datalist id="location-options">
+                <option value="Estoque Central" />
+                <option value="Tecnologia da Informação" />
+                <option value="Marketing" />
+                <option value="Vendas" />
+                <option value="Diretoria" />
+                <option value="Administração" />
+                {spaces.map(s => (
+                  <option key={s.id} value={s.name} />
+                ))}
+              </datalist>
               {errors.location && <span className="error-text">{errors.location}</span>}
             </div>
 
@@ -197,16 +245,16 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
                 value={formData.status}
                 onChange={handleChange}
               >
-                <option value="Em Uso">Em Uso</option>
-                <option value="Em Estoque">Em Estoque</option>
+                <option value="Em Estoque">Em Estoque (Disponível)</option>
+                <option value="Em Uso">Em Uso (Com Colaborador)</option>
                 <option value="Manutenção">Em Manutenção</option>
-                <option value="Baixado">Baixado (Desativado)</option>
+                <option value="Baixado">Baixado (Inativo)</option>
               </select>
             </div>
 
             {/* Estado de Conservação */}
             <div className="form-group">
-              <label htmlFor="condition">Estado de Conservação *</label>
+              <label>Estado de Conservação *</label>
               <div className="radio-group">
                 <label className="radio-label">
                   <input
@@ -231,10 +279,10 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
               </div>
             </div>
 
-            {/* Nome do Funcionário (Estilização condicional) */}
+            {/* Colaborador Responsável */}
             <div className="form-group full-width">
               <label htmlFor="employee" className={formData.status !== 'Em Uso' ? 'disabled-label' : ''}>
-                Funcionário Responsável {formData.status === 'Em Uso' ? '*' : '(Disponível apenas em Uso)'}
+                Colaborador Responsável {formData.status === 'Em Uso' ? '*' : '(Disponível quando Em Uso)'}
               </label>
               <select
                 id="employee"
@@ -244,7 +292,7 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
                 disabled={formData.status !== 'Em Uso'}
                 className={errors.employee ? 'input-error' : ''}
               >
-                <option value="">{employees.length === 0 ? 'Nenhum funcionário cadastrado' : 'Selecione um funcionário...'}</option>
+                <option value="">{employees.length === 0 ? 'Nenhum colaborador cadastrado' : 'Selecione um colaborador...'}</option>
                 {employees.map(emp => (
                   <option key={emp.id} value={emp.name}>
                     {emp.name} ({emp.sector})
@@ -254,32 +302,30 @@ const AssetForm = ({ asset, onSave, onClose, existingTags, employees = [] }) => 
               {errors.employee && <span className="error-text">{errors.employee}</span>}
             </div>
 
-            {/* Observações */}
+            {/* Observações Técnicas */}
             <div className="form-group full-width">
-              <label htmlFor="notes">Observações</label>
+              <label htmlFor="notes">Observações / Configuração</label>
               <textarea
                 id="notes"
                 name="notes"
-                rows="3"
+                rows="2"
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="Ex: Detalhes de configuração, número de série, reparos feitos..."
+                placeholder="Ex: SSD 512GB, 16GB RAM, carregador original..."
               ></textarea>
             </div>
           </div>
 
-          <footer className="form-footer">
+          <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary">
-              {isEdit ? 'Salvar Alterações' : 'Cadastrar'}
+              {isEdit ? 'Salvar Alterações' : 'Cadastrar Patrimônio'}
             </button>
           </footer>
         </form>
       </div>
     </div>
   );
-};
-
-export default AssetForm;
+}

@@ -1,37 +1,40 @@
-/* src/styles/layout.css */
+/* src/styles/layout.css - Estrutura Principal */
 
-/* Layout root covers full viewport */
 .layout-root {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
   background-color: var(--bg-app);
 }
 
-/* Body contains sidebar + main content */
 .layout-body {
   flex: 1;
   display: flex;
+  height: 100vh;
   overflow: hidden;
 }
 
-/* Main content area */
-.layout-main-content {
+.layout-content-wrapper {
   flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
   background-color: var(--bg-app);
 }
 
-/* Optional top bar styling */
-.top-bar {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-  border-bottom: 1px solid var(--border-color);
+.layout-main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem 2rem 2.5rem 2rem;
+  background-color: var(--bg-app);
+}
+
+@media (max-width: 768px) {
+  .layout-main-content {
+    padding: 1rem 1rem 5rem 1rem;
+  }
 }

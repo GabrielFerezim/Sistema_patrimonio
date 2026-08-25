@@ -1,621 +1,485 @@
 import React, { useState } from 'react';
 
-const MaintenanceList = ({ assets, employees = [] }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [layoutMode, setLayoutMode] = useState('list'); // 'list' ou 'grid'
+export default function MaintenanceList({
+  maintenances = [],
+  assets = [],
+  employees = [],
+  onCreateMaintenance,
+  onUpdateMaintenance
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Em Aberto');
 
-    // Modal states for CRUD Employee
-    const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
-    const [editingEmployee, setEditingEmployee] = useState(null);
-    const [employeeName, setEmployeeName] = useState('');
-    const [employeeSector, setEmployeeSector] = useState('Tecnologia da Informação');
-    const [employeeRole, setEmployeeRole] = useState('');
-    const [employeeRamal, setEmployeeRamal] = useState('');
-    const [employeeTeam, setEmployeeTeam] = useState('Nenhuma');
-    const [validationError, setValidationError] = useState('');
+  // Modal de abertura de chamado de manutenção
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedAssetTag, setSelectedAssetTag] = useState('');
+  const [issueDescription, setIssueDescription] = useState('');
+  const [provider, setProvider] = useState('');
+  const [cost, setCost] = useState('');
+  const [expectedReturn, setExpectedReturn] = useState('');
+  const [ticketNotes, setTicketNotes] = useState('');
 
-    // Asset viewer modal state
-    const [activeEmployeeAssets, setActiveEmployeeAssets] = useState(null);
-    
-    const closeEmployeeModal = () => {
-        setIsEmployeeModalOpen(false);
-        setEditingEmployee(null);
-        setEmployeeName('');
-        setEmployeeSector('Tecnologia da Informação');
-        setEmployeeRole('');
-        setEmployeeRamal('');
-        setEmployeeTeam('Nenhuma');
-        setValidationError('');
-    };
+  // Modal de finalização de chamado
+  const [closingTicket, setClosingTicket] = useState(null);
+  const [returnDestination, setReturnDestination] = useState('Estoque'); // 'Estoque' ou 'Colaborador'
+  const [assignedEmployee, setAssignedEmployee] = useState('');
+  const [finalCost, setFinalCost] = useState('');
+  const [finalNotes, setFinalNotes] = useState('');
 
-    const handleEmployeeFormSubmit = (e) => {
-        e.preventDefault();
-        if (!employeeName.trim() || !employeeSector.trim() || !employeeRole.trim()) {
-            setValidationError('Por favor, preencha todos os campos obrigatórios (Nome, Cargo, Setor).');
-            return;
-        }
+  // Itens disponíveis para enviar à manutenção (ativos que não estejam já em manutenção)
+  const availableAssetsForMaintenance = assets.filter(a => a.status !== 'Manutenção' && a.status !== 'Baixado');
 
-        // Verifica nomes duplicados (ignorando o que está sendo editado)
-        const isDuplicate = employees.some(emp =>
-            emp.name.toLowerCase().trim() === employeeName.toLowerCase().trim() &&
-            (!editingEmployee || emp.id !== editingEmployee.id)
-        );
+  const openCreateModal = () => {
+    setSelectedAssetTag(availableAssetsForMaintenance.length > 0 ? availableAssetsForMaintenance[0].tag : '');
+    setIssueDescription('');
+    setProvider('');
+    setCost('');
+    setExpectedReturn('');
+    setTicketNotes('');
+    setIsCreateModalOpen(true);
+  };
 
-        if (isDuplicate) {
-            setValidationError('Já existe um funcionário cadastrado com este nome.');
-            return;
-        }
+  const handleCreateSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedAssetTag || !issueDescription.trim()) {
+      alert('Por favor, selecione um patrimônio e descreva o motivo da manutenção.');
+      return;
+    }
 
-        const savedData = {
-            name: employeeName.trim(),
-            sector: employeeSector.trim(),
-            role: employeeRole.trim(),
-            ramal: employeeRamal.trim(),
-            team: employeeTeam,
-        };
+    const assetObj = assets.find(a => a.tag === selectedAssetTag);
+    if (!assetObj) return;
 
-        if (editingEmployee) {
-            savedData.id = editingEmployee.id;
-            savedData.oldName = editingEmployee.name;
-        }
-
-        onSaveEmployee(savedData);
-        closeEmployeeModal();
-    };
-
-    const handleDeleteClick = (emp) => {
-        if (window.confirm(`Tem certeza de que deseja excluir o funcionário "${emp.name}"? Todos os patrimônios em uso por ele voltarão para o estoque.`)) {
-            onDeleteEmployee(emp.id, emp.name);
-        }
-    };
-
-    // Mapeia os funcionários atuais e busca seus patrimônios
-    const employeesWithAssets = employees.map(emp => {
-        const empAssets = assets.filter(
-            asset => asset.status === 'Em Uso' && asset.employee && asset.employee.trim().toLowerCase() === emp.name.trim().toLowerCase()
-        );
-        return {
-            ...emp,
-            assets: empAssets
-        };
+    onCreateMaintenance({
+      asset_id: assetObj.id,
+      asset_tag: assetObj.tag,
+      asset_name: assetObj.name,
+      issue_description: issueDescription.trim(),
+      provider: provider.trim() || null,
+      cost: cost ? parseFloat(cost) : null,
+      expected_return_at: expectedReturn || null,
+      notes: ticketNotes.trim() || null,
+      employee_name: assetObj.employee || null
     });
 
-    // Filtra pelo termo de busca
-    const filteredEmployees = employeesWithAssets.filter(emp =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (emp.team && emp.team.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        emp.assets.some(asset =>
-            asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            asset.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            asset.equipment.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-    );
+    setIsCreateModalOpen(false);
+  };
 
-    // Agrupa os funcionários filtrados por setor
-    const sectorGroups = {};
-    filteredEmployees.forEach(emp => {
-        const sectorName = emp.sector || 'Sem Setor';
-        const sectorKey = sectorName.trim().toLowerCase();
+  const handleStartCloseTicket = (ticket) => {
+    setClosingTicket(ticket);
+    setReturnDestination(ticket.employee_name ? 'Colaborador' : 'Estoque');
+    setAssignedEmployee(ticket.employee_name || '');
+    setFinalCost(ticket.cost ? String(ticket.cost) : '');
+    setFinalNotes(ticket.notes || '');
+  };
 
-        if (!sectorGroups[sectorKey]) {
-            sectorGroups[sectorKey] = {
-                name: sectorName,
-                employees: []
-            };
-        }
-        sectorGroups[sectorKey].employees.push(emp);
+  const handleCloseTicketSubmit = (e) => {
+    e.preventDefault();
+    if (!closingTicket) return;
+
+    onUpdateMaintenance(closingTicket.id, {
+      status: 'Concluída',
+      return_destination: returnDestination,
+      employee_name: returnDestination === 'Colaborador' ? assignedEmployee : null,
+      cost: finalCost ? parseFloat(finalCost) : null,
+      notes: finalNotes.trim() || null
     });
 
-    // Converte os grupos de setores em um array ordenado
-    const sectors = Object.values(sectorGroups).sort((a, b) =>
-        a.name.localeCompare(b.name, 'pt-BR')
-    );
+    setClosingTicket(null);
+  };
 
-    // Métricas
-    const totalEmployees = employees.length;
-    const totalAssignedAssets = assets.filter(a => a.status === 'Em Uso' && a.employee).length;
-    const totalMaintenanceAssets = assets.filter(a => a.status === 'Manutenção').length;
+  // Filtra manutenções
+  const filteredMaintenances = maintenances.filter(m => {
+    const matchesSearch =
+      m.asset_tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.asset_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.issue_description && m.issue_description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (m.provider && m.provider.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (m.employee_name && m.employee_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    return (
-        <div className="employees-list-container">
-            <header className="page-header">
-                <div>
-                    <h1 className="page-title">Funcionários</h1>
-                    <p className="page-subtitle">Acompanhe a distribuição e responsabilidade dos equipamentos por colaborador e setor</p>
-                </div>
+    const matchesStatus =
+      statusFilter === 'Todos' ||
+      (statusFilter === 'Em Aberto' && (m.status === 'Em Manutenção' || m.status === 'Em Aberto')) ||
+      (statusFilter === 'Concluídas' && m.status === 'Concluída');
 
+    return matchesSearch && matchesStatus;
+  });
+
+  // Métricas
+  const activeCount = maintenances.filter(m => m.status !== 'Concluída').length;
+  const completedCount = maintenances.filter(m => m.status === 'Concluída').length;
+  const totalCost = maintenances.reduce((acc, curr) => acc + (parseFloat(curr.cost) || 0), 0);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('pt-BR');
+    } catch (_) {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div className="maintenance-list-container">
+      <header className="page-header">
+        <div className="page-header-info">
+          <h1 className="page-title">Controle de Manutenção</h1>
+          <p className="page-subtitle">Gerencie os reparos, ordens de serviço, assistência técnica e custos de equipamentos</p>
+        </div>
+        <div className="page-header-actions">
+          <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Abrir Chamado</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Grade de KPIs Resumidos */}
+      <div className="kpi-grid">
+        <div className="kpi-card maintenance" onClick={() => setStatusFilter('Em Aberto')} style={{ cursor: 'pointer' }}>
+          <div className="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Equipamentos em Reparo</span>
+            <span className="kpi-value">{activeCount}</span>
+          </div>
+          <div className="kpi-bg-glow"></div>
+        </div>
+
+        <div className="kpi-card in-use" onClick={() => setStatusFilter('Concluídas')} style={{ cursor: 'pointer' }}>
+          <div className="kpi-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Manutenções Concluídas</span>
+            <span className="kpi-value">{completedCount}</span>
+          </div>
+          <div className="kpi-bg-glow"></div>
+        </div>
+      </div>
+
+      {/* Barra de Filtros */}
+      <div className="filter-bar">
+        <div className="search-wrapper" style={{ flexGrow: 1 }}>
+          <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            placeholder="Pesquisar chamado por tag, descrição, fornecedor ou colaborador..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="clear-search-btn" onClick={() => setSearchTerm('')} title="Limpar busca">
+              &times;
+            </button>
+          )}
+        </div>
+
+        {/* Chips de Status */}
+        <div className="status-chips">
+          {[
+            { label: 'Em Aberto', value: 'Em Aberto', count: activeCount },
+            { label: 'Concluídas', value: 'Concluídas', count: completedCount },
+            { label: 'Todas', value: 'Todos', count: maintenances.length }
+          ].map(chip => (
+            <button
+              key={chip.value}
+              type="button"
+              className={`status-chip ${statusFilter === chip.value ? 'active' : ''}`}
+              onClick={() => setStatusFilter(chip.value)}
+            >
+              <span className="status-chip-dot"></span>
+              <span className="status-chip-label">{chip.label}</span>
+              <span className="status-chip-count">{chip.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista de Chamados */}
+      {filteredMaintenances.length > 0 ? (
+        <div className="table-card">
+          <table className="inventory-table">
+            <thead>
+              <tr>
+                <th>Patrimônio</th>
+                <th>Equipamento</th>
+                <th>Defeito / Motivo</th>
+                <th>Assistência / Prestador</th>
+                <th>Data Envio</th>
+                <th>Previsão</th>
+                <th>Custo</th>
+                <th>Status</th>
+                <th className="actions-header">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMaintenances.map(ticket => {
+                const isClosed = ticket.status === 'Concluída';
+
+                return (
+                  <tr key={ticket.id}>
+                    <td className="asset-tag-cell">
+                      <span className="tag-badge">#{ticket.asset_tag}</span>
+                    </td>
+                    <td>
+                      <div className="asset-name-main">{ticket.asset_name}</div>
+                      {ticket.employee_name && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          Resp: {ticket.employee_name}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span className="employee-asset-notes" title={ticket.issue_description}>
+                        {ticket.issue_description}
+                      </span>
+                    </td>
+                    <td>{ticket.provider || '-'}</td>
+                    <td>{formatDate(ticket.opened_at)}</td>
+                    <td>{ticket.expected_return_at || '-'}</td>
+                    <td>
+                      {ticket.cost ? (
+                        <strong>{parseFloat(ticket.cost).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                      ) : (
+                        <span className="unassigned">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${isClosed ? 'em-uso' : 'manutencao'}`}>
+                        {ticket.status}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      {!isClosed ? (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleStartCloseTicket(ticket)}
+                          title="Concluir manutenção e devolver ao estoque/colaborador"
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                        >
+                          Concluir
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                          ✓ Finalizado
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state-list">
+          <div className="empty-icon-wrapper">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          <h3>Nenhum registro de manutenção encontrado</h3>
+          <p>
+            {searchTerm || statusFilter !== 'Em Aberto'
+              ? 'Tente alterar os filtros de pesquisa.'
+              : 'Nenhum equipamento está em manutenção no momento.'}
+          </p>
+        </div>
+      )}
+
+      {/* Modal: Abrir Chamado de Manutenção */}
+      {isCreateModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <header className="modal-header">
+              <h2>Novo Chamado de Manutenção</h2>
+              <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)} aria-label="Fechar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </header>
 
-            {/* Grade de KPIs Resumidos */}
-            {totalEmployees > 0 && (
-                <div className="employees-kpi-grid">
-                    <div className="emp-kpi-card">
-                        <div className="emp-kpi-icon active-user">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wrench-icon lucide-wrench"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
-                        </div>
-                        <div className="emp-kpi-info">
-                            <span className="emp-kpi-label">Equipamentos para manutenção</span>
-                            <span className="emp-kpi-value">{totalMaintenanceAssets}</span>
-                        </div>
-                    </div>
-
-                    <div className="emp-kpi-card">
-                        <div className="emp-kpi-icon assets">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-laptop-minimal-check-icon lucide-laptop-minimal-check"><path d="M2 20h20"/><path d="m9 10 2 2 4-4"/><rect x="3" y="4" width="18" height="12" rx="2"/></svg>
-                        </div>
-                        <div className="emp-kpi-info">
-                            <span className="emp-kpi-label">Equipamentos em manutenção</span>
-                            <span className="emp-kpi-value">{totalAssignedAssets}</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Barra de Filtros e Alternador de Layout */}
-            <div className="filter-bar">
-                <div className="search-wrapper" style={{ flexGrow: 1 }}>
-                    <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Pesquisar por funcionário, cargo, setor, equipe ou equipamento..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    {searchTerm && (
-                        <button className="clear-search-btn" onClick={() => setSearchTerm('')} title="Limpar busca">
-                            &times;
-                        </button>
-                    )}
+            <form onSubmit={handleCreateSubmit} className="modal-form">
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label htmlFor="maint-asset">Selecione o Patrimônio *</label>
+                  <select
+                    id="maint-asset"
+                    value={selectedAssetTag}
+                    onChange={(e) => setSelectedAssetTag(e.target.value)}
+                    required
+                  >
+                    {availableAssetsForMaintenance.map(a => (
+                      <option key={a.id} value={a.tag}>
+                        #{a.tag} - {a.name} ({a.status}{a.employee ? ` • ${a.employee}` : ''})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Botão de Alternância de Layout (Design Profissional Enterprise) */}
-                <div className="layout-toggle-group">
-                    <button
-                        type="button"
-                        className={`layout-toggle-btn ${layoutMode === 'list' ? 'active' : ''}`}
-                        onClick={() => setLayoutMode('list')}
-                        title="Visualização em Lista de Diretório"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
-                            <line x1="8" y1="6" x2="21" y2="6" />
-                            <line x1="8" y1="12" x2="21" y2="12" />
-                            <line x1="8" y1="18" x2="21" y2="18" />
-                            <line x1="3" y1="6" x2="3.01" y2="6" />
-                            <line x1="3" y1="12" x2="3.01" y2="12" />
-                            <line x1="3" y1="18" x2="3.01" y2="18" />
-                        </svg>
-                        Tabela
-                    </button>
-                    <button
-                        type="button"
-                        className={`layout-toggle-btn ${layoutMode === 'grid' ? 'active' : ''}`}
-                        onClick={() => setLayoutMode('grid')}
-                        title="Visualização em Cards de Perfil"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
-                        </svg>
-                        Cards
-                    </button>
+                <div className="form-group full-width">
+                  <label htmlFor="maint-issue">Problema / Motivo do Envio *</label>
+                  <textarea
+                    id="maint-issue"
+                    rows="3"
+                    value={issueDescription}
+                    onChange={(e) => setIssueDescription(e.target.value)}
+                    placeholder="Ex: Troca de tela, reparo na fonte de alimentação, formatação..."
+                    required
+                  ></textarea>
                 </div>
-            </div>
 
-            {/* Listagem de Setores e Grades de Cards/Tabelas */}
-            {sectors.length > 0 ? (
-                <div className="sectors-layout-container">
-                    {sectors.map(sector => {
-                        const sectorEmployeeCount = sector.employees.length;
-                        const sectorAssetCount = sector.employees.reduce((acc, emp) => acc + emp.assets.length, 0);
-
-                        return (
-                            <div key={sector.name} className="sector-section">
-                                <header className="sector-section-header">
-                                    <h3 className="sector-section-title">
-                                        {sector.name}
-                                        <span className="sector-section-badge">
-                                            {sectorEmployeeCount} {sectorEmployeeCount === 1 ? 'colaborador' : 'colaboradores'} • {sectorAssetCount} {sectorAssetCount === 1 ? 'patrimônio' : 'patrimônios'}
-                                        </span>
-                                    </h3>
-                                </header>
-
-                                {layoutMode === 'grid' ? (
-                                    /* MODO CARDS (GRID VIEW) */
-                                    <div className="employees-profile-grid">
-                                        {sector.employees.map(emp => {
-                                            const sanitizedTeam = (emp.team || 'none').toLowerCase().replace(/[^a-z]/g, '');
-                                            const teamClass = `team-${sanitizedTeam}`;
-
-                                            return (
-                                                <div key={emp.id} className={`employee-profile-card ${teamClass}`}>
-                                                    {/* Top Row: Actions + Team Badge */}
-                                                    <div className="profile-card-top">
-                                                        <div className="profile-card-actions">
-            
-                                                            <button className="profile-btn-action delete" onClick={() => handleDeleteClick(emp)} title="Excluir Funcionário">
-                                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <polyline points="3 6 5 6 21 6" />
-                                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                                                </svg>
-                                                            </button>
-                                                        </div>
-
-                                                        {emp.team && emp.team !== 'Nenhuma' && (
-                                                            <span className={`team-badge ${teamClass}`}>
-                                                                {emp.team}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Avatar */}
-                                                    <div className={`profile-card-avatar-wrapper ${teamClass}`}>
-                                                        <div className="profile-card-avatar">
-                                                            {emp.name.charAt(0).toUpperCase()} {/* charArt serve para exibir a inicial do nome */}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Employee Identity */}
-                                                    <div className="profile-card-identity">
-                                                        <h4 className="profile-card-name" title={emp.name}>{emp.name}</h4>
-                                                        <p className="profile-card-role" title={emp.role || 'Sem Cargo'}>
-                                                            {emp.role || 'Sem Cargo'}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Details */}
-                                                    <div className="profile-card-details">
-                                                        <div className="profile-detail-row">
-                                                            <span className="detail-icon">☎</span>
-                                                            <span className="detail-text">
-                                                                Ramal: <strong>{emp.ramal || '-'}</strong>
-                                                            </span>
-                                                        </div>
-                                                        <div className="profile-detail-row">
-                                                            <span className="detail-icon">📦</span>
-                                                            <span className="detail-text">
-                                                                Posse: <strong>{emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</strong>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* View Assets Action Button */}
-                                                    <button
-                                                        className="btn btn-secondary btn-profile-view-assets"
-                                                        onClick={() => setActiveEmployeeAssets(emp)}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                                                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                                            <line x1="12" y1="22.08" x2="12" y2="12" />
-                                                        </svg>
-                                                        Ver Patrimônios
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    /* MODO LISTA/TABELA (TABULAR DIRECTORY VIEW - DEFAULT) */
-                                    <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
-                                        <table className="employees-dir-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Colaborador</th>
-                                                    <th>Cargo</th>
-                                                    <th>Equipe</th>
-                                                    <th>Ramal</th>
-                                                    <th>Patrimônios em Posse</th>
-                                                    <th className="actions-header">Ações</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {sector.employees.map(emp => {
-                                                    const sanitizedTeam = (emp.team || 'none').toLowerCase().replace(/[^a-z]/g, '');
-                                                    const teamClass = `team-${sanitizedTeam}`;
-
-                                                    return (
-                                                        <tr key={emp.id} className={`employee-table-row ${teamClass}`}>
-                                                            {/* Colaborador (Avatar + Nome) */}
-                                                            <td className="emp-identity-cell">
-                                                                <div className={`employee-avatarsmall ${teamClass}`}>
-                                                                    {emp.name.charAt(0).toUpperCase()}
-                                                                </div>
-                                                                <span className="emp-name-main">{emp.name}</span>
-                                                            </td>
-
-                                                            {/* Cargo */}
-                                                            <td className="emp-role-cell">
-                                                                <span className="emp-role-text">{emp.role || '-'}</span>
-                                                            </td>
-
-                                                            {/* Equipe */}
-                                                            <td>
-                                                                {emp.team && emp.team !== 'Nenhuma' ? (
-                                                                    <span className={`team-badge ${teamClass}`}>
-                                                                        {emp.team}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="team-badge-none">-</span>
-                                                                )}
-                                                            </td>
-
-                                                            {/* Ramal */}
-                                                            <td className="emp-ramal-cell">
-                                                                {emp.ramal ? (
-                                                                    <strong>{emp.ramal}</strong>
-                                                                ) : (
-                                                                    <span className="unassigned">-</span>
-                                                                )}
-                                                            </td>
-
-                                                            {/* Quantidade de Patrimônios */}
-                                                            <td className="emp-assets-cell">
-                                                                <span className="assets-count-badge-compact">
-                                                                    📦 {emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}
-                                                                </span>
-                                                            </td>
-
-                                                            {/* Ações */}
-                                                            <td className="actions-cell">
-                                                                <button
-                                                                    className="btn-action delete"
-                                                                    onClick={() => handleDeleteClick(emp)}
-                                                                    title="Excluir Funcionário"
-                                                                >
-                                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                        <polyline points="3 6 5 6 21 6" />
-                                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                                                    </svg>
-                                                                </button>
-                                                                <button
-                                                                    className="btn-action view-assets-list-btn"
-                                                                    onClick={() => setActiveEmployeeAssets(emp)}
-                                                                    title="Ver Patrimônios"
-                                                                    style={{ color: 'var(--primary-light)' }}
-                                                                >
-                                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                                                        <line x1="12" y1="22.08" x2="12" y2="12" />
-                                                                    </svg>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                <div className="form-group">
+                  <label htmlFor="maint-provider">Fornecedor / Técnico</label>
+                  <input
+                    type="text"
+                    id="maint-provider"
+                    value={provider}
+                    onChange={(e) => setProvider(e.target.value)}
+                    placeholder="Ex: Dell Suporte, InfoTech Express..."
+                  />
                 </div>
-            ) : (
-                <div className="empty-state-list">
-                    <div className="empty-icon-wrapper">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                        </svg>
-                    </div>
-                    <h3>Nenhum funcionário encontrado</h3>
-                    <p>
-                        {searchTerm
-                            ? 'Nenhum resultado corresponde à sua pesquisa.'
-                            : 'Não há funcionários cadastrados no sistema. Clique em "Cadastrar Funcionário" para começar.'}
-                    </p>
+
+                <div className="form-group">
+                  <label htmlFor="maint-cost">Custo Estimado (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    id="maint-cost"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    placeholder="Ex: 350.00"
+                  />
                 </div>
-            )}
 
-            {/* Modal de Cadastro/Edição de Funcionário */}
-            {isEmployeeModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '450px' }}>
-                        <header className="modal-header">
-                            <h2>{editingEmployee ? 'Editar Funcionário' : 'Cadastrar Novo Funcionário'}</h2>
-                            <button className="modal-close-btn" onClick={closeEmployeeModal} aria-label="Fechar">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                            </button>
-                        </header>
-
-                        <form onSubmit={handleEmployeeFormSubmit} className="modal-form">
-                            {validationError && (
-                                <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', border: '1px solid #fca5a5' }}>
-                                    {validationError}
-                                </div>
-                            )}
-
-                            <div className="form-grid">
-                                <div className="form-group full-width">
-                                    <label htmlFor="empName">Nome do Funcionário *</label>
-                                    <input
-                                        type="text"
-                                        id="empName"
-                                        value={employeeName}
-                                        onChange={(e) => setEmployeeName(e.target.value)}
-                                        placeholder="Ex: Gabriel Ferezim"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="form-group full-width">
-                                    <label htmlFor="empRole">Cargo *</label>
-                                    <input
-                                        type="text"
-                                        id="empRole"
-                                        value={employeeRole}
-                                        onChange={(e) => setEmployeeRole(e.target.value)}
-                                        placeholder="Ex: Assistente de T.I I"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="form-group full-width">
-                                    <label htmlFor="empSector">Setor / Departamento *</label>
-                                    <select
-                                        id="empSector"
-                                        value={employeeSector}
-                                        onChange={(e) => setEmployeeSector(e.target.value)}
-                                        required
-                                    >
-                                        <option value="Tecnologia da Informação">Tecnologia da Informação</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="Vendas">Vendas</option>
-                                        <option value="Diretoria">Diretoria</option>
-                                        <option value="Administração">Administração</option>
-                                        <option value="Financeiro">Financeiro</option>
-                                        <option value="Recursos Humanos">Recursos Humanos</option>
-                                        <option value="Administração / Financeiro">Administração / Financeiro</option>
-                                        <option value="Departamento Pessoal">Departamento Pessoal</option>
-                                        <option value="GESTÃO PATRIMONIAL | Renovações">GESTÃO PATRIMONIAL | Renovações</option>
-                                        <option value="GESTÃO PATRIMONIAL"> GESTÃO PATRIMONIAL </option>
-                                        <option value="GESTÃO PATRIMONIAL | Registro de Imóveis"> GESTÃO PATRIMONIAL | Registro de Imóveis </option>
-                                        <option value="DESENVOLVIMENTO IMOBILIÁRIO | Estudos e Expansões"> DESENVOLVIMENTO IMOBILIÁRIO | Estudos e Expansões </option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group full-width">
-                                    <label htmlFor="empTeam">Equipe / Cliente *</label>
-                                    <select
-                                        id="empTeam"
-                                        value={employeeTeam}
-                                        onChange={(e) => setEmployeeTeam(e.target.value)}
-                                        required
-                                    >
-                                        <option value="Nenhuma">Nenhuma / Outra</option>
-                                        <option value="C&A">C&A</option>
-                                        <option value="Latam">Latam</option>
-                                        <option value="Prosegur">Prosegur</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group full-width">
-                                    <label htmlFor="empRamal">Ramal</label>
-                                    <input
-                                        type="text"
-                                        id="empRamal"
-                                        value={employeeRamal}
-                                        onChange={(e) => setEmployeeRamal(e.target.value)}
-                                        placeholder="Ex: 4002"
-                                    />
-                                </div>
-                            </div>
-
-                            <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
-                                <button type="button" className="btn btn-secondary" onClick={closeEmployeeModal}>
-                                    Cancelar
-                                </button>
-                                <button type="submit" className="btn btn-primary">
-                                    {editingEmployee ? 'Salvar Alterações' : 'Cadastrar'}
-                                </button>
-                            </footer>
-                        </form>
-                    </div>
+                <div className="form-group full-width">
+                  <label htmlFor="maint-return">Previsão de Retorno</label>
+                  <input
+                    type="date"
+                    id="maint-return"
+                    value={expectedReturn}
+                    onChange={(e) => setExpectedReturn(e.target.value)}
+                  />
                 </div>
-            )}
+              </div>
 
-            {/* Modal de Exibição de Patrimônios (Viewer Modal) */}
-            {activeEmployeeAssets && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '750px', width: '90%' }}>
-                        <header className="modal-header">
-                            <div>
-                                <h2>Patrimônios em Posse</h2>
-                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                    Colaborador: <strong>{activeEmployeeAssets.name}</strong> ({activeEmployeeAssets.role})
-                                </p>
-                            </div>
-                            <button
-                                className="modal-close-btn"
-                                onClick={() => setActiveEmployeeAssets(null)}
-                                aria-label="Fechar"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                            </button>
-                        </header>
-
-                        <div className="modal-body" style={{ padding: '1rem 0' }}>
-                            {activeEmployeeAssets.assets.length > 0 ? (
-                                <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Nº Patrimônio</th>
-                                                <th>Nome / Descrição</th>
-                                                <th>Tipo</th>
-                                                <th>Estado</th>
-                                                <th>Observações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {activeEmployeeAssets.assets.map(asset => (
-                                                <tr key={asset.id}>
-                                                    <td className="asset-tag-cell">
-                                                        <span className="tag-badge">#{asset.tag}</span>
-                                                    </td>
-                                                    <td>
-                                                        <span className="asset-name-main">{asset.name}</span>
-                                                    </td>
-                                                    <td>{asset.equipment}</td>
-                                                    <td>
-                                                        <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
-                                                            {asset.condition}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span className="employee-asset-notes" title={asset.notes || 'Sem observações'} style={{ maxWidth: '240px' }}>
-                                                            {asset.notes || '-'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="empty-state-list" style={{ padding: '2rem 1rem' }}>
-                                    <div className="empty-icon-wrapper">
-                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                            <rect x="2" y="2" width="20" height="20" rx="2" ry="2" />
-                                            <line x1="9" y1="22" x2="9" y2="16" />
-                                            <line x1="15" y1="22" x2="15" y2="16" />
-                                            <line x1="2" y1="16" x2="22" y2="16" />
-                                        </svg>
-                                    </div>
-                                    <h3>Nenhum patrimônio em posse</h3>
-                                    <p>Este funcionário não possui equipamentos em uso no momento.</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <footer className="form-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                onClick={() => setActiveEmployeeAssets(null)}
-                            >
-                                Fechar
-                            </button>
-                        </footer>
-                    </div>
-                </div>
-            )}
+              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsCreateModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Registrar Envio
+                </button>
+              </footer>
+            </form>
+          </div>
         </div>
-    );
-};
+      )}
 
-export default MaintenanceList;
+      {/* Modal: Concluir Manutenção */}
+      {closingTicket && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <header className="modal-header">
+              <h2>Concluir Manutenção</h2>
+              <button className="modal-close-btn" onClick={() => setClosingTicket(null)} aria-label="Fechar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <form onSubmit={handleCloseTicketSubmit} className="modal-form">
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginBottom: '1.25rem' }}>
+                Finalizar manutenção do patrimônio <strong>#{closingTicket.asset_tag}</strong> ({closingTicket.asset_name}).
+              </p>
+
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Destino após Manutenção *</label>
+                  <div className="radio-group">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="returnDest"
+                        value="Estoque"
+                        checked={returnDestination === 'Estoque'}
+                        onChange={() => setReturnDestination('Estoque')}
+                      />
+                      <span>Devolver ao Estoque</span>
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="returnDest"
+                        value="Colaborador"
+                        checked={returnDestination === 'Colaborador'}
+                        onChange={() => setReturnDestination('Colaborador')}
+                      />
+                      <span>Devolver ao Colaborador</span>
+                    </label>
+                  </div>
+                </div>
+
+                {returnDestination === 'Colaborador' && (
+                  <div className="form-group full-width">
+                    <label htmlFor="return-emp">Colaborador Destinatário *</label>
+                    <select
+                      id="return-emp"
+                      value={assignedEmployee}
+                      onChange={(e) => setAssignedEmployee(e.target.value)}
+                      required
+                    >
+                      <option value="">Selecione o colaborador...</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.name}>
+                          {emp.name} ({emp.sector})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-group full-width">
+                  <label htmlFor="final-notes">Notas da Assistência Técnica</label>
+                  <textarea
+                    id="final-notes"
+                    rows="2"
+                    value={finalNotes}
+                    onChange={(e) => setFinalNotes(e.target.value)}
+                    placeholder="Ex: Peça substituída com garantia de 90 dias..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setClosingTicket(null)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Concluir & Atualizar Patrimônio
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

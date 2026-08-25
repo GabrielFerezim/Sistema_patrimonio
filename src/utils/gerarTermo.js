@@ -1,411 +1,313 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Cores da marca Trynova
+// Paleta de Cores Corporativas Trynova
 const COLORS = {
   navyDark:   [21,  34,  67],   // #152243
-  navyMid:    [30,  58, 138],   // #1e3a8a
-  steel:      [59, 130, 246],   // #3b82f6
+  navyMid:    [30,  58, 138],   // #1e3a8a (Trynova Deep Blue)
+  steel:      [59, 130, 246],   // #3b82f6 (Trynova Accent)
   steelLight: [96, 165, 250],   // #60a5fa
   gray900:    [15,  23,  42],
   gray700:    [51,  65,  85],
-  gray500:    [100,116,139],
-  gray200:    [226,232,240],
-  gray100:    [241,245,249],
-  white:      [255,255,255],
-  green:      [22, 163,  74],
+  gray500:    [100, 116, 139],
+  gray200:    [226, 232, 240],
+  gray100:    [241, 245, 249],
+  white:      [255, 255, 255],
+  green:      [16,  185, 129],
+  amber:      [245, 158, 11],
+  red:        [239, 68,  68]
 };
 
 /**
- * Desenha um retângulo com gradiente simulado (faixas verticais)
+ * Retorna a data atual formatada por extenso em português
  */
-function drawGradientRect(doc, x, y, w, h, colorStart, colorEnd, steps = 20) {
-  for (let i = 0; i < steps; i++) {
-    const t = i / (steps - 1);
-    const r = Math.round(colorStart[0] + (colorEnd[0] - colorStart[0]) * t);
-    const g = Math.round(colorStart[1] + (colorEnd[1] - colorStart[1]) * t);
-    const b = Math.round(colorStart[2] + (colorEnd[2] - colorStart[2]) * t);
-    doc.setFillColor(r, g, b);
-    doc.rect(x + (w / steps) * i, y, w / steps + 0.5, h, 'F');
-  }
+function formatarDataExtenso(date = new Date()) {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 /**
- * Retorna a data atual formatada em português
- */
-function formatarData(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-/**
- * Gera e baixa o Termo de Responsabilidade de Equipamentos em PDF.
+ * Gera e realiza o download do Termo de Responsabilidade em PDF de alta qualidade.
  */
 export async function gerarTermoResponsabilidade(employee, assets) {
+  if (!employee) return;
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const PAGE_W   = doc.internal.pageSize.getWidth();   // 210
-  const PAGE_H   = doc.internal.pageSize.getHeight();  // 297
-  const MARGIN   = 18;
+  const PAGE_W    = doc.internal.pageSize.getWidth();   // 210mm
+  const PAGE_H    = doc.internal.pageSize.getHeight();  // 297mm
+  const MARGIN    = 16;
   const CONTENT_W = PAGE_W - MARGIN * 2;
 
-  const equipamentos = assets.filter(
-    (a) => a.employee === employee.name && a.status !== 'decommissioned'
+  // Filtra equipamentos do colaborador
+  const empAssets = (assets || []).filter(
+    (a) => a.employee && a.employee.trim().toLowerCase() === employee.name.trim().toLowerCase() && a.status === 'Em Uso'
   );
 
-  // ══════════════════════════════════════════════════════════════
-  // CABEÇALHO — Barra gradiente azul
-  // ══════════════════════════════════════════════════════════════
-  drawGradientRect(doc, 0, 0, PAGE_W, 38, COLORS.navyDark, COLORS.navyMid);
-
-  // Barra fina de destaque na base do header
-  doc.setFillColor(...COLORS.steel);
-  doc.rect(0, 36, PAGE_W, 2.5, 'F');
-
-  // Tentar carregar logo da empresa
+  // 1. CABEÇALHO LIMPO COM LOGOTIPO COMPLETO (SEM TEXTO DUPLICADO)
   try {
     const logoImg = new Image();
-    logoImg.src = '/trynova_icon.png';
+    logoImg.src = '/trynova_logo.png';
     await new Promise((res) => {
       logoImg.onload = res;
       logoImg.onerror = res;
-      setTimeout(res, 800);
+      setTimeout(res, 400);
     });
     if (logoImg.complete && logoImg.naturalWidth > 0) {
-      doc.addImage(logoImg, 'PNG', MARGIN, 5, 22, 22);
+      doc.addImage(logoImg, 'PNG', MARGIN, 12, 50, 10.7);
     }
-  } catch (_) { /* sem logo */ }
+  } catch (err) {
+    console.warn('Logotipo não encontrado para o PDF do termo:', err);
+  }
 
-  // Nome da empresa
+  // Informações laterais no cabeçalho
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...COLORS.white);
-  doc.text('TRYNOVA', MARGIN + 26, 14);
+  doc.setFontSize(9.5);
+  doc.setTextColor(...COLORS.navyMid);
+  doc.text('TERMO DE RESPONSABILIDADE', PAGE_W - MARGIN, 16, { align: 'right' });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.steelLight);
-  doc.text('Sistema de Controle de Patrimônio', MARGIN + 26, 20);
-
-  // Título do documento (lado direito do header)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.steelLight);
-  doc.text('TERMO DE RESPONSABILIDADE', PAGE_W - MARGIN, 13, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(150, 180, 220);
-  doc.text(`Emitido em: ${formatarData()}`, PAGE_W - MARGIN, 19, { align: 'right' });
-  doc.text(`Protocolo: TRY-${employee.id || '00'}-${Date.now().toString().slice(-6)}`, PAGE_W - MARGIN, 24, { align: 'right' });
+  doc.setTextColor(...COLORS.gray500);
+  doc.text(`Data de Emissão: ${formatarDataExtenso()}`, PAGE_W - MARGIN, 21.5, { align: 'right' });
+  doc.text(`Doc Ref: TR-${String(employee.id || '0').padStart(4, '0')}-${Date.now().toString().slice(-4)}`, PAGE_W - MARGIN, 26, { align: 'right' });
 
-  // ══════════════════════════════════════════════════════════════
-  // TÍTULO PRINCIPAL
-  // ══════════════════════════════════════════════════════════════
-  let y = 50;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(...COLORS.navyMid);
-  doc.text('TERMO DE RESPONSABILIDADE DE EQUIPAMENTOS', PAGE_W / 2, y, { align: 'center' });
-
-  // Linha decorativa dupla
-  y += 4;
-  doc.setDrawColor(...COLORS.steel);
-  doc.setLineWidth(1.2);
-  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  // Linha divisória suave
   doc.setDrawColor(...COLORS.gray200);
-  doc.setLineWidth(0.3);
-  doc.line(MARGIN, y + 1.8, PAGE_W - MARGIN, y + 1.8);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, 30, PAGE_W - MARGIN, 30);
 
-  // ══════════════════════════════════════════════════════════════
-  // DADOS DO FUNCIONÁRIO — Card com fundo azul escuro suave
-  // ══════════════════════════════════════════════════════════════
-  y += 10;
+  // 2. TÍTULO DO DOCUMENTO
+  let y = 38;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.setTextColor(...COLORS.navyMid);
+  doc.text('TERMO DE CAUÇÃO E RESPONSABILIDADE DE USO DE EQUIPAMENTOS', PAGE_W / 2, y, { align: 'center' });
 
-  // Background do card
-  doc.setFillColor(237, 242, 255);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 36, 3, 3, 'F');
+  y += 3.5;
   doc.setDrawColor(...COLORS.steel);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 36, 3, 3, 'S');
+  doc.setLineWidth(0.8);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
 
-  // Barra lateral esquerda colorida
+  // 3. CARTÃO DE DADOS DO COLABORADOR
+  y += 6;
+  doc.setFillColor(243, 247, 255);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 26, 2, 2, 'F');
+  doc.setDrawColor(...COLORS.steel);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 26, 2, 2, 'S');
+
+  // Faixa lateral no card
   doc.setFillColor(...COLORS.navyMid);
-  doc.roundedRect(MARGIN, y, 3, 36, 1.5, 1.5, 'F');
+  doc.roundedRect(MARGIN, y, 3, 26, 1, 1, 'F');
 
-  // Ícone de pessoa (SVG simulado com círculo + retângulo)
-  doc.setFillColor(...COLORS.navyMid);
-  doc.circle(MARGIN + 12, y + 9, 4.5, 'F');
-  doc.setFillColor(...COLORS.navyMid);
-  doc.roundedRect(MARGIN + 7, y + 15, 10, 7, 2, 2, 'F');
+  const col1X = MARGIN + 8;
+  const col2X = MARGIN + CONTENT_W / 2 + 5;
 
-  // Dados em 2 colunas
-  const col1x = MARGIN + 26;
-  const col2x = MARGIN + CONTENT_W / 2 + 5;
-
-  // Rótulos
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(7.2);
   doc.setTextColor(...COLORS.gray500);
-  doc.text('COLABORADOR', col1x, y + 8);
-  doc.text('CARGO / FUNÇÃO', col2x, y + 8);
-
-  // Valores
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...COLORS.gray900);
-  doc.text(employee.name || '—', col1x, y + 15);
-  doc.setFontSize(10);
-  doc.text(employee.role || '—', col2x, y + 15);
-
-  // Segunda linha
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(...COLORS.gray500);
-  doc.text('SETOR / DEPARTAMENTO', col1x, y + 23);
-  doc.text('RAMAL / EQUIPE', col2x, y + 23);
+  doc.text('COLABORADOR(A):', col1X, y + 6);
+  doc.text('CARGO / FUNÇÃO:', col2X, y + 6);
 
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...COLORS.navyDark);
+  doc.text(employee.name || '—', col1X, y + 11.5);
   doc.setFontSize(9);
-  doc.setTextColor(...COLORS.gray700);
-  doc.text(employee.sector || '—', col1x, y + 29);
-  doc.text(`${employee.ramal ? 'R: ' + employee.ramal : '—'}  ${employee.team && employee.team !== 'Nenhuma' ? '  |  ' + employee.team : ''}`, col2x, y + 29);
+  doc.text(employee.role || 'Não especificado', col2X, y + 11.5);
 
-  y += 44;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...COLORS.gray500);
+  doc.text('SETOR / DEPARTAMENTO:', col1X, y + 17.5);
+  doc.text('EQUIPE / RAMAL:', col2X, y + 17.5);
 
-  // ══════════════════════════════════════════════════════════════
-  // TEXTO LEGAL — Box com borda cinza
-  // ══════════════════════════════════════════════════════════════
-  // Título da seção
-  doc.setFillColor(...COLORS.navyMid);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 7, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
+  doc.setTextColor(...COLORS.gray700);
+  doc.text(employee.sector || '—', col1X, y + 22.5);
+  doc.text(`${employee.team || 'Geral'}  •  Ramal: ${employee.ramal || '-'}`, col2X, y + 22.5);
+
+  y += 32;
+
+  // 4. CLÁUSULAS E COMPROMISSOS LEGAIS
+  doc.setFillColor(...COLORS.navyMid);
+  doc.roundedRect(MARGIN, y, CONTENT_W, 6, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
   doc.setTextColor(...COLORS.white);
-  doc.text('▸  DECLARAÇÃO E COMPROMISSO', MARGIN + 4, y + 4.8);
+  doc.text('1. DECLARAÇÃO DE RECEBIMENTO E CLÁUSULAS DE COMPROMISSO', MARGIN + 4, y + 4.2);
 
-  y += 10;
-
-  // Box do texto legal
+  y += 7.5;
   doc.setFillColor(...COLORS.gray100);
   doc.setDrawColor(...COLORS.gray200);
   doc.setLineWidth(0.3);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 52, 2, 2, 'FD');
+  doc.roundedRect(MARGIN, y, CONTENT_W, 44, 1.5, 1.5, 'FD');
 
+  const textoClausulas = [
+    '1.1. O(A) Colaborador(a) declara receber os bens patrimoniais listados neste termo em perfeito estado de funcionamento.',
+    '1.2. O uso dos equipamentos é estritamente corporativo e profissional, devendo observar as políticas de segurança da informação.',
+    '1.3. O(A) Colaborador(a) compromete-se a zelar pela integridade, guarda e conservação dos bens, comunicando imediatamente à gestão qualquer avaria, furto, roubo ou extravio.',
+    '1.4. Em caso de dano decorrente de negligência ou não devolução na rescisão contratual, o colaborador autoriza os procedimentos cabíveis nos termos da legislação vigente.',
+    '1.5. A devolução dos bens dar-se-á no mesmo estado de conservação recebido, ressalvado o desgaste natural pelo uso regular.'
+  ];
+
+  let clausulaY = y + 5;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.8);
+  doc.setFontSize(6.8);
   doc.setTextColor(...COLORS.gray700);
 
-  const textoLegal =
-    `Pelo presente instrumento, o(a) colaborador(a) acima identificado(a) declara ter recebido, em ` +
-    `perfeito estado de conservação, os equipamentos e bens patrimoniais abaixo relacionados, de ` +
-    `propriedade exclusiva da empresa TRYNOVA.\n\n` +
-    `Ao assinar este termo, o(a) signatário(a) assume integralmente os seguintes compromissos:\n\n` +
-    `  I.   Utilizar os equipamentos exclusivamente para fins profissionais e institucionais;\n` +
-    `  II.  Zelar pela guarda, conservação e correta utilização dos bens recebidos;\n` +
-    `  III. Comunicar imediatamente ao departamento de TI/Patrimônio qualquer ocorrência de dano,\n` +
-    `       perda, furto, roubo ou extravio dos itens;\n` +
-    `  IV.  Devolver todos os itens elencados neste termo em condição equivalente à recebida, quando\n` +
-    `       solicitado ou ao término do vínculo empregatício com a empresa.\n\n` +
-    `Em caso de perda por negligência, dano por uso indevido ou não devolução, o(a) colaborador(a) ` +
-    `responsabiliza-se pelo ressarcimento integral do valor de mercado dos equipamentos danificados ou extraviados.`;
+  textoClausulas.forEach((item) => {
+    const lines = doc.splitTextToSize(item, CONTENT_W - 8);
+    doc.text(lines, MARGIN + 4, clausulaY);
+    clausulaY += lines.length * 2.8 + 1.2;
+  });
 
-  const linhasLegal = doc.splitTextToSize(textoLegal, CONTENT_W - 8);
-  doc.text(linhasLegal, MARGIN + 4, y + 6);
+  y += 48;
 
-  y += 58;
-
-  // ══════════════════════════════════════════════════════════════
-  // TABELA DE EQUIPAMENTOS
-  // ══════════════════════════════════════════════════════════════
+  // 5. TABELA DE EQUIPAMENTOS ENTREGUES
   doc.setFillColor(...COLORS.navyMid);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 7, 2, 2, 'F');
+  doc.roundedRect(MARGIN, y, CONTENT_W, 6, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...COLORS.white);
-  doc.text(
-    `▸  RELAÇÃO DE EQUIPAMENTOS  (${equipamentos.length} ${equipamentos.length === 1 ? 'item' : 'itens'})`,
-    MARGIN + 4, y + 4.8
-  );
+  doc.text(`2. RELAÇÃO DE EQUIPAMENTOS ENTREGUES (${empAssets.length} ${empAssets.length === 1 ? 'ITEM' : 'ITENS'})`, MARGIN + 4, y + 4.2);
 
-  y += 9;
+  y += 7.5;
 
-  const tableBody = equipamentos.length > 0
-    ? equipamentos.map((a, i) => [
-        String(i + 1).padStart(2, '0'),
-        a.tag || '—',
-        a.name || '—',
-        a.equipment || '—',
-        a.condition || '—',
-        a.location || '—',
-      ])
-    : [['—', '—', 'Nenhum equipamento vinculado a este colaborador', '—', '—', '—']];
+  const tableBody = empAssets.map((asset, idx) => [
+    String(idx + 1).padStart(2, '0'),
+    asset.tag ? `#${asset.tag}` : '—',
+    asset.name || '—',
+    asset.equipment || '—',
+    asset.serial_number || 'Não informado',
+    asset.condition || 'Novo',
+    asset.sector || employee.sector || '—'
+  ]);
+
+  if (tableBody.length === 0) {
+    tableBody.push(['-', '-', 'Nenhum equipamento registrado em posse', '-', '-', '-', '-']);
+  }
 
   autoTable(doc, {
     startY: y,
-    head: [['#', 'TAG', 'Descrição do Equipamento', 'Tipo', 'Condição', 'Localização']],
+    head: [['#', 'TAG', 'Descrição do Equipamento', 'Tipo', 'Nº de Série', 'Estado', 'Setor']],
     body: tableBody,
     margin: { left: MARGIN, right: MARGIN },
     styles: {
-      fontSize: 8,
-      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+      fontSize: 7.2,
+      cellPadding: { top: 2.2, bottom: 2.2, left: 3, right: 3 },
       lineColor: COLORS.gray200,
       lineWidth: 0.2,
-      textColor: COLORS.gray700,
+      textColor: COLORS.gray700
     },
     headStyles: {
-      fillColor: [237, 242, 255],
+      fillColor: [235, 242, 255],
       textColor: COLORS.navyMid,
       fontStyle: 'bold',
-      fontSize: 8,
+      fontSize: 7.2,
       lineColor: COLORS.steel,
-      lineWidth: 0.4,
+      lineWidth: 0.4
     },
     alternateRowStyles: {
-      fillColor: COLORS.gray100,
+      fillColor: [248, 250, 252]
     },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'center', fontStyle: 'bold' },
-      1: { cellWidth: 22, fontStyle: 'bold', textColor: COLORS.navyMid },
+      0: { cellWidth: 7, halign: 'center', fontStyle: 'bold' },
+      1: { cellWidth: 20, fontStyle: 'bold', textColor: COLORS.navyMid },
       2: { cellWidth: 'auto' },
       3: { cellWidth: 26 },
-      4: { cellWidth: 20, halign: 'center' },
-      5: { cellWidth: 32 },
-    },
-    didDrawCell: (data) => {
-      // Colorir condição
-      if (data.section === 'body' && data.column.index === 4 && data.cell.raw) {
-        const cond = String(data.cell.raw).toLowerCase();
-        let color = COLORS.gray500;
-        if (cond === 'novo' || cond === 'ótimo') color = COLORS.green;
-        else if (cond === 'usado') color = [234, 179, 8];
-        else if (cond === 'danificado') color = [220, 38, 38];
-        doc.setTextColor(...color);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.5);
-        doc.text(
-          data.cell.raw,
-          data.cell.x + data.cell.width / 2,
-          data.cell.y + data.cell.height / 2 + 1,
-          { align: 'center' }
-        );
-      }
-    },
+      4: { cellWidth: 24, halign: 'center' },
+      5: { cellWidth: 18, halign: 'center' },
+      6: { cellWidth: 26 }
+    }
   });
 
-  y = doc.lastAutoTable.finalY + 12;
+  y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 6;
 
-  // ══════════════════════════════════════════════════════════════
-  // ÁREA DE ASSINATURAS
-  // ══════════════════════════════════════════════════════════════
-  // Verificar nova página
-  if (y > PAGE_H - 80) {
+  // 6. ÁREA DE ASSINATURA (SEMPRE CABE EM 1 PÁGINA OU CRIA NOVA)
+  if (y > PAGE_H - 60) {
     doc.addPage();
     y = 20;
   }
 
-  // Título da seção
   doc.setFillColor(...COLORS.navyMid);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 7, 2, 2, 'F');
+  doc.roundedRect(MARGIN, y, CONTENT_W, 6, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...COLORS.white);
-  doc.text('▸  DECLARAÇÃO DE CIÊNCIA E ASSINATURA', MARGIN + 4, y + 4.8);
+  doc.text('3. TERMO DE CIÊNCIA E ASSINATURA DAS PARTES', MARGIN + 4, y + 4.2);
 
-  y += 12;
+  y += 9;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(7.2);
   doc.setTextColor(...COLORS.gray700);
-  const textoDeclaro = `Declaro que li e compreendi todas as cláusulas deste Termo de Responsabilidade, concordando integralmente com as condições estabelecidas.`;
-  const linhasDeclaro = doc.splitTextToSize(textoDeclaro, CONTENT_W);
-  doc.text(linhasDeclaro, MARGIN, y);
+  doc.text('Declaro que li, concordo e aceito expressamente todas as condições e termos do presente documento.', MARGIN, y);
 
-  y += 12;
+  y += 5;
 
-  // Três campos de assinatura
-  const sigW  = (CONTENT_W - 10) / 3;
-  const sigH  = 28;
-  const sigPositions = [
-    { x: MARGIN,               label: employee.name || 'Colaborador', sublabel: 'Assinatura do Colaborador' },
-    { x: MARGIN + sigW + 5,    label: 'Responsável de TI',            sublabel: 'Assinatura e Carimbo' },
-    { x: MARGIN + (sigW + 5)*2,label: 'Gestor / RH',                  sublabel: 'Visto do Gestor' },
+  // Local e data (Santa Isabel - SP)
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COLORS.gray700);
+  doc.text(`Santa Isabel - SP, ${formatarDataExtenso(new Date())}.`, PAGE_W / 2, y, { align: 'center' });
+
+  y += 6;
+
+  // 2 Caixas de Assinatura Limpas
+  const boxW = (CONTENT_W - 12) / 2;
+  const boxH = 24;
+  const signBoxes = [
+    { x: MARGIN, name: employee.name || 'Colaborador(a)', role: 'Assinatura do Colaborador(a)' },
+    { x: MARGIN + boxW + 12, name: 'Gestão', role: 'Representante da Empresa' }
   ];
 
-  sigPositions.forEach(({ x, label, sublabel }) => {
-    // Box de assinatura
-    doc.setFillColor(...COLORS.gray100);
+  signBoxes.forEach(sb => {
+    doc.setFillColor(248, 250, 252);
     doc.setDrawColor(...COLORS.gray200);
     doc.setLineWidth(0.3);
-    doc.roundedRect(x, y, sigW, sigH, 2, 2, 'FD');
+    doc.roundedRect(sb.x, y, boxW, boxH, 1.5, 1.5, 'FD');
 
     // Linha de assinatura
     doc.setDrawColor(...COLORS.navyMid);
-    doc.setLineWidth(0.6);
-    doc.line(x + 4, y + 18, x + sigW - 4, y + 18);
+    doc.setLineWidth(0.4);
+    doc.line(sb.x + 8, y + 14, sb.x + boxW - 8, y + 14);
 
-    // Rótulos
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.setTextColor(...COLORS.navyMid);
-    const labelLines = doc.splitTextToSize(label, sigW - 6);
-    doc.text(labelLines, x + sigW / 2, y + 22, { align: 'center' });
+    doc.setTextColor(...COLORS.navyDark);
+    doc.text(sb.name, sb.x + boxW / 2, y + 18, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(...COLORS.gray500);
-    doc.text(sublabel, x + sigW / 2, y + 26.5, { align: 'center' });
+    doc.text(sb.role, sb.x + boxW / 2, y + 21.5, { align: 'center' });
   });
 
-  y += sigH + 8;
-
-  // Campo de data
-  const dateBoxW = 60;
-  doc.setFillColor(...COLORS.gray100);
-  doc.setDrawColor(...COLORS.gray200);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(MARGIN, y, dateBoxW, 14, 2, 2, 'FD');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(...COLORS.gray500);
-  doc.text('LOCAL E DATA', MARGIN + dateBoxW / 2, y + 5, { align: 'center' });
-  doc.setDrawColor(...COLORS.navyMid);
-  doc.setLineWidth(0.5);
-  doc.line(MARGIN + 4, y + 11, MARGIN + dateBoxW - 4, y + 11);
-  doc.setFontSize(7);
-  doc.text(`_____________________, ${formatarData()}`, MARGIN + dateBoxW / 2, y + 13, { align: 'center' });
-
-  // ══════════════════════════════════════════════════════════════
-  // RODAPÉ — em todas as páginas
-  // ══════════════════════════════════════════════════════════════
+  // 7. RODAPÉ FIXO EM TODAS AS PÁGINAS
   const totalPages = doc.getNumberOfPages();
-  for (let pg = 1; pg <= totalPages; pg++) {
-    doc.setPage(pg);
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
 
-    // Linha acima do rodapé
-    doc.setDrawColor(...COLORS.steel);
-    doc.setLineWidth(0.4);
-    doc.line(MARGIN, PAGE_H - 14, PAGE_W - MARGIN, PAGE_H - 14);
-
-    // Faixa de cor no extremo inferior
-    doc.setFillColor(...COLORS.navyDark);
-    doc.rect(0, PAGE_H - 10, PAGE_W, 10, 'F');
+    doc.setDrawColor(...COLORS.gray200);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN, PAGE_H - 10, PAGE_W - MARGIN, PAGE_H - 10);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...COLORS.steelLight);
+    doc.setFontSize(6.8);
+    doc.setTextColor(...COLORS.gray500);
     doc.text(
-      'TRYNOVA — Sistema de Controle de Patrimônio  |  Documento gerado automaticamente — não requer assinatura eletrônica',
-      PAGE_W / 2, PAGE_H - 5,
+      'Termo de Responsabilidade e Uso de Equipamentos  |  Documento Emitido Digitalmente',
+      PAGE_W / 2, PAGE_H - 6,
       { align: 'center' }
     );
-    doc.setTextColor(150, 180, 220);
-    doc.text(`Página ${pg} de ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
+
+    doc.text(`Página ${p} de ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // DOWNLOAD
-  // ══════════════════════════════════════════════════════════════
-  const nomeArquivo = `Termo_Responsabilidade_${employee.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(nomeArquivo);
+  // 8. DISPARA O DOWNLOAD
+  const cleanName = (employee.name || 'colaborador').replace(/\s+/g, '_');
+  const fileName = `Termo_Responsabilidade_${cleanName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(fileName);
 }

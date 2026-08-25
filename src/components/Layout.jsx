@@ -1,32 +1,30 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import TopBar from './TopBar';
+import ToastContainer from './ToastContainer';
 
-import '../styles/layout.css';
-
-/**
- * Layout component that provides the overall page structure:
- *   - Persistent left sidebar (collapsible)
- *   - Optional top navigation bar (TopBar)
- *   - Main content area (children)
- *
- * It receives the same props that were previously managed in App.jsx so that
- * navigation state, theme toggling and sidebar collapse behavior stay in one
- * place.
- */
-const Layout = ({
-  activeTab,
-  setActiveTab,
-  onLogout,
-  collapsed,
-  onToggleCollapse,
-  theme,
+export default function Layout({ 
+  children, 
+  activeTab, 
+  setActiveTab, 
+  onLogout, 
+  collapsed, 
+  onToggleCollapse, 
+  theme, 
   toggleTheme,
-  children,
-}) => {
+  user,
+  onAddNewAsset,
+  toasts = [],
+  onDismissToast,
+  assetCounts
+}) {
   return (
     <div className="layout-root">
+      {/* Sistema de Notificações Toast Global */}
+      <ToastContainer toasts={toasts} onDismiss={onDismissToast} />
 
       <div className="layout-body">
+        {/* Barra Lateral / Sidebar */}
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -35,11 +33,28 @@ const Layout = ({
           onToggleCollapse={onToggleCollapse}
           theme={theme}
           toggleTheme={toggleTheme}
+          assetCounts={assetCounts}
         />
-        <main className="layout-main-content">{children}</main>
+
+        {/* Área Principal */}
+        <div className="layout-content-wrapper">
+          {/* Barra Superior TopBar */}
+          <TopBar
+            activeTab={activeTab}
+            theme={theme}
+            toggleTheme={toggleTheme}
+            user={user}
+            onLogout={onLogout}
+            onAddNewAsset={onAddNewAsset}
+            totalAssetsCount={assetCounts ? assetCounts.total : 0}
+          />
+
+          {/* Conteúdo Dinâmico da Página */}
+          <main className="layout-main-content">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Layout;
+}

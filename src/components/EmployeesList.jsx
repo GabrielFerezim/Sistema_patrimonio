@@ -1,13 +1,34 @@
 import React, { useState, useRef } from 'react';
 import { gerarTermoResponsabilidade } from '../utils/gerarTermo';
+import { gerarTermoDevolucao } from '../utils/gerarTermoDevolucao';
+import { exportEmployeesToCSV } from '../utils/csvHelper';
 import TermActionsDropdown from './TermActionsDropdown';
+import OnboardingKitModal from './OnboardingKitModal';
 
-const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmployee, onDecommission }) => {
+export default function EmployeesList({
+  assets = [],
+  employees = [],
+  onSaveEmployee,
+  onDeleteEmployee,
+  onDecommission,
+  onSendToStock,
+  onOnboardEmployeeWithKit,
+  onOffboardEmployee
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [layoutMode, setLayoutMode] = useState('list'); // 'list' ou 'grid'
   const [selectedSectorTab, setSelectedSectorTab] = useState('Todos');
-  
-  // Modal states for CRUD Employee
+  const [selectedTeamTab, setSelectedTeamTab] = useState('Todos');
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+
+  // Modal de Offboarding
+  const [offboardingEmployee, setOffboardingEmployee] = useState(null);
+  const [offboardSelectedAssetIds, setOffboardSelectedAssetIds] = useState([]);
+  const [offboardDestination, setOffboardDestination] = useState('Estoque Central');
+  const [offboardNotes, setOffboardNotes] = useState('');
+  const [offboardRemoveEmp, setOffboardRemoveEmp] = useState(false);
+
+  // Modal de Cadastro/Edição de Colaborador
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [employeeName, setEmployeeName] = useState('');
@@ -17,19 +38,33 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
   const [employeeTeam, setEmployeeTeam] = useState('Nenhuma');
   const [validationError, setValidationError] = useState('');
 
-  // Asset viewer modal state
-  const [activeEmployeeId, setActiveEmployeeId] = useState(null);
+  // Visualizador de Patrimônios do Colaborador
+  const [activeEmployeeAssets, setActiveEmployeeAssets] = useState(null);
   const [decommissionAsset, setDecommissionAsset] = useState(null);
   const [decommissionReason, setDecommissionReason] = useState('');
 
-  // Expanded sub-rows for assets
+  // Linhas expandidas na tabela
   const [expandedRows, setExpandedRows] = useState({});
 
-  // Termo de Responsabilidade — upload de termo assinado por funcionário
-  const [termUploadingId, setTermUploadingId] = useState(null);
-  const [termData, setTermData] = useState({}); // { [empId]: { signed_term_name, signed_term_at, signed_term } }
+  // Upload de termo assinado
   const termFileInputRef = useRef(null);
   const [pendingTermEmpId, setPendingTermEmpId] = useState(null);
+  const [termData, setTermData] = useState({}); // { [empId]: { signed_term_name, signed_term_at, signed_term } }
+
+  // Sincroniza termos já gravados nos colaboradores
+  React.useEffect(() => {
+    const initialMap = {};
+    employees.forEach(emp => {
+      if (emp.signed_term_name) {
+        initialMap[emp.id] = {
+          signed_term_name: emp.signed_term_name,
+          signed_term_at: emp.signed_term_at,
+          signed_term: emp.signed_term
+        };
+      }
+    });
+    setTermData(prev => ({ ...initialMap, ...prev }));
+  }, [employees]);
 
   const handleDownloadTermo = (emp) => {
     gerarTermoResponsabilidade(emp, assets);
@@ -37,19 +72,22 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
 
   const handleUploadTermClick = (empId) => {
     setPendingTermEmpId(empId);
-    termFileInputRef.current.value = '';
-    termFileInputRef.current.click();
+    if (termFileInputRef.current) {
+      termFileInputRef.current.value = '';
+      termFileInputRef.current.click();
+    }
   };
 
   const handleTermFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !pendingTermEmpId) return;
-    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    const maxSize = 8 * 1024 * 1024; // 8MB
     if (file.size > maxSize) {
-      alert('Arquivo muito grande. O tamanho máximo permitido é 5MB.');
+      alert('Arquivo muito grande. O tamanho máximo permitido é 8MB.');
       return;
     }
-    setTermUploadingId(pendingTermEmpId);
+
     try {
       const reader = new FileReader();
       reader.onload = async (ev) => {
@@ -60,59 +98,75 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
           });
+
           if (res.ok) {
             const data = await res.json();
             setTermData(prev => ({
               ...prev,
-              [pendingTermEmpId]: { signed_term_name: data.signed_term_name, signed_term_at: data.signed_term_at, signed_term: base64 },
+              [pendingTermEmpId]: { 
+                signed_term_name: data.signed_term_name, 
+                signed_term_at: data.signed_term_at, 
+                signed_term: base64 
+              },
             }));
           } else {
-            // fallback local
             setTermData(prev => ({
               ...prev,
-              [pendingTermEmpId]: { signed_term_name: file.name, signed_term_at: new Date().toISOString(), signed_term: base64 },
+              [pendingTermEmpId]: { 
+                signed_term_name: file.name, 
+                signed_term_at: new Date().toISOString(), 
+                signed_term: base64 
+              },
             }));
           }
         } catch {
           setTermData(prev => ({
             ...prev,
-            [pendingTermEmpId]: { signed_term_name: file.name, signed_term_at: new Date().toISOString(), signed_term: base64 },
+            [pendingTermEmpId]: { 
+              signed_term_name: file.name, 
+              signed_term_at: new Date().toISOString(), 
+              signed_term: base64 
+            },
           }));
-        } finally {
-          setTermUploadingId(null);
         }
       };
       reader.readAsDataURL(file);
-    } catch {
-      setTermUploadingId(null);
+    } catch (err) {
+      console.warn('Erro ao processar arquivo de termo:', err);
     }
   };
 
   const handleRemoveTerm = async (empId) => {
-    if (!window.confirm('Deseja remover o termo assinado deste funcionário?')) return;
+    if (!window.confirm('Deseja remover o termo assinado deste colaborador?')) return;
     try {
       await fetch(`/api/employees/${empId}/term`, { method: 'DELETE' });
-    } catch { /* fallback local */ }
-    setTermData(prev => { const n = { ...prev }; delete n[empId]; return n; });
+    } catch (err) {
+      console.warn('Erro ao remover termo via API:', err);
+    }
+    setTermData(prev => { 
+      const updated = { ...prev }; 
+      delete updated[empId]; 
+      return updated; 
+    });
   };
 
   const handleDownloadSignedTerm = (empId) => {
     const t = termData[empId];
-    if (!t) return;
+    if (!t || !t.signed_term) {
+      alert('Nenhum termo em anexo encontrado.');
+      return;
+    }
     const link = document.createElement('a');
     link.href = t.signed_term;
-    link.download = t.signed_term_name || 'termo_assinado';
+    link.download = t.signed_term_name || 'termo_assinado.pdf';
     link.click();
   };
 
   const toggleRowExpanded = (id) => {
-    setExpandedRows(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const openAddEmployeeModal = () => {
+  const openAddModal = () => {
     setEditingEmployee(null);
     setEmployeeName('');
     setEmployeeSector('Tecnologia da Informação');
@@ -123,7 +177,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     setIsEmployeeModalOpen(true);
   };
 
-  const openEditEmployeeModal = (emp) => {
+  const openEditModal = (emp) => {
     setEditingEmployee(emp);
     setEmployeeName(emp.name);
     setEmployeeSector(emp.sector || 'Tecnologia da Informação');
@@ -134,98 +188,108 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     setIsEmployeeModalOpen(true);
   };
 
-  const closeEmployeeModal = () => {
-    setIsEmployeeModalOpen(false);
-    setEditingEmployee(null);
-    setEmployeeName('');
-    setEmployeeSector('Tecnologia da Informação');
-    setEmployeeRole('');
-    setEmployeeRamal('');
-    setEmployeeTeam('Nenhuma');
-    setValidationError('');
-  };
-
-  const handleEmployeeFormSubmit = (e) => {
+  const handleEmployeeSubmit = (e) => {
     e.preventDefault();
-    if (!employeeName.trim() || !employeeSector.trim() || !employeeRole.trim()) {
-      setValidationError('Por favor, preencha todos os campos obrigatórios (Nome, Cargo, Setor).');
+    if (!employeeName.trim() || !employeeSector.trim()) {
+      setValidationError('Nome e Setor são campos obrigatórios.');
       return;
     }
 
-    // Verifica nomes duplicados (ignorando o que está sendo editado)
-    const isDuplicate = employees.some(emp => 
-      emp.name.toLowerCase().trim() === employeeName.toLowerCase().trim() && 
+    const isDuplicate = employees.some(emp =>
+      emp.name.toLowerCase().trim() === employeeName.toLowerCase().trim() &&
       (!editingEmployee || emp.id !== editingEmployee.id)
     );
 
     if (isDuplicate) {
-      setValidationError('Já existe um funcionário cadastrado com este nome.');
+      setValidationError('Já existe um colaborador cadastrado com este nome.');
       return;
     }
 
-    const savedData = {
+    const payload = {
       name: employeeName.trim(),
       sector: employeeSector.trim(),
       role: employeeRole.trim(),
       ramal: employeeRamal.trim(),
-      team: employeeTeam,
+      team: employeeTeam || 'Nenhuma',
     };
 
     if (editingEmployee) {
-      savedData.id = editingEmployee.id;
-      savedData.oldName = editingEmployee.name;
+      payload.id = editingEmployee.id;
+      payload.oldName = editingEmployee.name;
     }
 
-    onSaveEmployee(savedData);
-    closeEmployeeModal();
+    onSaveEmployee(payload);
+    setIsEmployeeModalOpen(false);
   };
 
   const handleDeleteClick = (emp) => {
-    if (window.confirm(`Tem certeza de que deseja excluir o funcionário "${emp.name}"? Todos os patrimônios em uso por ele voltarão para o estoque.`)) {
+    if (window.confirm(`Tem certeza de que deseja excluir o colaborador "${emp.name}"? Todos os equipamentos em posse voltarão automaticamente para o estoque.`)) {
       onDeleteEmployee(emp.id, emp.name);
     }
   };
 
-  // Mapeia os funcionários atuais e busca seus patrimônios
-  const employeesWithAssets = employees.map(emp => {
-    const empAssets = assets.filter(
-      asset => asset.status === 'Em Uso' && asset.employee && asset.employee.trim().toLowerCase() === emp.name.trim().toLowerCase()
+  // Offboarding
+  const handleOpenOffboard = (emp) => {
+    setOffboardingEmployee(emp);
+    const empAssetIds = (emp.assets || []).map(a => a.id);
+    setOffboardSelectedAssetIds(empAssetIds);
+    setOffboardDestination('Estoque Central');
+    setOffboardNotes('Equipamentos conferidos e devolvidos em bom estado.');
+    setOffboardRemoveEmp(false);
+  };
+
+  const handleToggleOffboardAsset = (assetId) => {
+    setOffboardSelectedAssetIds(prev =>
+      prev.includes(assetId) ? prev.filter(id => id !== assetId) : [...prev, assetId]
     );
-    return {
-      ...emp,
-      assets: empAssets
-    };
-  });
+  };
 
-  const activeEmployee = employees.find(e => e.id === activeEmployeeId);
-  const activeEmployeeAssetsList = activeEmployee ? assets.filter(
-    asset => asset.status === 'Em Uso' && asset.employee && asset.employee.trim().toLowerCase() === activeEmployee.name.trim().toLowerCase()
-  ) : [];
+  const handleDownloadTermoDevolucao = async (emp) => {
+    if (!emp) return;
+    const empAssets = emp.assets || [];
+    try {
+      await gerarTermoDevolucao(emp, empAssets, 'Termo avulso de conferência e devolução de equipamentos.');
+    } catch (err) {
+      console.error('Erro ao gerar termo de devolução:', err);
+    }
+  };
 
-  // Obtém a lista estática de setores para as abas
-  const allSectors = Array.from(
-    new Set(employees.map(e => e.sector).filter(Boolean))
-  ).sort();
+  const handleConfirmOffboard = async () => {
+    if (!offboardingEmployee) return;
 
-  // Filtra pelo setor selecionado e termo de busca
-  const filteredEmployees = employeesWithAssets.filter(emp => {
-    const matchesSector = selectedSectorTab === 'Todos' || emp.sector === selectedSectorTab;
-    
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (emp.team && emp.team.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      emp.assets.some(asset => 
-        asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.equipment.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // 1. Extrai a lista de equipamentos que estão sendo devolvidos
+    const empAssets = offboardingEmployee.assets || [];
+    const returnedAssetsList = empAssets.filter(a => offboardSelectedAssetIds.includes(a.id));
 
-    return matchesSector && matchesSearch;
-  });
+    // Guarda cópias seguras
+    const empCopy = { ...offboardingEmployee };
+    const notesCopy = offboardNotes;
+    const assetIdsCopy = [...offboardSelectedAssetIds];
+    const destinationCopy = offboardDestination;
+    const removeEmployeeCopy = offboardRemoveEmp;
 
-  // Função para realçar o termo pesquisado na busca
+    // 2. Executa o download do Termo de Devolução & Quitação em PDF
+    try {
+      await gerarTermoDevolucao(empCopy, returnedAssetsList, notesCopy);
+    } catch (err) {
+      console.error('Erro ao gerar PDF de devolução:', err);
+    }
+
+    // 3. Executa a baixa e desvinculação dos itens no sistema
+    if (onOffboardEmployee) {
+      await onOffboardEmployee({
+        employee: empCopy,
+        returnedAssetIds: assetIdsCopy,
+        destination: destinationCopy,
+        notes: notesCopy,
+        removeEmployee: removeEmployeeCopy
+      });
+    }
+
+    setOffboardingEmployee(null);
+  };
+
+  // Realce de texto
   const highlightText = (text, search) => {
     if (!text) return '-';
     if (!search || !search.trim()) return text;
@@ -238,31 +302,41 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     );
   };
 
-  // Exportador de Relatório CSV de Funcionários
-  const exportToCSV = () => {
-    const headers = ['Funcionário', 'Cargo', 'Setor', 'Equipe', 'Ramal', 'Equipamentos em Posse'];
-    const rows = filteredEmployees.map(emp => [
-      emp.name,
-      emp.role || '-',
-      emp.sector,
-      emp.team || 'Nenhuma',
-      emp.ramal || '-',
-      emp.assets.map(a => `${a.tag} (${a.name})`).join('; ')
-    ]);
+  // Mapeia colaboradores com seus patrimônios
+  const employeesWithAssets = employees.map(emp => {
+    const empAssets = assets.filter(
+      a => a.status === 'Em Uso' && a.employee && a.employee.trim().toLowerCase() === emp.name.trim().toLowerCase()
+    );
+    return {
+      ...emp,
+      assets: empAssets
+    };
+  });
 
-    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `lista_funcionarios_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const allSectors = Array.from(new Set(employees.map(e => e.sector).filter(Boolean))).sort();
+  
+  // Extrai todas as equipes/clientes únicas cadastradas no banco
+  const allTeams = Array.from(new Set(employees.map(e => e.team).filter(Boolean))).sort();
 
-  // Agrupa os funcionários filtrados por setor
+  // Filtragem
+  const filteredEmployees = employeesWithAssets.filter(emp => {
+    const matchesSector = selectedSectorTab === 'Todos' || emp.sector === selectedSectorTab;
+    const matchesTeam = selectedTeamTab === 'Todos' || (emp.team || 'Nenhuma') === selectedTeamTab;
+    const matchesSearch =
+      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.role && emp.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.team && emp.team.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      emp.assets.some(a => 
+        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.equipment.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+    return matchesSector && matchesTeam && matchesSearch;
+  });
+
+  // Agrupamento por setor
   const sectorGroups = {};
   filteredEmployees.forEach(emp => {
     const sectorName = emp.sector || 'Sem Setor';
@@ -277,49 +351,67 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
     sectorGroups[sectorKey].employees.push(emp);
   });
 
-  // Converte os grupos de setores em um array ordenado
-  const sectors = Object.values(sectorGroups).sort((a, b) => 
-    a.name.localeCompare(b.name, 'pt-BR')
-  );
+  const sectors = Object.values(sectorGroups).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   // Métricas
   const totalEmployees = employees.length;
   const totalSectors = new Set(employees.map(e => e.sector.trim().toLowerCase())).size;
+  const totalTeams = new Set(employees.map(e => (e.team || 'Nenhuma').trim().toLowerCase()).filter(t => t !== 'nenhuma')).size;
   const totalAssignedAssets = assets.filter(a => a.status === 'Em Uso' && a.employee).length;
 
   return (
     <div className="employees-list-container">
       <header className="page-header">
-        <div>
-          <h1 className="page-title">Funcionários</h1>
-          <p className="page-subtitle">Acompanhe a distribuição e responsabilidade dos equipamentos por colaborador e setor</p>
+        <div className="page-header-info">
+          <h1 className="page-title">Colaboradores & Custódia</h1>
+          <p className="page-subtitle">Acompanhe a distribuição de equipamentos por colaborador e gerencie termos de responsabilidade</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary btn-export" onClick={exportToCSV} title="Exportar dados filtrados para planilha CSV">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px' }}>
+        
+        <div className="page-header-actions">
+          <button 
+            type="button"
+            className="btn btn-secondary btn-sm" 
+            onClick={() => exportEmployeesToCSV(filteredEmployees, assets)}
+            title="Exportar lista de colaboradores para CSV"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            Exportar CSV
+            <span>Exportar CSV</span>
           </button>
-          <button className="btn btn-primary" onClick={openAddEmployeeModal}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setIsOnboardingModalOpen(true)}
+            title="Cadastrar novo colaborador e entregar kit de equipamentos do estoque"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            <span>Onboarding com Kit</span>
+          </button>
+
+          <button type="button" className="btn btn-secondary btn-sm" onClick={openAddModal}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <line x1="19" y1="8" x2="19" y2="14" />
               <line x1="22" y1="11" x2="16" y2="11" />
             </svg>
-            Cadastrar Funcionário
+            <span>Cadastrar Colaborador</span>
           </button>
         </div>
       </header>
 
-      {/* Grade de KPIs Resumidos */}
+      {/* Grade de KPIs */}
       {totalEmployees > 0 && (
-        <div className="employees-kpi-grid">
-          <div className="emp-kpi-card">
-            <div className="emp-kpi-icon total">
+        <div className="kpi-grid">
+          <div className="kpi-card total">
+            <div className="kpi-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
@@ -327,39 +419,45 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
             </div>
-            <div className="emp-kpi-info">
-              <span className="emp-kpi-label">Total de Colaboradores</span>
-              <span className="emp-kpi-value">{totalEmployees}</span>
+            <div className="kpi-info">
+              <span className="kpi-label">Total de Colaboradores</span>
+              <span className="kpi-value">{totalEmployees}</span>
             </div>
+            <div className="kpi-bg-glow"></div>
           </div>
 
-          <div className="emp-kpi-card">
-            <div className="emp-kpi-icon active-user">
+          <div className="kpi-card in-use">
+            <div className="kpi-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
-            <div className="emp-kpi-info">
-              <span className="emp-kpi-label">Setores Registrados</span>
-              <span className="emp-kpi-value">{totalSectors}</span>
+            <div className="kpi-info">
+              <span className="kpi-label">Setores Cadastrados</span>
+              <span className="kpi-value">{totalSectors}</span>
             </div>
+            <div className="kpi-bg-glow"></div>
           </div>
 
-          <div className="emp-kpi-card">
-            <div className="emp-kpi-icon assets">
+          <div className="kpi-card in-stock">
+            <div className="kpi-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
             </div>
-            <div className="emp-kpi-info">
-              <span className="emp-kpi-label">Total de Equipamentos em Uso</span>
-              <span className="emp-kpi-value">{totalAssignedAssets}</span>
+            <div className="kpi-info">
+              <span className="kpi-label">Equipes & Clientes</span>
+              <span className="kpi-value">{totalTeams || allTeams.length}</span>
             </div>
+            <div className="kpi-bg-glow"></div>
           </div>
         </div>
       )}
 
-      {/* Barra de Filtros e Alternador de Layout */}
+      {/* Barra de Filtros */}
       <div className="filter-bar">
         <div className="filter-row-top">
           <div className="search-wrapper" style={{ flexGrow: 1 }}>
@@ -369,7 +467,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
             </svg>
             <input
               type="text"
-              placeholder="Pesquisar por funcionário, cargo, setor, equipe ou equipamento..."
+              placeholder="Pesquisar por colaborador, cargo, setor, equipe ou equipamento..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -381,10 +479,11 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
           </div>
 
           <div className="filter-dropdowns">
+            {/* Filtro Setor */}
             <div className="filter-item">
-              <label htmlFor="filter-sector">Setor</label>
+              <label htmlFor="filter-sector-emp">Setor</label>
               <select
-                id="filter-sector"
+                id="filter-sector-emp"
                 value={selectedSectorTab}
                 onChange={(e) => setSelectedSectorTab(e.target.value)}
               >
@@ -394,17 +493,34 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 ))}
               </select>
             </div>
+
+            {/* Filtro Equipe / Cliente */}
+            <div className="filter-item">
+              <label htmlFor="filter-team-emp">Equipe / Cliente</label>
+              <select
+                id="filter-team-emp"
+                value={selectedTeamTab}
+                onChange={(e) => setSelectedTeamTab(e.target.value)}
+              >
+                <option value="Todos">Todas as Equipes/Clientes</option>
+                {allTeams.map(teamName => (
+                  <option key={teamName} value={teamName}>
+                    {teamName === 'Nenhuma' ? 'Sem Equipe / Geral' : teamName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Botão de Alternância de Layout (Design Profissional Enterprise) */}
+          {/* Alternador de Layout */}
           <div className="layout-toggle-group">
             <button 
               type="button"
               className={`layout-toggle-btn ${layoutMode === 'list' ? 'active' : ''}`}
               onClick={() => setLayoutMode('list')}
-              title="Visualização em Lista de Diretório"
+              title="Exibição em Tabela / Diretório"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
                 <line x1="8" y1="6" x2="21" y2="6" />
                 <line x1="8" y1="12" x2="21" y2="12" />
                 <line x1="8" y1="18" x2="21" y2="18" />
@@ -418,9 +534,9 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               type="button"
               className={`layout-toggle-btn ${layoutMode === 'grid' ? 'active' : ''}`}
               onClick={() => setLayoutMode('grid')}
-              title="Visualização em Cards de Perfil"
+              title="Exibição em Cards"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
                 <rect x="3" y="3" width="7" height="7" />
                 <rect x="14" y="3" width="7" height="7" />
                 <rect x="14" y="14" width="7" height="7" />
@@ -430,9 +546,35 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
             </button>
           </div>
         </div>
+
+        {/* Chips de Equipes / Clientes */}
+        <div className="status-chips-container">
+          <span className="filter-label">Clientes / Equipes:</span>
+          <div className="status-chips">
+            {['Todos', ...allTeams].map(teamName => {
+              const count = teamName === 'Todos'
+                ? employees.length
+                : employees.filter(e => (e.team || 'Nenhuma') === teamName).length;
+
+              return (
+                <button
+                  key={teamName}
+                  type="button"
+                  className={`status-chip ${selectedTeamTab === teamName ? 'active' : ''}`}
+                  onClick={() => setSelectedTeamTab(teamName)}
+                >
+                  <span className="status-chip-label">
+                    {teamName === 'Nenhuma' ? 'Geral / Sem Equipe' : teamName}
+                  </span>
+                  <span className="status-chip-count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Listagem de Setores e Grades de Cards/Tabelas */}
+      {/* Listagem de Setores */}
       {sectors.length > 0 ? (
         <div className="sectors-layout-container">
           {sectors.map(sector => {
@@ -443,13 +585,13 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               <div key={sector.name} className="sector-section">
                 <header className="sector-section-header">
                   <h3 className="sector-section-title">
-                     {sector.name}
+                    {sector.name}
                     <span className="sector-section-badge">
                       {sectorEmployeeCount} {sectorEmployeeCount === 1 ? 'colaborador' : 'colaboradores'} • {sectorAssetCount} {sectorAssetCount === 1 ? 'patrimônio' : 'patrimônios'}
                     </span>
                   </h3>
                 </header>
-                
+
                 {layoutMode === 'grid' ? (
                   /* MODO CARDS (GRID VIEW) */
                   <div className="employees-profile-grid">
@@ -459,27 +601,21 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
 
                       return (
                         <div key={emp.id} className={`employee-profile-card ${teamClass}`}>
-                          {/* Top Row: Actions + Team Badge */}
                           <div className="profile-card-top">
-                            <div className="profile-card-actions">
-                              {/* As ações foram movidas para o dropdown no rodapé do card */}
-                            </div>
-                            
-                            {emp.team && emp.team !== 'Nenhuma' && (
-                              <span className={`team-badge ${teamClass}`}>
-                                {highlightText(emp.team, searchTerm)}
-                              </span>
-                            )}
+                            <span className="profile-sector-badge" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-app)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 500 }}>
+                              {emp.sector}
+                            </span>
+                            <span className={`team-badge ${teamClass}`}>
+                              {highlightText(emp.team && emp.team !== 'Nenhuma' ? emp.team : 'Geral', searchTerm)}
+                            </span>
                           </div>
 
-                          {/* Avatar */}
                           <div className={`profile-card-avatar-wrapper ${teamClass}`}>
                             <div className="profile-card-avatar">
-                              {emp.name.charAt(0).toUpperCase()} {/* charArt serve para exibir a inicial do nome */}
+                              {emp.name.charAt(0).toUpperCase()}
                             </div>
                           </div>
 
-                          {/* Employee Identity */}
                           <div className="profile-card-identity">
                             <h4 className="profile-card-name" title={emp.name}>{highlightText(emp.name, searchTerm)}</h4>
                             <p className="profile-card-role" title={emp.role || 'Sem Cargo'}>
@@ -487,34 +623,58 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                             </p>
                           </div>
 
-                          {/* Details */}
                           <div className="profile-card-details">
                             <div className="profile-detail-row">
-                              <span className="detail-icon">☎</span>
+                              <span className="detail-icon" title="Equipe / Cliente" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                  <circle cx="9" cy="7" r="4"></circle>
+                                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                              </span>
+                              <span className="detail-text">
+                                Equipe: <strong style={{ color: emp.team && emp.team !== 'Nenhuma' ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                  {highlightText(emp.team && emp.team !== 'Nenhuma' ? emp.team : 'Geral / Sem Equipe', searchTerm)}
+                                </strong>
+                              </span>
+                            </div>
+                            <div className="profile-detail-row">
+                              <span className="detail-icon" title="Ramal Telefônico" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                                </svg>
+                              </span>
                               <span className="detail-text">
                                 Ramal: <strong>{highlightText(emp.ramal || '-', searchTerm)}</strong>
                               </span>
                             </div>
                             <div className="profile-detail-row">
-                              <span className="detail-icon">📦</span>
+                              <span className="detail-icon" title="Equipamentos" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                                </svg>
+                              </span>
                               <span className="detail-text">
-                                Posse: <strong>{emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</strong>
+                                Equipamentos: <strong>{emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</strong>
                               </span>
                             </div>
                           </div>
 
-                          {/* Ações Unificadas */}
-                          <div className="profile-term-section" style={{ padding: '0.5rem 0', borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                          <div className="profile-term-section">
                             <TermActionsDropdown 
                               employee={emp}
                               termInfo={termData[emp.id]}
                               onDownload={handleDownloadTermo}
+                              onDownloadDevolucao={handleDownloadTermoDevolucao}
                               onUploadClick={handleUploadTermClick}
                               onRemove={handleRemoveTerm}
                               onDownloadSigned={handleDownloadSignedTerm}
-                              onEdit={openEditEmployeeModal}
+                              onEdit={openEditModal}
                               onDelete={handleDeleteClick}
-                              onViewAssets={setActiveEmployeeId}
+                              onViewAssets={() => setActiveEmployeeAssets(emp)}
+                              onOffboard={handleOpenOffboard}
                             />
                           </div>
                         </div>
@@ -522,16 +682,15 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                     })}
                   </div>
                 ) : (
-                  /* MODO LISTA/TABELA (TABULAR DIRECTORY VIEW - DEFAULT) */
+                  /* MODO LISTA / TABELA (TABULAR DIRECTORY) */
                   <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
                     <table className="employees-dir-table">
                       <thead>
                         <tr>
                           <th>Colaborador</th>
                           <th>Cargo</th>
-                          <th>Equipe</th>
                           <th>Ramal</th>
-                          <th>Patrimônios em Posse</th>
+                          <th>Equipamentos</th>
                           <th className="actions-header">Ações</th>
                         </tr>
                       </thead>
@@ -539,93 +698,108 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                         {sector.employees.map(emp => {
                           const sanitizedTeam = (emp.team || 'none').toLowerCase().replace(/[^a-z]/g, '');
                           const teamClass = `team-${sanitizedTeam}`;
-
                           const isExpanded = expandedRows[emp.id];
+
                           return (
                             <React.Fragment key={emp.id}>
                               <tr className={`employee-table-row ${teamClass} ${isExpanded ? 'row-expanded' : ''}`}>
-                                {/* Colaborador (Avatar + Nome) */}
+                                {/* Colaborador */}
                                 <td className="emp-identity-cell">
                                   <div className={`employee-avatarsmall ${teamClass}`}>
                                     {emp.name.charAt(0).toUpperCase()}
                                   </div>
                                   <span className="emp-name-main">{highlightText(emp.name, searchTerm)}</span>
                                 </td>
-                                
+
                                 {/* Cargo */}
                                 <td className="emp-role-cell">
                                   <span className="emp-role-text">{highlightText(emp.role || '-', searchTerm)}</span>
                                 </td>
-                                
-                                {/* Equipe */}
-                                <td>
-                                  {emp.team && emp.team !== 'Nenhuma' ? (
-                                    <span className={`team-badge ${teamClass}`}>
-                                      {highlightText(emp.team, searchTerm)}
-                                    </span>
-                                  ) : (
-                                    <span className="team-badge-none">-</span>
-                                  )}
-                                </td>
-                                
+
                                 {/* Ramal */}
-                                <td className="emp-ramal-cell">
-                                  {emp.ramal ? (
-                                    <strong>{highlightText(emp.ramal, searchTerm)}</strong>
+                                <td>
+                                  <span className="emp-ramal-badge">{highlightText(emp.ramal || '-', searchTerm)}</span>
+                                </td>
+
+                                {/* Equipamentos */}
+                                <td className="assets-count-cell">
+                                  {emp.assets.length > 0 ? (
+                                    <button 
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.45rem',
+                                        padding: '0.35rem 0.75rem',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 600,
+                                        borderRadius: 'var(--radius-sm)',
+                                        border: '1px solid var(--border-color)',
+                                        backgroundColor: 'var(--bg-card)',
+                                        color: 'var(--text-main)',
+                                        cursor: 'pointer',
+                                        transition: 'var(--transition-smooth)',
+                                        boxShadow: 'var(--shadow-xs)'
+                                      }}
+                                      onClick={() => setActiveEmployeeAssets(emp)}
+                                      title="Clique para ver os equipamentos vinculados a este colaborador"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--primary)' }}>
+                                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                                      </svg>
+                                      <span>{emp.assets.length} {emp.assets.length === 1 ? 'Equipamento' : 'Equipamentos'}</span>
+                                    </button>
                                   ) : (
-                                    <span className="unassigned">-</span>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-light)' }}>
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="8" y1="12" x2="16" y2="12" />
+                                      </svg>
+                                      Nenhum
+                                    </span>
                                   )}
                                 </td>
-                                
-                                {/* Quantidade de Patrimônios */}
-                                <td className="emp-assets-cell">
-                                  <button
-                                    type="button"
-                                    className={`assets-count-badge-compact ${isExpanded ? 'expanded' : ''}`}
-                                    onClick={() => toggleRowExpanded(emp.id)}
-                                    title="Clique para ver os equipamentos detalhados"
-                                  >
-                                    <span>📦 {emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</span>
-                                    <svg className="chevron-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                      <polyline points="6 9 12 15 18 9"></polyline>
-                                    </svg>
-                                  </button>
-                                </td>
-                                
-                                {/* Ações Unificadas */}
+
+                                {/* Ações */}
                                 <td className="actions-cell" style={{ textAlign: 'right' }}>
                                   <TermActionsDropdown 
                                     employee={emp}
                                     termInfo={termData[emp.id]}
                                     onDownload={handleDownloadTermo}
+                                    onDownloadDevolucao={handleDownloadTermoDevolucao}
                                     onUploadClick={handleUploadTermClick}
                                     onRemove={handleRemoveTerm}
                                     onDownloadSigned={handleDownloadSignedTerm}
-                                    onEdit={openEditEmployeeModal}
+                                    onEdit={openEditModal}
                                     onDelete={handleDeleteClick}
-                                    onViewAssets={setActiveEmployeeId}
+                                    onViewAssets={() => setActiveEmployeeAssets(emp)}
+                                    onOffboard={handleOpenOffboard}
                                   />
                                 </td>
                               </tr>
-                                {isExpanded && (
-                                  <tr className="employee-details-row">
-                                    <td colSpan="6">
+
+                              {/* Painel Expansível de Patrimônios */}
+                              {isExpanded && (
+                                <tr className="employee-details-row">
+                                  <td colSpan="6">
                                     <div className="employee-expanded-panel">
                                       <h5 className="panel-title">🎒 Equipamentos Vinculados ({emp.assets.length})</h5>
                                       {emp.assets.length > 0 ? (
                                         <div className="compact-assets-grid">
                                           {emp.assets.map(asset => (
-                                            <div key={asset.id} className="compact-asset-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div key={asset.id} className="compact-asset-item">
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', overflow: 'hidden', flexGrow: 1 }}>
-                                                <div className="compact-asset-tag" style={{ alignSelf: 'flex-start' }}>#{highlightText(asset.tag, searchTerm)}</div>
+                                                <div className="compact-asset-tag">#{highlightText(asset.tag, searchTerm)}</div>
                                                 <div className="compact-asset-info">
                                                   <span className="compact-asset-name">{highlightText(asset.name, searchTerm)}</span>
                                                   <span className="compact-asset-type">{highlightText(asset.equipment, searchTerm)}</span>
                                                 </div>
                                               </div>
-                                              <div className="compact-asset-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                                                <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
-                                                  {asset.condition}
+                                              <div className="compact-asset-meta">
+                                                <span className={`condition-badge ${(asset.condition || 'novo').toLowerCase()}`}>
+                                                  {asset.condition || 'Novo'}
                                                 </span>
                                                 <button
                                                   type="button"
@@ -644,7 +818,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                                           ))}
                                         </div>
                                       ) : (
-                                        <p className="no-assets-text">Nenhum patrimônio vinculado a este colaborador no momento.</p>
+                                        <p className="no-assets-text">Nenhum patrimônio em posse no momento.</p>
                                       )}
                                     </div>
                                   </td>
@@ -669,22 +843,22 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               <circle cx="9" cy="7" r="4"></circle>
             </svg>
           </div>
-          <h3>Nenhum funcionário encontrado</h3>
+          <h3>Nenhum colaborador encontrado</h3>
           <p>
             {searchTerm 
               ? 'Nenhum resultado corresponde à sua pesquisa.' 
-              : 'Não há funcionários cadastrados no sistema. Clique em "Cadastrar Funcionário" para começar.'}
+              : 'Não há colaboradores cadastrados no momento.'}
           </p>
         </div>
       )}
 
-      {/* Modal de Cadastro/Edição de Funcionário */}
+      {/* Modal: Cadastro/Edição de Colaborador */}
       {isEmployeeModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
             <header className="modal-header">
-              <h2>{editingEmployee ? 'Editar Funcionário' : 'Cadastrar Novo Funcionário'}</h2>
-              <button className="modal-close-btn" onClick={closeEmployeeModal} aria-label="Fechar">
+              <h2>{editingEmployee ? 'Editar Colaborador' : 'Cadastrar Colaborador'}</h2>
+              <button className="modal-close-btn" onClick={() => setIsEmployeeModalOpen(false)} aria-label="Fechar">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -692,7 +866,40 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               </button>
             </header>
 
-            <form onSubmit={handleEmployeeFormSubmit} className="modal-form">
+            <form onSubmit={handleEmployeeSubmit} className="modal-form">
+              {!editingEmployee && (
+                <div style={{
+                  backgroundColor: 'var(--primary-subtle)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.65rem 0.85rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.5rem'
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                    <strong>Dica:</strong> Deseja entregar o Kit com Tela, Teclado e Suporte do estoque?
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => {
+                      setIsEmployeeModalOpen(false);
+                      setIsOnboardingModalOpen(true);
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '0.25rem 0.6rem',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Usar Onboarding com Kit
+                  </button>
+                </div>
+              )}
+
               {validationError && (
                 <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem', border: '1px solid #fca5a5' }}>
                   {validationError}
@@ -701,10 +908,10 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
 
               <div className="form-grid">
                 <div className="form-group full-width">
-                  <label htmlFor="empName">Nome do Funcionário *</label>
+                  <label htmlFor="emp-name">Nome do Colaborador *</label>
                   <input
                     type="text"
-                    id="empName"
+                    id="emp-name"
                     value={employeeName}
                     onChange={(e) => setEmployeeName(e.target.value)}
                     placeholder="Ex: Gabriel Ferezim"
@@ -713,10 +920,10 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 </div>
 
                 <div className="form-group full-width">
-                  <label htmlFor="empRole">Cargo *</label>
+                  <label htmlFor="emp-role">Cargo / Função *</label>
                   <input
                     type="text"
-                    id="empRole"
+                    id="emp-role"
                     value={employeeRole}
                     onChange={(e) => setEmployeeRole(e.target.value)}
                     placeholder="Ex: Assistente de T.I I"
@@ -725,9 +932,9 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="empSector">Setor / Departamento *</label>
+                  <label htmlFor="emp-sector">Setor / Departamento *</label>
                   <select
-                    id="empSector"
+                    id="emp-sector"
                     value={employeeSector}
                     onChange={(e) => setEmployeeSector(e.target.value)}
                     required
@@ -739,41 +946,48 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                     <option value="Administração">Administração</option>
                     <option value="Financeiro">Financeiro</option>
                     <option value="Recursos Humanos">Recursos Humanos</option>
-                    <option value="Administração / Financeiro">Administração / Financeiro</option>
                     <option value="Departamento Pessoal">Departamento Pessoal</option>
-                    <option value="GESTÃO PATRIMONIAL | Renovações">GESTÃO PATRIMONIAL | Renovações</option>
+                    <option value="GESTÃO PATRIMONIAL">GESTÃO PATRIMONIAL</option>
+                    <option value="DESENVOLVIMENTO IMOBILIÁRIO">DESENVOLVIMENTO IMOBILIÁRIO</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="empTeam">Equipe / Cliente *</label>
-                  <select
-                    id="empTeam"
+                  <label htmlFor="emp-team">Equipe / Cliente *</label>
+                  <input
+                    type="text"
+                    id="emp-team"
+                    list="team-suggestions-list"
                     value={employeeTeam}
                     onChange={(e) => setEmployeeTeam(e.target.value)}
+                    placeholder="Selecione ou digite (Ex: C&A, Latam, Prosegur, Geral...)"
                     required
-                  >
-                    <option value="Nenhuma">Nenhuma / Outra</option>
-                    <option value="C&A">C&A</option>
-                    <option value="Latam">Latam</option>
-                    <option value="Prosegur">Prosegur</option>
-                  </select>
+                  />
+                  <datalist id="team-suggestions-list">
+                    <option value="Nenhuma">Nenhuma / Geral</option>
+                    <option value="C&A" />
+                    <option value="Latam" />
+                    <option value="Prosegur" />
+                    {allTeams.map(t => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="form-group full-width">
-                  <label htmlFor="empRamal">Ramal</label>
+                  <label htmlFor="emp-ramal">Ramal Telefônico</label>
                   <input
                     type="text"
-                    id="empRamal"
+                    id="emp-ramal"
                     value={employeeRamal}
                     onChange={(e) => setEmployeeRamal(e.target.value)}
-                    placeholder="Ex: 4002"
+                    placeholder="Ex: 4005"
                   />
                 </div>
               </div>
 
               <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={closeEmployeeModal}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsEmployeeModalOpen(false)}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -785,22 +999,18 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
         </div>
       )}
 
-      {/* Modal de Exibição de Patrimônios (Viewer Modal) */}
-      {activeEmployee && (
+      {/* Modal: Visualizar Patrimônios */}
+      {activeEmployeeAssets && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '750px', width: '90%' }}>
             <header className="modal-header">
               <div>
-                <h2>Patrimônios em Posse</h2>
+                <h2>Equipamentos do Colaborador</h2>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Colaborador: <strong>{activeEmployee.name}</strong> ({activeEmployee.role})
+                  Colaborador: <strong>{activeEmployeeAssets.name}</strong> ({activeEmployeeAssets.role})
                 </p>
               </div>
-              <button 
-                className="modal-close-btn" 
-                onClick={() => setActiveEmployeeId(null)} 
-                aria-label="Fechar"
-              >
+              <button className="modal-close-btn" onClick={() => setActiveEmployeeAssets(null)} aria-label="Fechar">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -808,8 +1018,8 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
               </button>
             </header>
 
-            <div className="modal-body">
-              {activeEmployeeAssetsList.length > 0 ? (
+            <div className="modal-body" style={{ padding: '1rem 0' }}>
+              {activeEmployeeAssets.assets.length > 0 ? (
                 <div className="table-card" style={{ boxShadow: 'none', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
                   <table className="inventory-table">
                     <thead>
@@ -819,11 +1029,10 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                         <th>Tipo</th>
                         <th>Estado</th>
                         <th>Observações</th>
-                        <th style={{ textAlign: 'right' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {activeEmployeeAssetsList.map(asset => (
+                      {activeEmployeeAssets.assets.map(asset => (
                         <tr key={asset.id}>
                           <td className="asset-tag-cell">
                             <span className="tag-badge">#{asset.tag}</span>
@@ -833,28 +1042,14 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                           </td>
                           <td>{asset.equipment}</td>
                           <td>
-                            <span className={`condition-badge ${asset.condition.toLowerCase()}`}>
-                              {asset.condition}
+                            <span className={`condition-badge ${(asset.condition || 'novo').toLowerCase()}`}>
+                              {asset.condition || 'Novo'}
                             </span>
                           </td>
                           <td>
-                            <span className="employee-asset-notes" title={asset.notes || 'Sem observações'} style={{ maxWidth: '200px' }}>
+                            <span className="employee-asset-notes">
                               {asset.notes || '-'}
                             </span>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              className="btn-action decommission"
-                              onClick={() => setDecommissionAsset(asset)}
-                              title="Dar Baixa (Aposentar item)"
-                              style={{ width: '28px', height: '28px' }}
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="8" y1="12" x2="16" y2="12" />
-                              </svg>
-                            </button>
                           </td>
                         </tr>
                       ))}
@@ -863,26 +1058,13 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 </div>
               ) : (
                 <div className="empty-state-list" style={{ padding: '2rem 1rem' }}>
-                  <div className="empty-icon-wrapper">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <rect x="2" y="2" width="20" height="20" rx="2" ry="2" />
-                      <line x1="9" y1="22" x2="9" y2="16" />
-                      <line x1="15" y1="22" x2="15" y2="16" />
-                      <line x1="2" y1="16" x2="22" y2="16" />
-                    </svg>
-                  </div>
-                  <h3>Nenhum patrimônio em posse</h3>
-                  <p>Este funcionário não possui equipamentos em uso no momento.</p>
+                  <p>Este colaborador não possui equipamentos vinculados no momento.</p>
                 </div>
               )}
             </div>
 
-            <footer className="form-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={() => setActiveEmployeeId(null)}
-              >
+            <footer className="form-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+              <button type="button" className="btn btn-primary" onClick={() => setActiveEmployeeAssets(null)}>
                 Fechar
               </button>
             </footer>
@@ -890,8 +1072,8 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
         </div>
       )}
 
-      {/* Modal Overlay de Confirmação de Baixa */}
-      {decommissionAsset !== null && (
+      {/* Modal: Confirmação de Baixa */}
+      {decommissionAsset && (
         <div className="modal-overlay warning warning-decommission">
           <div className="modal-content confirm-dialog" style={{ maxWidth: '480px' }}>
             <div className="confirm-icon-wrapper" style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-glow)' }}>
@@ -903,7 +1085,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
             <h2>Dar Baixa no Equipamento?</h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-medium)', marginBottom: '1rem' }}>
               Você está prestes a dar baixa no patrimônio <strong>{decommissionAsset.name}</strong> (#{decommissionAsset.tag}). 
-              Ele será desvinculado de <strong>{decommissionAsset.employee}</strong> e marcado permanentemente como inativo.
+              Ele será desvinculado e marcado permanentemente como inativo.
             </p>
             
             <div className="form-group" style={{ width: '100%', textAlign: 'left', marginBottom: '1.5rem' }}>
@@ -914,7 +1096,7 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
                 id="decommission-reason-emp"
                 rows="3"
                 style={{ width: '100%', padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
-                placeholder="Ex: Defeito sem conserto, obsolescência, doação, perda..."
+                placeholder="Ex: Defeito sem conserto, perda, obsolescência..."
                 value={decommissionReason}
                 onChange={(e) => setDecommissionReason(e.target.value)}
               />
@@ -947,6 +1129,203 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
           </div>
         </div>
       )}
+
+      {/* Modal: Offboarding / Devolução de Bens */}
+      {offboardingEmployee && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '700px', width: '92%' }}>
+            <header className="modal-header">
+              <div>
+                <h2 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="8.5" cy="7" r="4" />
+                    <line x1="18" y1="8" x2="23" y2="13" />
+                    <line x1="23" y1="8" x2="18" y2="13" />
+                  </svg>
+                  Offboarding / Devolução de Patrimônio
+                </h2>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Colaborador: <strong>{offboardingEmployee.name}</strong> ({offboardingEmployee.role || 'Colaborador'} • {offboardingEmployee.sector})
+                </p>
+              </div>
+              <button className="modal-close-btn" onClick={() => setOffboardingEmployee(null)} aria-label="Fechar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <div className="modal-body" style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Lista de Equipamentos em Custódia para Conferência */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                    Equipamentos a Devolver ({offboardSelectedAssetIds.length} de {offboardingEmployee.assets.length} selecionados):
+                  </span>
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                    onClick={() => {
+                      if (offboardSelectedAssetIds.length === offboardingEmployee.assets.length) {
+                        setOffboardSelectedAssetIds([]);
+                      } else {
+                        setOffboardSelectedAssetIds(offboardingEmployee.assets.map(a => a.id));
+                      }
+                    }}
+                  >
+                    {offboardSelectedAssetIds.length === offboardingEmployee.assets.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+                  </button>
+                </div>
+
+                {offboardingEmployee.assets.length > 0 ? (
+                  <div style={{
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-app)',
+                    padding: '0.4rem'
+                  }}>
+                    {offboardingEmployee.assets.map(asset => {
+                      const isSelected = offboardSelectedAssetIds.includes(asset.id);
+                      return (
+                        <label
+                          key={asset.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.5rem 0.65rem',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: isSelected ? 'var(--bg-card)' : 'transparent',
+                            marginBottom: '0.25rem',
+                            cursor: 'pointer',
+                            border: `1px solid ${isSelected ? 'var(--border-color)' : 'transparent'}`
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleOffboardAsset(asset.id)}
+                              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                            />
+                            <div>
+                              <strong style={{ fontSize: '0.85rem' }}>#{asset.tag}</strong>
+                              <span style={{ fontSize: '0.85rem', marginLeft: '0.4rem' }}>{asset.name}</span>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {asset.equipment} • S/N: {asset.serial_number || 'Sem S/N'}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`condition-badge ${(asset.condition || 'novo').toLowerCase()}`} style={{ fontSize: '0.72rem' }}>
+                            {asset.condition || 'Novo'}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Este colaborador não possui nenhum equipamento vinculado no momento.
+                  </p>
+                )}
+              </div>
+
+              {/* Destino dos Itens Devolvidos */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', display: 'block' }}>
+                  Destino dos Equipamentos Devolvidos:
+                </label>
+                <select
+                  value={offboardDestination}
+                  onChange={(e) => setOffboardDestination(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                >
+                  <option value="Estoque Central">Estoque Central (Disponibilizar para novos usuários)</option>
+                  <option value="Em Manutenção">Enviar para Revisão / Higienização Técnica</option>
+                </select>
+              </div>
+
+              {/* Observações da Devolução */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', display: 'block' }}>
+                  Observações da Conferência Física / Quitação:
+                </label>
+                <textarea
+                  rows="2"
+                  value={offboardNotes}
+                  onChange={(e) => setOffboardNotes(e.target.value)}
+                  placeholder="Ex: Equipamentos conferidos em bom estado, fontes e cabos inclusos..."
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.85rem', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                />
+              </div>
+
+              {/* Opção de Excluir / Desativar Colaborador */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                <input
+                  type="checkbox"
+                  checked={offboardRemoveEmp}
+                  onChange={(e) => setOffboardRemoveEmp(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span>Remover cadastro do colaborador do sistema após a conclusão do offboarding</span>
+              </label>
+            </div>
+
+            <footer className="form-footer" style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setOffboardingEmployee(null)}>
+                Cancelar
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    const empAssets = offboardingEmployee.assets || [];
+                    const selected = empAssets.filter(a => offboardSelectedAssetIds.includes(a.id));
+                    await gerarTermoDevolucao(offboardingEmployee, selected, offboardNotes);
+                  }}
+                  title="Baixar apenas o documento PDF de devolução sem alterar os dados"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Baixar Termo PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmOffboard}
+                  disabled={offboardSelectedAssetIds.length === 0 && (offboardingEmployee.assets || []).length > 0}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Concluir Offboarding & Baixar PDF</span>
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Onboarding com Kit de Equipamentos */}
+      <OnboardingKitModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        assets={assets}
+        employees={employees}
+        onConfirmOnboarding={onOnboardEmployeeWithKit}
+      />
+
       {/* Input oculto para upload do termo assinado */}
       <input
         ref={termFileInputRef}
@@ -956,8 +1335,5 @@ const EmployeesList = ({ assets, employees = [], onSaveEmployee, onDeleteEmploye
         onChange={handleTermFileChange}
       />
     </div>
-
   );
-};
-
-export default EmployeesList;
+}

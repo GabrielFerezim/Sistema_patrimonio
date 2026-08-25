@@ -1,79 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import './styles/theme.css';
 @import './styles/layout.css';
-
-:root {
-  /* Paleta de Cores - Branding Trynova & Neutros */
-  --primary: #1e3a8a;          /* Azul Marinho */
-  --primary-light: #3b82f6;    /* Azul Royal Vibrante */
-  --primary-hover: #2563eb;    /* Azul Royal Hover */
-  --primary-glow: rgba(59, 130, 246, 0.15);
-  
-  --bg-app: #f1f5f9;           /* Cinza-azulada clara suave */
-  --bg-sidebar: #e2e8f0;       /* Slate 200 (Cinza Claro) */
-  --bg-sidebar-hover: #cbd5e1; /* Slate 300 (Cinza Claro Médio) */
-  --bg-card: #ffffff;
-  
-  --text-main: #0f172a;        /* Slate 900 */
-  --text-medium: #334155;      /* Slate 700 */
-  --text-muted: #64748b;       /* Slate 500 */
-  --text-light: #94a3b8;       /* Slate 400 */
-  --text-white: #ffffff;
-  
-  --border-color: #e2e8f0;     /* Slate 200 */
-  --border-focus: #93c5fd;     /* Blue 300 */
-  
-  /* Cores de Status */
-  --color-success: #10b981;    /* Emerald 500 */
-  --color-success-glow: rgba(16, 185, 129, 0.1);
-  --color-warning: #f59e0b;    /* Amber 500 */
-  --color-warning-glow: rgba(245, 158, 11, 0.1);
-  --color-danger: #ef4444;      /* Red 500 */
-  --color-danger-glow: rgba(239, 68, 68, 0.1);
-  
-  /* Tipografia */
-  --font-title: 'Outfit', 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  
-  /* Sombras & Bordas */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
-  
-  /* Dimensões de Layout */
-  --sidebar-width: 210px;
-  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Tema Escuro - Inversão de Cores */
-[data-theme='dark'] {
-  --bg-app: #0b1329;           /* Azul Escuro Profundo */
-  --bg-sidebar: #111a36;       /* Azul Escuro Sidebar */
-  --bg-sidebar-hover: #1b264f; /* Hover da Sidebar */
-  --bg-card: #152243;          /* Fundo do Cartão */
-  
-  --text-main: #f8fafc;        /* Slate 50 */
-  --text-medium: #cbd5e1;      /* Slate 300 */
-  --text-muted: #94a3b8;       /* Slate 400 */
-  --text-light: #64748b;       /* Slate 500 */
-  
-  --border-color: #1e293b;     /* Slate 800 */
-  --border-focus: #3b82f6;     /* Blue 500 */
-  
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-}
-
-body, .sidebar, .main-content, .table-card, .kpi-card, .chart-card, .btn, input, select, textarea, .asset-mobile-card, .employee-profile-card, .sector-section-header, tr, td {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
 
 /* Reset Moderno & Estilos Base */
 *, *::before, *::after {
@@ -114,10 +41,10 @@ a:hover {
   color: var(--primary-hover);
 }
 
-/* Barra de Rolagem Personalizada para visual premium */
+/* Barra de Rolagem Personalizada */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -129,11 +56,15 @@ a:hover {
   border-radius: var(--radius-full);
 }
 
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Estados Interativos Comuns & Anel de Foco */
+/* Foco em Inputs */
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary-light);

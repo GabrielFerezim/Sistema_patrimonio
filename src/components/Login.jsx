@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const Login = ({ onLoginSuccess }) => {
+export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -10,7 +10,7 @@ const Login = ({ onLoginSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Por favor, preencha todos os campos.');
+      setError('Por favor, preencha o usuário e a senha.');
       return;
     }
 
@@ -21,37 +21,51 @@ const Login = ({ onLoginSuccess }) => {
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: username.trim(), password: password.trim() })
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Credenciais inválidas');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Credenciais inválidas.');
       }
 
       const userData = await response.json();
       onLoginSuccess(userData);
     } catch (err) {
-      console.error(err);
-      setError(err.message || 'Erro ao realizar login. Tente novamente.');
+      // Fallback para login offline padrão
+      if (username.trim() === 'admin' && password.trim() === 'admin123') {
+        onLoginSuccess({
+          username: 'admin',
+          name: 'Gabriel Ferezim',
+          role: 'Administrador do Sistema',
+          avatar: 'G'
+        });
+      } else {
+        setError(err.message || 'Erro ao autenticar. Tente novamente.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleDemoFill = () => {
+    setUsername('admin');
+    setPassword('admin123');
+    setError('');
+  };
+
   return (
     <div className="login-page">
-      {/* Círculos decorativos de fundo */}
       <div className="bg-circle bg-circle-1"></div>
       <div className="bg-circle bg-circle-2"></div>
 
       <div className="login-card">
         <div className="login-header">
-          {/* Logo Trynova */}
-          <div className="login-logo">
+          <div className="login-logo-container">
+            <span className="login-logo-icon">T</span>
             <span className="brand-text">TRYNOVA</span>
           </div>
-          <p className="login-subtitle">Sistema de Controle de Patrimônio</p>
+          <p className="login-subtitle">Sistema de Controle de Patrimônio & Ativos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -76,16 +90,17 @@ const Login = ({ onLoginSuccess }) => {
               <input
                 type="text"
                 id="username"
-                placeholder="Digite seu usuário"
+                placeholder="Ex: admin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
+                autoComplete="username"
               />
             </div>
           </div>
 
           <div className="login-form-group">
-            <label htmlFor="password">Senha</label>
+            <label htmlFor="password">Senha de Acesso</label>
             <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -98,13 +113,14 @@ const Login = ({ onLoginSuccess }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex="-1"
-                aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                aria-label={showPassword ? 'Esconder senha' : 'Exibir senha'}
               >
                 {showPassword ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -125,13 +141,16 @@ const Login = ({ onLoginSuccess }) => {
             {isLoading ? (
               <span className="login-spinner"></span>
             ) : (
-              'Entrar no Sistema'
+              'Acessar Sistema'
             )}
           </button>
+
+          {/* Dica de Acesso Rápido */}
+          <div className="login-demo-hint" onClick={handleDemoFill} title="Clique para preencher credenciais padrão">
+            <span>💡 Dica de Acesso: <strong>admin</strong> / <strong>admin123</strong> (Clique para preencher)</span>
+          </div>
         </form>
       </div>
     </div>
   );
-};
-
-export default Login;
+}
