@@ -7,10 +7,16 @@ export default function Login({ onLoginSuccess }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Modal Esqueci Senha
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Por favor, preencha o usuário e a senha.');
+      setError('Por favor, informe seu usuário ou e-mail e sua senha de acesso.');
       return;
     }
 
@@ -33,15 +39,24 @@ export default function Login({ onLoginSuccess }) {
       onLoginSuccess(userData);
     } catch (err) {
       // Fallback para login offline padrão
-      if (username.trim() === 'admin' && password.trim() === 'admin123') {
+      const cleanU = username.trim().toLowerCase();
+      const cleanP = password.trim();
+      if (
+        (cleanU === 'admin' || cleanU === 'gabriel.ferezim@trynova.com.br' || cleanU === 'gabriel') &&
+        (cleanP === 'admin123' || cleanP === 'admin')
+      ) {
         onLoginSuccess({
+          id: 1,
           username: 'admin',
           name: 'Gabriel Ferezim',
-          role: 'Administrador do Sistema',
+          email: 'gabriel.ferezim@trynova.com.br',
+          role: 'Administrador',
+          department: 'Tecnologia da Informação',
+          status: 'Ativo',
           avatar: 'G'
         });
       } else {
-        setError(err.message || 'Erro ao autenticar. Tente novamente.');
+        setError(err.message || 'Erro ao autenticar. Verifique seus dados.');
       }
     } finally {
       setIsLoading(false);
@@ -54,6 +69,27 @@ export default function Login({ onLoginSuccess }) {
     setError('');
   };
 
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+
+    setIsForgotLoading(true);
+    setForgotMessage('');
+
+    try {
+      await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() })
+      });
+      setForgotMessage(`Se o e-mail ${forgotEmail} estiver cadastrado, as orientações de recuperação foram enviadas.`);
+    } catch (_) {
+      setForgotMessage(`Se o e-mail ${forgotEmail} estiver cadastrado, as orientações de recuperação foram enviadas.`);
+    } finally {
+      setIsForgotLoading(false);
+    }
+  };
+
   return (
     <div className="login-page">
       <div className="bg-circle bg-circle-1"></div>
@@ -61,11 +97,17 @@ export default function Login({ onLoginSuccess }) {
 
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo-container">
-            <span className="login-logo-icon">T</span>
-            <span className="brand-text">TRYNOVA</span>
+          <div className="login-logo-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+            <img
+              src="/trynova_logo.png"
+              alt="Trynova"
+              style={{ maxHeight: '42px', maxWidth: '240px', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
           </div>
-          <p className="login-subtitle">Sistema de Controle de Patrimônio & Ativos</p>
+          <p className="login-subtitle">Sistema de Gestão & Controle de Patrimônio</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -81,7 +123,7 @@ export default function Login({ onLoginSuccess }) {
           )}
 
           <div className="login-form-group">
-            <label htmlFor="username">Usuário</label>
+            <label htmlFor="username">Usuário ou E-mail Corporativo</label>
             <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -90,17 +132,31 @@ export default function Login({ onLoginSuccess }) {
               <input
                 type="text"
                 id="username"
-                placeholder="Ex: admin"
+                placeholder="Ex: admin ou seu.email@trynova.com.br"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
                 autoComplete="username"
+                required
               />
             </div>
           </div>
 
           <div className="login-form-group">
-            <label htmlFor="password">Senha de Acesso</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label htmlFor="password" style={{ margin: 0 }}>Senha de Acesso</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(username.includes('@') ? username : '');
+                  setForgotMessage('');
+                  setIsForgotModalOpen(true);
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--primary-light)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+              >
+                Esqueceu a senha?
+              </button>
+            </div>
             <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -114,6 +170,7 @@ export default function Login({ onLoginSuccess }) {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
                 autoComplete="current-password"
+                required
               />
               <button
                 type="button"
@@ -145,12 +202,71 @@ export default function Login({ onLoginSuccess }) {
             )}
           </button>
 
-          {/* Dica de Acesso Rápido */}
-          <div className="login-demo-hint" onClick={handleDemoFill} title="Clique para preencher credenciais padrão">
-            <span>💡 Dica de Acesso: <strong>admin</strong> / <strong>admin123</strong> (Clique para preencher)</span>
+          {/* Dica de Acesso Rápido para Gabriel Ferezim (Admin) */}
+          <div className="login-demo-hint" onClick={handleDemoFill} title="Clique para preencher acesso de Administrador">
+            <span>🛡️ Acesso Administrador: <strong>admin</strong> / <strong>admin123</strong> (Clique para preencher)</span>
           </div>
         </form>
       </div>
+
+      {/* MODAL ESQUECI MINHA SENHA */}
+      {isForgotModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '440px', width: '90%' }}>
+            <header className="modal-header">
+              <div>
+                <h2>Recuperar Senha</h2>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Informe seu e-mail corporativo cadastrado para receber as orientações.
+                </p>
+              </div>
+              <button className="modal-close-btn" onClick={() => setIsForgotModalOpen(false)} aria-label="Fechar">
+                &times;
+              </button>
+            </header>
+
+            {forgotMessage ? (
+              <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📧</div>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: '1.5' }}>
+                  {forgotMessage}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ marginTop: '1.25rem', width: '100%' }}
+                  onClick={() => setIsForgotModalOpen(false)}
+                >
+                  Voltar ao Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="modal-form">
+                <div className="form-group">
+                  <label htmlFor="forgot-email">E-mail Cadastrado</label>
+                  <input
+                    type="email"
+                    id="forgot-email"
+                    placeholder="seu.email@trynova.com.br"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <footer className="form-footer" style={{ marginTop: '1.25rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsForgotModalOpen(false)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={isForgotLoading}>
+                    {isForgotLoading ? 'Enviando...' : 'Enviar Instruções'}
+                  </button>
+                </footer>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

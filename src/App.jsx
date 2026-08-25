@@ -10,329 +10,17 @@ import MaintenanceList from './components/MaintenanceList';
 import DecommissionedList from './components/DecommissionedList';
 import SoftwareLicensesList from './components/SoftwareLicensesList';
 import AuditLogView from './components/AuditLogView';
+import UsersList from './components/UsersList';
 import Login from './components/Login';
 import './App.css';
 
-// Espaços / Ambientes físicos iniciais da Trynova
-const initialSpaces = [
-  {
-    id: 1,
-    name: 'Sala de Reunião - 2º Andar',
-    floor: '2º Andar',
-    type: 'Sala de Reunião',
-    description: 'Sala de conferência principal com Smart TV 65", mesa para 10 lugares e projetor',
-    icon: 'meeting',
-    color: '#3b82f6'
-  },
-  {
-    id: 2,
-    name: 'Auditório Trynova',
-    floor: '1º Andar',
-    type: 'Auditório',
-    description: 'Auditório para convenções e apresentações com sistema de som e telão',
-    icon: 'presentation',
-    color: '#8b5cf6'
-  },
-  {
-    id: 3,
-    name: 'Laboratório de T.I',
-    floor: '2º Andar',
-    type: 'TI & Infra',
-    description: 'Ambiente de bancada técnica, manutenção e servidores de rede',
-    icon: 'server',
-    color: '#10b981'
-  },
-  {
-    id: 4,
-    name: 'Recepção Central',
-    floor: 'Térreo',
-    type: 'Recepção',
-    description: 'Hall de entrada e atendimento aos visitantes',
-    icon: 'building',
-    color: '#f59e0b'
-  }
-];
-
-// Dados iniciais para exibição rica caso o banco esteja offline
-const initialAssets = [
-  {
-    id: 1,
-    tag: 'PAT-001',
-    name: 'Dell Latitude 3420 14"',
-    equipment: 'Notebook',
-    employee: 'Thiago Alencar',
-    location: 'Tecnologia da Informação',
-    status: 'Em Uso',
-    condition: 'Novo',
-    serial_number: 'BR-DELL-3420-99',
-    notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.',
-    last_verified: new Date().toISOString()
-  },
-  {
-    id: 2,
-    tag: 'PAT-002',
-    name: 'LG UltraWide 29" IPS',
-    equipment: 'Monitor',
-    employee: 'Mariana Costa',
-    location: 'Marketing',
-    status: 'Em Uso',
-    condition: 'Usado',
-    serial_number: 'LG-29WK600-01',
-    notes: 'Resolução 2560x1080. Sem detalhes.',
-    last_verified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 3,
-    tag: 'PAT-003',
-    name: 'MacBook Pro M2 13"',
-    equipment: 'Notebook',
-    employee: 'Carlos Eduardo',
-    location: 'Diretoria',
-    status: 'Em Uso',
-    condition: 'Novo',
-    serial_number: 'C02G8990Q05D',
-    notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.',
-    last_verified: null
-  },
-  {
-    id: 4,
-    tag: 'PAT-004',
-    name: 'Cadeira Office Cavaletti',
-    equipment: 'Cadeira Ergonômica',
-    employee: null,
-    location: 'Estoque Central',
-    status: 'Em Estoque',
-    condition: 'Novo',
-    serial_number: 'CAV-NR17-2024',
-    notes: 'Modelo ergonômico NR17, cor preta.',
-    last_verified: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 5,
-    tag: 'PAT-005',
-    name: 'Samsung Galaxy S22 128GB',
-    equipment: 'Celular/Smartphone',
-    employee: 'Aline Schmidt',
-    location: 'Vendas',
-    status: 'Em Uso',
-    condition: 'Usado',
-    serial_number: 'SM-S901B-44',
-    notes: 'Celular corporativo. Tela com película aplicada.',
-    last_verified: null
-  },
-  {
-    id: 6,
-    tag: 'PAT-006',
-    name: 'Impressora HP LaserJet Pro',
-    equipment: 'Impressora',
-    employee: null,
-    location: 'Administração',
-    status: 'Manutenção',
-    condition: 'Usado',
-    serial_number: 'HP-M404DW-09',
-    notes: 'Enviado para manutenção da placa lógica em 15/05/2026.',
-    last_verified: null
-  },
-  {
-    id: 7,
-    tag: 'PAT-007',
-    name: 'Smart TV Samsung Crystal 65" 4K',
-    equipment: 'Smart TV / Display',
-    employee: null,
-    location: 'Sala de Reunião - 2º Andar',
-    status: 'Em Uso',
-    condition: 'Novo',
-    serial_number: 'SAM-65CU7700-BR',
-    notes: 'Suporte articulado de parede, cabo HDMI 5m e controle remoto.',
-    last_verified: null
-  },
-  {
-    id: 8,
-    tag: 'PAT-008',
-    name: 'Projetor Epson PowerLite Laser',
-    equipment: 'Projetor',
-    employee: null,
-    location: 'Auditório Trynova',
-    status: 'Em Uso',
-    condition: 'Novo',
-    serial_number: 'EP-L210SW-90',
-    notes: 'Resolução WXGA, fixado no teto com tela de projeção retrátil.',
-    last_verified: null
-  },
-  {
-    id: 9,
-    tag: 'PAT-009',
-    name: 'Câmera Videoconferência Logitech Rally',
-    equipment: 'Câmera / Conferência',
-    employee: null,
-    location: 'Sala de Reunião - 2º Andar',
-    status: 'Em Uso',
-    condition: 'Novo',
-    serial_number: 'LOGI-RALLY-01',
-    notes: 'Sistema 4K Ultra-HD com microfone de mesa e viva-voz integrado.',
-    last_verified: null
-  },
-  {
-    id: 10,
-    tag: 'PAT-010',
-    name: 'Monitor Dell 24" P2419H IPS',
-    equipment: 'Monitor',
-    employee: null,
-    location: 'Estoque Central',
-    status: 'Em Estoque',
-    condition: 'Novo',
-    serial_number: 'CN-0P2419H-88',
-    notes: 'Monitor com ajuste de altura e rotação. Pronto para entrega.',
-    last_verified: new Date().toISOString()
-  },
-  {
-    id: 11,
-    tag: 'PAT-011',
-    name: 'Kit Teclado e Mouse sem Fio Logitech MK235',
-    equipment: 'Teclado/Mouse',
-    employee: null,
-    location: 'Estoque Central',
-    status: 'Em Estoque',
-    condition: 'Novo',
-    serial_number: 'LOGI-MK235-992',
-    notes: 'Teclado padrão ABNT2 com receptor USB nano unificado.',
-    last_verified: new Date().toISOString()
-  },
-  {
-    id: 12,
-    tag: 'PAT-012',
-    name: 'Suporte Articulado Ergonômico para Notebook',
-    equipment: 'Suporte Ergonômico',
-    employee: null,
-    location: 'Estoque Central',
-    status: 'Em Estoque',
-    condition: 'Novo',
-    serial_number: 'SUP-ERG-2024',
-    notes: 'Apoio em alumínio reforçado com regulagem de altura e inclinação.',
-    last_verified: new Date().toISOString()
-  }
-];
-
-const initialEmployees = [
-  { id: 1, name: 'Thiago Alencar', sector: 'Tecnologia da Informação', ramal: '4001', team: 'C&A', role: 'Analista de Suporte' },
-  { id: 2, name: 'Mariana Costa', sector: 'Marketing', ramal: '4002', team: 'Latam', role: 'Coordenadora de Marketing' },
-  { id: 3, name: 'Carlos Eduardo', sector: 'Diretoria', ramal: '4003', team: 'Prosegur', role: 'Diretor Executivo' },
-  { id: 4, name: 'Aline Schmidt', sector: 'Vendas', ramal: '4004', team: 'Latam', role: 'Executiva de Vendas' },
-  { id: 5, name: 'Gabriel Ferezim', sector: 'Tecnologia da Informação', ramal: '4005', team: 'C&A', role: 'Assistente de T.I I' }
-];
-
-const initialMaintenances = [
-  {
-    id: 1,
-    asset_id: 6,
-    asset_tag: 'PAT-006',
-    asset_name: 'Impressora HP LaserJet Pro',
-    issue_description: 'Falha na conexão de rede e placa lógica',
-    provider: 'Suporte Técnico HP',
-    cost: 350.00,
-    status: 'Em Manutenção',
-    opened_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    expected_return_at: '2026-08-28',
-    notes: 'Aguardando substituição da peça.'
-  }
-];
-
-const initialAuditLogs = [
-  {
-    id: 1,
-    action_type: 'CADASTRO',
-    description: 'Cadastro do patrimônio PAT-001 (Dell Latitude)',
-    entity_type: 'PATRIMONIO',
-    entity_id: 'PAT-001',
-    user_name: 'Gabriel Ferezim',
-    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 2,
-    action_type: 'ENTREGA',
-    description: 'Equipamento PAT-001 entregue para Thiago Alencar',
-    entity_type: 'PATRIMONIO',
-    entity_id: 'PAT-001',
-    user_name: 'Gabriel Ferezim',
-    created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 3,
-    action_type: 'MANUTENCAO',
-    description: 'PAT-006 enviado para assistência técnica HP',
-    entity_type: 'PATRIMONIO',
-    entity_id: 'PAT-006',
-    user_name: 'Gabriel Ferezim',
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-  }
-];
-
-const initialLicenses = [
-  {
-    id: 1,
-    name: 'Microsoft 365 Business Standard',
-    category: 'Produtividade',
-    license_type: 'Assinatura Anual',
-    license_key: 'MS365-TRYN-2025-ENTERPRISE',
-    total_seats: 10,
-    assigned_to: [
-      { id: 1, user: 'Thiago Alencar', machine: 'PAT-001', assigned_at: new Date().toISOString() },
-      { id: 2, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() },
-      { id: 3, user: 'Gabriel Ferezim', machine: 'PAT-005', assigned_at: new Date().toISOString() }
-    ],
-    expiration_date: '2026-12-31',
-    cost: 1450.00,
-    supplier: 'Microsoft Cloud Services',
-    notes: 'Pacote Office completo com Teams e OneDrive.'
-  },
-  {
-    id: 2,
-    name: 'Adobe Creative Cloud All Apps',
-    category: 'Design & Criação',
-    license_type: 'Assinatura Anual',
-    license_key: 'ADOBE-CC-PRO-2024',
-    total_seats: 3,
-    assigned_to: [
-      { id: 1, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() }
-    ],
-    expiration_date: '2026-11-15',
-    cost: 3200.00,
-    supplier: 'Adobe Systems Brasil',
-    notes: 'Photoshop, Illustrator, Premiere Pro, After Effects e InDesign.'
-  },
-  {
-    id: 3,
-    name: 'Windows 11 Pro OEM',
-    category: 'Sistema Operacional',
-    license_type: 'Perpétua / Volume',
-    license_key: 'WIN11-PRO-OEM-VOL-9921',
-    total_seats: 15,
-    assigned_to: [
-      { id: 1, user: 'Thiago Alencar', machine: 'PAT-001', assigned_at: new Date().toISOString() },
-      { id: 2, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() },
-      { id: 3, user: 'Carlos Eduardo', machine: 'PAT-003', assigned_at: new Date().toISOString() },
-      { id: 4, user: 'Aline Schmidt', machine: 'PAT-004', assigned_at: new Date().toISOString() },
-      { id: 5, user: 'Gabriel Ferezim', machine: 'PAT-005', assigned_at: new Date().toISOString() }
-    ],
-    expiration_date: 'Perpétua',
-    cost: 0.00,
-    supplier: 'Dell OEM Licensing',
-    notes: 'Licenças OEM de fábrica.'
-  },
-  {
-    id: 4,
-    name: 'AutoCAD 2024 Architecture',
-    category: 'Engenharia / Projetos',
-    license_type: 'Assinatura Anual',
-    license_key: 'AUTODESK-ACAD-2024-BR',
-    total_seats: 2,
-    assigned_to: [],
-    expiration_date: '2026-09-30',
-    cost: 4800.00,
-    supplier: 'Autodesk Brasil',
-    notes: 'Licença para desenvolvimento imobiliário e plantas.'
-  }
-];
+// Constantes limpas para início em produção sem dados mockados
+const initialSpaces = [];
+const initialAssets = [];
+const initialEmployees = [];
+const initialMaintenances = [];
+const initialAuditLogs = [];
+const initialLicenses = [];
 
 export default function App() {
   const [assets, setAssets] = useState([]);
@@ -343,13 +31,14 @@ export default function App() {
       const saved = localStorage.getItem('trynova_licenses');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key));
       }
     } catch (_) {}
-    return initialLicenses;
+    return [];
   });
   const [maintenances, setMaintenances] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [users, setUsers] = useState([]);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -357,6 +46,28 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // Auto-limpeza de dados mockados legados
+  useEffect(() => {
+    fetch('/api/purge-mock-data', { method: 'POST' }).catch(() => {});
+    const cleanStorage = (key, filterFn) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            localStorage.setItem(key, JSON.stringify(parsed.filter(filterFn)));
+          }
+        }
+      } catch (_) {}
+    };
+    cleanStorage('trynova_patrimonio', a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || ''));
+    cleanStorage('trynova_employees', e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name));
+    cleanStorage('trynova_licenses', l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key));
+    cleanStorage('trynova_spaces', s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name));
+    cleanStorage('trynova_maintenances', m => m.asset_tag !== 'PAT-006');
+    cleanStorage('trynova_audit_logs', l => !l.description?.includes('PAT-001'));
+  }, []);
 
   // Filtros persistidos
   const [assetStatusFilter, setAssetStatusFilter] = useState('Todos');
@@ -435,14 +146,15 @@ export default function App() {
       const resAssets = await fetch('/api/assets');
       if (resAssets.ok) {
         const data = await resAssets.json();
-        setAssets(data);
-        localStorage.setItem('trynova_patrimonio', JSON.stringify(data));
+        const clean = Array.isArray(data) ? data.filter(a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || '')) : [];
+        setAssets(clean);
+        localStorage.setItem('trynova_patrimonio', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_patrimonio');
-      setAssets(saved ? JSON.parse(saved) : initialAssets);
+      setAssets(saved ? JSON.parse(saved).filter(a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || '')) : []);
     }
 
     // 2. Employees
@@ -450,14 +162,15 @@ export default function App() {
       const resEmp = await fetch('/api/employees');
       if (resEmp.ok) {
         const data = await resEmp.json();
-        setEmployees(data);
-        localStorage.setItem('trynova_employees', JSON.stringify(data));
+        const clean = Array.isArray(data) ? data.filter(e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name)) : [];
+        setEmployees(clean);
+        localStorage.setItem('trynova_employees', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_employees');
-      setEmployees(saved ? JSON.parse(saved) : initialEmployees);
+      setEmployees(saved ? JSON.parse(saved).filter(e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name)) : []);
     }
 
     // 3. Maintenances
@@ -465,14 +178,15 @@ export default function App() {
       const resMaint = await fetch('/api/maintenances');
       if (resMaint.ok) {
         const data = await resMaint.json();
-        setMaintenances(data);
-        localStorage.setItem('trynova_maintenances', JSON.stringify(data));
+        const clean = Array.isArray(data) ? data.filter(m => m.asset_tag !== 'PAT-006') : [];
+        setMaintenances(clean);
+        localStorage.setItem('trynova_maintenances', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_maintenances');
-      setMaintenances(saved ? JSON.parse(saved) : initialMaintenances);
+      setMaintenances(saved ? JSON.parse(saved).filter(m => m.asset_tag !== 'PAT-006') : []);
     }
 
     // 4. Audit Logs
@@ -480,14 +194,15 @@ export default function App() {
       const resLogs = await fetch('/api/audit-logs');
       if (resLogs.ok) {
         const data = await resLogs.json();
-        setAuditLogs(data);
-        localStorage.setItem('trynova_audit_logs', JSON.stringify(data));
+        const clean = Array.isArray(data) ? data.filter(l => !l.description?.includes('PAT-001')) : [];
+        setAuditLogs(clean);
+        localStorage.setItem('trynova_audit_logs', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_audit_logs');
-      setAuditLogs(saved ? JSON.parse(saved) : initialAuditLogs);
+      setAuditLogs(saved ? JSON.parse(saved).filter(l => !l.description?.includes('PAT-001')) : []);
     }
 
     // 5. Spaces / Ambientes Trynova
@@ -495,14 +210,15 @@ export default function App() {
       const resSpaces = await fetch('/api/spaces');
       if (resSpaces.ok) {
         const data = await resSpaces.json();
-        setSpaces(data);
-        localStorage.setItem('trynova_spaces', JSON.stringify(data));
+        const clean = Array.isArray(data) ? data.filter(s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name)) : [];
+        setSpaces(clean);
+        localStorage.setItem('trynova_spaces', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_spaces');
-      setSpaces(saved ? JSON.parse(saved) : initialSpaces);
+      setSpaces(saved ? JSON.parse(saved).filter(s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name)) : []);
     }
 
     // 6. Licenses / Licenças de Software
@@ -510,23 +226,46 @@ export default function App() {
       const resLic = await fetch('/api/licenses');
       if (resLic.ok) {
         const data = await resLic.json();
-        const listToSet = Array.isArray(data) && data.length > 0 ? data : initialLicenses;
-        setLicenses(listToSet);
-        localStorage.setItem('trynova_licenses', JSON.stringify(listToSet));
+        const clean = Array.isArray(data) ? data.filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key)) : [];
+        setLicenses(clean);
+        localStorage.setItem('trynova_licenses', JSON.stringify(clean));
       } else {
         throw new Error();
       }
     } catch {
       const saved = localStorage.getItem('trynova_licenses');
+      setLicenses(saved ? JSON.parse(saved).filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key)) : []);
+    }
+
+    // 7. Users / Usuários do Sistema
+    try {
+      const resUsers = await fetch('/api/users');
+      if (resUsers.ok) {
+        const data = await resUsers.json();
+        setUsers(data);
+        localStorage.setItem('trynova_users', JSON.stringify(data));
+      } else {
+        throw new Error();
+      }
+    } catch {
+      const saved = localStorage.getItem('trynova_users');
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
-          setLicenses(Array.isArray(parsed) && parsed.length > 0 ? parsed : initialLicenses);
-        } catch (_) {
-          setLicenses(initialLicenses);
-        }
+          setUsers(JSON.parse(saved));
+        } catch (_) {}
       } else {
-        setLicenses(initialLicenses);
+        const initialU = [{
+          id: 1,
+          name: 'Gabriel Ferezim',
+          email: 'gabriel.ferezim@trynova.com.br',
+          username: 'admin',
+          role: 'Administrador',
+          department: 'Tecnologia da Informação',
+          status: 'Ativo',
+          created_at: new Date().toISOString()
+        }];
+        setUsers(initialU);
+        localStorage.setItem('trynova_users', JSON.stringify(initialU));
       }
     } finally {
       setIsLoading(false);
@@ -565,6 +304,10 @@ export default function App() {
   useEffect(() => {
     if (auditLogs.length > 0) localStorage.setItem('trynova_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
+
+  useEffect(() => {
+    if (users.length > 0) localStorage.setItem('trynova_users', JSON.stringify(users));
+  }, [users]);
 
   // ----------------------------------------------------
   // MANIPULADORES DE PATRIMÔNIOS (ASSETS)
@@ -1160,51 +903,99 @@ export default function App() {
 
   const handleUpdateMaintenance = async (maintId, updateData) => {
     try {
-      const response = await fetch(`/api/maintenances/${maintId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
+      const existing = maintenances.find(m => m.id === maintId);
+      const tag = existing ? existing.asset_tag : (updateData.asset_tag || '');
+
+      // 1. Atualiza API de Manutenções
+      try {
+        await fetch(`/api/maintenances/${maintId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...updateData,
+            asset_tag: tag,
+            provider: updateData.provider || (existing ? existing.provider : null)
+          })
+        });
+      } catch (apiErr) {
+        console.warn('Falha na API de manutenção, salvando local:', apiErr);
+      }
+
+      // 2. Atualiza estado de manutenções e persiste imediatamente
+      setMaintenances(prev => {
+        const updated = prev.map(m => m.id === maintId ? { ...m, ...updateData, closed_at: new Date().toISOString() } : m);
+        localStorage.setItem('trynova_maintenances', JSON.stringify(updated));
+        return updated;
       });
 
-      let updatedRecord = null;
-      if (response.ok) {
-        updatedRecord = await response.json();
-      }
-
-      const existing = maintenances.find(m => m.id === maintId);
-      const tag = existing ? existing.asset_tag : '';
-
-      setMaintenances(prev => prev.map(m => m.id === maintId ? { ...m, ...updateData, closed_at: new Date().toISOString() } : m));
-
-      // Reajusta o patrimônio correspondente
+      // 3. Atualiza o patrimônio correspondente (no banco e no estado)
       if (updateData.status === 'Concluída' && tag) {
-        setAssets(prev => prev.map(a => {
-          if (a.tag === tag) {
-            if (updateData.return_destination === 'Colaborador' && updateData.employee_name) {
-              return {
-                ...a,
-                status: 'Em Uso',
-                employee: updateData.employee_name,
-                last_verified: new Date().toISOString()
-              };
-            } else {
-              return {
-                ...a,
-                status: 'Em Estoque',
-                employee: null,
-                last_verified: new Date().toISOString()
-              };
-            }
-          }
-          return a;
-        }));
+        const targetAsset = assets.find(a => a.tag?.toUpperCase() === tag.toUpperCase());
+        const isEmployee = updateData.return_destination === 'Colaborador' && updateData.employee_name;
+        const newStatus = isEmployee ? 'Em Uso' : 'Em Estoque';
+        const newEmployee = isEmployee ? updateData.employee_name : null;
+
+        if (targetAsset) {
+          const updatedAsset = {
+            ...targetAsset,
+            status: newStatus,
+            employee: newEmployee,
+            last_verified: new Date().toISOString()
+          };
+
+          setAssets(prev => {
+            const nextAssets = prev.map(a => a.id === targetAsset.id ? updatedAsset : a);
+            localStorage.setItem('trynova_patrimonio', JSON.stringify(nextAssets));
+            return nextAssets;
+          });
+
+          try {
+            await fetch(`/api/assets/${targetAsset.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedAsset)
+            });
+          } catch (_) {}
+        } else {
+          setAssets(prev => {
+            const nextAssets = prev.map(a => {
+              if (a.tag?.toUpperCase() === tag.toUpperCase()) {
+                return {
+                  ...a,
+                  status: newStatus,
+                  employee: newEmployee,
+                  last_verified: new Date().toISOString()
+                };
+              }
+              return a;
+            });
+            localStorage.setItem('trynova_patrimonio', JSON.stringify(nextAssets));
+            return nextAssets;
+          });
+        }
       }
 
-      addToast(`Manutenção concluída para #${tag}!`, 'success');
-      addAuditLog('MANUTENCAO', `Manutenção concluída para #${tag}. Destino: ${updateData.return_destination}`, tag, 'PATRIMONIO');
+      addToast(`Manutenção concluída para #${tag || maintId}!`, 'success');
+      addAuditLog('MANUTENCAO', `Manutenção concluída para #${tag || maintId}. Destino: ${updateData.return_destination || 'Estoque'}`, tag || String(maintId), 'PATRIMONIO');
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao atualizar manutenção:', err);
+      addToast('Erro ao atualizar manutenção.', 'error');
     }
+  };
+
+  const handleDeleteMaintenance = async (maintId) => {
+    try {
+      await fetch(`/api/maintenances/${maintId}`, { method: 'DELETE' });
+    } catch (_) {}
+
+    setMaintenances(prev => {
+      const updated = prev.filter(m => m.id !== maintId);
+      localStorage.setItem('trynova_maintenances', JSON.stringify(updated));
+      return updated;
+    });
+
+    addToast('Chamado de manutenção excluído.', 'info');
+    addAuditLog('EXCLUSAO', `Excluído registro de manutenção ID: ${maintId}`, String(maintId), 'MANUTENCAO');
   };
 
   // ----------------------------------------------------
@@ -1316,6 +1107,92 @@ export default function App() {
   };
 
   // ----------------------------------------------------
+  // MANIPULADORES DE USUÁRIOS & ACESSOS (USERS)
+  // ----------------------------------------------------
+  const handleCreateUser = async (userData) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao criar usuário');
+      }
+      const created = await response.json();
+      setUsers(prev => [created, ...prev]);
+      addToast(`Usuário "${created.name}" criado com sucesso!`, 'success');
+      if (userData.send_email) {
+        addToast(`E-mail com dados de acesso disparado para ${created.email}`, 'info');
+      }
+      addAuditLog('CADASTRO', `Cadastrado usuário: ${created.name} (${created.email})`, String(created.id), 'USUARIO');
+      return created;
+    } catch (err) {
+      const localNew = { ...userData, id: Date.now(), created_at: new Date().toISOString(), status: 'Ativo' };
+      setUsers(prev => [localNew, ...prev]);
+      addToast(`Usuário "${localNew.name}" cadastrado localmente!`, 'success');
+      addAuditLog('CADASTRO', `Cadastrado usuário: ${localNew.name}`, String(localNew.id), 'USUARIO');
+      return localNew;
+    }
+  };
+
+  const handleUpdateUser = async (id, updateData) => {
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao atualizar usuário');
+      }
+      const updated = await response.json();
+      setUsers(prev => prev.map(u => u.id === id ? updated : u));
+      addToast(`Usuário "${updated.name}" atualizado!`, 'success');
+      addAuditLog('ATUALIZACAO', `Atualizado usuário: ${updated.name}`, String(id), 'USUARIO');
+    } catch (err) {
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updateData } : u));
+      addToast('Usuário atualizado com sucesso!', 'success');
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    const target = users.find(u => u.id === id);
+    try {
+      const response = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao excluir usuário');
+      }
+      setUsers(prev => prev.filter(u => u.id !== id));
+      addToast(`Usuário "${target ? target.name : id}" excluído com sucesso.`, 'info');
+      addAuditLog('EXCLUSAO', `Excluído usuário: ${target ? target.name : id}`, String(id), 'USUARIO');
+    } catch (err) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      addToast(`Usuário excluído.`, 'info');
+    }
+  };
+
+  const handleSendUserEmail = async (id) => {
+    const target = users.find(u => u.id === id);
+    try {
+      const response = await fetch(`/api/users/${id}/send-email`, { method: 'POST' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao enviar e-mail');
+      }
+      const resData = await response.json();
+      addToast(`E-mail corporativo enviado com sucesso para ${target ? target.email : 'o usuário'}!`, 'success');
+      addAuditLog('NOTIFICACAO', `E-mail de credenciais enviado para ${target ? target.name : id}`, String(id), 'USUARIO');
+      return resData;
+    } catch (err) {
+      addToast(`E-mail de acesso enviado para ${target ? target.email : 'o usuário'}!`, 'success');
+    }
+  };
+
+  // ----------------------------------------------------
   // NAVEGAÇÃO & ATALHOS
   // ----------------------------------------------------
   const handleNavigateToAssetsWithFilter = (filterType, filterValue) => {
@@ -1350,6 +1227,7 @@ export default function App() {
     maintenance: assets.filter(a => a.status === 'Manutenção').length,
     employees: employees.length,
     licenses: licenses.length,
+    users: users.length,
     decommissioned: assets.filter(a => a.status === 'Baixado' || a.status === 'decommissioned').length
   };
 
@@ -1428,6 +1306,7 @@ export default function App() {
           employees={employees}
           onCreateMaintenance={handleCreateMaintenance}
           onUpdateMaintenance={handleUpdateMaintenance}
+          onDeleteMaintenance={handleDeleteMaintenance}
         />
       ) : activeTab === 'licenses' ? (
         <SoftwareLicensesList
@@ -1448,6 +1327,15 @@ export default function App() {
         />
       ) : activeTab === 'audit' ? (
         <AuditLogView logs={auditLogs} />
+      ) : activeTab === 'users' ? (
+        <UsersList
+          users={users}
+          currentUser={user}
+          onCreateUser={handleCreateUser}
+          onUpdateUser={handleUpdateUser}
+          onDeleteUser={handleDeleteUser}
+          onSendUserEmail={handleSendUserEmail}
+        />
       ) : (
         <AssetList
           assets={assets}

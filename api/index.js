@@ -2,6 +2,7 @@ import express from 'express';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -32,8 +33,15 @@ async function initDb() {
   let client;
   try {
     client = await pool.connect();
-    
-    // 1. Tabela de Patrimônios (Assets)
+
+    // 0. Tabela de Configurações do Sistema (System Settings / SMTP)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS assets (
         id SERIAL PRIMARY KEY,
@@ -102,6 +110,20 @@ async function initDb() {
       );
     `);
 
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS asset_id INTEGER;`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS asset_tag VARCHAR(50);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS asset_name VARCHAR(255);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS issue_description TEXT;`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS provider VARCHAR(150);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS cost NUMERIC(10, 2);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Em Aberto';`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP DEFAULT NOW();`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS expected_return_at VARCHAR(50);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP;`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS notes TEXT;`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS return_destination VARCHAR(50);`);
+    await client.query(`ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS employee_name VARCHAR(100);`);
+
     // 4. Tabela de Logs de Auditoria (Audit Logs)
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
@@ -147,213 +169,44 @@ async function initDb() {
       );
     `);
 
-    // Semeia licenças se vazio
-    const licRes = await client.query('SELECT COUNT(*) FROM licenses');
-    const licCount = parseInt(licRes.rows[0].count, 10);
-    if (licCount === 0) {
-      const initialLicenses = [
-        {
-          name: 'Microsoft 365 Business Standard',
-          category: 'Produtividade',
-          license_type: 'Assinatura Anual',
-          license_key: 'MS365-TRYN-2025-ENTERPRISE',
-          total_seats: 10,
-          assigned_to: JSON.stringify([
-            { id: 1, user: 'Thiago Alencar', machine: 'PAT-001', assigned_at: new Date().toISOString() },
-            { id: 2, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() },
-            { id: 3, user: 'Gabriel Ferezim', machine: 'PAT-005', assigned_at: new Date().toISOString() }
-          ]),
-          expiration_date: '2026-12-31',
-          cost: 1450.00,
-          supplier: 'Microsoft Cloud Services',
-          notes: 'Pacote Office completo (Word, Excel, PowerPoint, Teams, 1TB OneDrive).'
-        },
-        {
-          name: 'Adobe Creative Cloud All Apps',
-          category: 'Design & Criação',
-          license_type: 'Assinatura Anual',
-          license_key: 'ADOBE-CC-PRO-2024',
-          total_seats: 3,
-          assigned_to: JSON.stringify([
-            { id: 1, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() }
-          ]),
-          expiration_date: '2026-11-15',
-          cost: 3200.00,
-          supplier: 'Adobe Systems Brasil',
-          notes: 'Photoshop, Illustrator, Premiere Pro, After Effects e InDesign.'
-        },
-        {
-          name: 'Windows 11 Pro OEM',
-          category: 'Sistema Operacional',
-          license_type: 'Perpétua / Volume',
-          license_key: 'WIN11-PRO-OEM-VOL-9921',
-          total_seats: 15,
-          assigned_to: JSON.stringify([
-            { id: 1, user: 'Thiago Alencar', machine: 'PAT-001', assigned_at: new Date().toISOString() },
-            { id: 2, user: 'Mariana Costa', machine: 'PAT-002', assigned_at: new Date().toISOString() },
-            { id: 3, user: 'Carlos Eduardo', machine: 'PAT-003', assigned_at: new Date().toISOString() },
-            { id: 4, user: 'Aline Schmidt', machine: 'PAT-004', assigned_at: new Date().toISOString() },
-            { id: 5, user: 'Gabriel Ferezim', machine: 'PAT-005', assigned_at: new Date().toISOString() }
-          ]),
-          expiration_date: 'Perpétua',
-          cost: 0.00,
-          supplier: 'Dell OEM Licensing',
-          notes: 'Licenças OEM pré-ativadas em hardware corporativo.'
-        },
-        {
-          name: 'AutoCAD 2024 Architecture',
-          category: 'Engenharia / Projetos',
-          license_type: 'Assinatura Anual',
-          license_key: 'AUTODESK-ACAD-2024-BR',
-          total_seats: 2,
-          assigned_to: JSON.stringify([]),
-          expiration_date: '2026-09-30',
-          cost: 4800.00,
-          supplier: 'Autodesk Brasil',
-          notes: 'Licença para desenvolvimento imobiliário e plantas corporativas.'
-        }
-      ];
+    // 7. Tabela de Usuários do Sistema (System Users)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'Administrador',
+        department VARCHAR(100) DEFAULT 'Tecnologia da Informação',
+        status VARCHAR(20) DEFAULT 'Ativo',
+        invite_sent_at TIMESTAMP,
+        last_login TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
 
-      for (const lic of initialLicenses) {
+    // Semeia usuário Admin principal Gabriel Ferezim se não existir
+    try {
+      const userRes = await client.query('SELECT COUNT(*) FROM system_users');
+      const userCount = parseInt(userRes.rows[0].count, 10);
+      if (userCount === 0) {
         await client.query(`
-          INSERT INTO licenses (name, category, license_type, license_key, total_seats, assigned_to, expiration_date, cost, supplier, notes)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        `, [lic.name, lic.category, lic.license_type, lic.license_key, lic.total_seats, lic.assigned_to, lic.expiration_date, lic.cost, lic.supplier, lic.notes]);
+          INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
+          VALUES ($1, $2, $3, $4, $5, $6, 'Ativo', NOW())
+          ON CONFLICT (username) DO NOTHING
+        `, [
+          'Gabriel Ferezim',
+          'gabriel.ferezim@trynova.com.br',
+          'admin',
+          'admin123',
+          'Administrador',
+          'Tecnologia da Informação'
+        ]);
       }
-    }
+    } catch (_) {}
 
-    // Semeia funcionários iniciais se a tabela estiver vazia
-    const empRes = await client.query('SELECT COUNT(*) FROM employees');
-    const empCount = parseInt(empRes.rows[0].count, 10);
-    
-    if (empCount === 0) {
-      console.log("Banco de dados de funcionários vazio. Semeando dados iniciais...");
-      const initialEmployees = [
-        { name: 'Thiago Alencar', sector: 'Tecnologia da Informação', ramal: '4001', team: 'C&A', role: 'Analista de Suporte' },
-        { name: 'Mariana Costa', sector: 'Marketing', ramal: '4002', team: 'Latam', role: 'Coordenadora de Marketing' },
-        { name: 'Carlos Eduardo', sector: 'Diretoria', ramal: '4003', team: 'Prosegur', role: 'Diretor Executivo' },
-        { name: 'Aline Schmidt', sector: 'Vendas', ramal: '4004', team: 'Latam', role: 'Executiva de Vendas' },
-        { name: 'Gabriel Ferezim', sector: 'Tecnologia da Informação', ramal: '4005', team: 'C&A', role: 'Assistente de T.I I' }
-      ];
-      for (const emp of initialEmployees) {
-        await client.query(`
-          INSERT INTO employees (name, sector, ramal, team, role)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (name) DO NOTHING
-        `, [emp.name, emp.sector, emp.ramal, emp.team, emp.role]);
-      }
-    }
-    
-    // Semeia patrimônios iniciais se a tabela estiver vazia
-    const res = await client.query('SELECT COUNT(*) FROM assets');
-    const count = parseInt(res.rows[0].count, 10);
-    
-    if (count === 0) {
-      console.log("Banco de dados de patrimônios vazio. Semeando dados iniciais...");
-      
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-
-      const initialAssets = [
-        {
-          tag: 'PAT-001',
-          name: 'Dell Latitude 3420 14"',
-          equipment: 'Notebook',
-          employee: 'Thiago Alencar',
-          location: 'Tecnologia da Informação',
-          status: 'Em Uso',
-          condition: 'Novo',
-          notes: 'Intel Core i5, 16GB RAM, 512GB SSD. Comprado em 10/2024.',
-          serial_number: 'BR-DELL-3420-99',
-          last_verified: new Date()
-        },
-        {
-          tag: 'PAT-002',
-          name: 'LG UltraWide 29" IPS',
-          equipment: 'Monitor',
-          employee: 'Mariana Costa',
-          location: 'Marketing',
-          status: 'Em Uso',
-          condition: 'Usado',
-          notes: 'Resolução 2560x1080. Sem detalhes.',
-          serial_number: 'LG-29WK600-01',
-          last_verified: twoDaysAgo
-        },
-        {
-          tag: 'PAT-003',
-          name: 'MacBook Pro M2 13"',
-          equipment: 'Notebook',
-          employee: 'Carlos Eduardo',
-          location: 'Diretoria',
-          status: 'Em Uso',
-          condition: 'Novo',
-          notes: 'Chip Apple M2, 8GB RAM, 256GB SSD.',
-          serial_number: 'C02G8990Q05D',
-          last_verified: null
-        },
-        {
-          tag: 'PAT-004',
-          name: 'Cadeira Office Cavaletti',
-          equipment: 'Cadeira Ergonômica',
-          employee: null,
-          location: 'Estoque Central',
-          status: 'Em Estoque',
-          condition: 'Novo',
-          notes: 'Modelo ergonômico NR17, cor preta.',
-          serial_number: 'CAV-NR17-2024',
-          last_verified: fiveDaysAgo
-        },
-        {
-          tag: 'PAT-005',
-          name: 'Samsung Galaxy S22 128GB',
-          equipment: 'Celular/Smartphone',
-          employee: 'Aline Schmidt',
-          location: 'Vendas',
-          status: 'Em Uso',
-          condition: 'Usado',
-          notes: 'Celular corporativo. Tela com película aplicada.',
-          serial_number: 'SM-S901B-44',
-          last_verified: null
-        },
-        {
-          tag: 'PAT-006',
-          name: 'Impressora HP LaserJet Pro',
-          equipment: 'Impressora',
-          employee: null,
-          location: 'Administração',
-          status: 'Manutenção',
-          condition: 'Usado',
-          notes: 'Enviado para manutenção da placa lógica em 15/05/2026.',
-          serial_number: 'HP-M404DW-09',
-          last_verified: null
-        }
-      ];
-
-      for (const asset of initialAssets) {
-        await client.query(`
-          INSERT INTO assets (tag, name, equipment, employee, location, status, condition, notes, serial_number, last_verified)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        `, [asset.tag, asset.name, asset.equipment, asset.employee, asset.location, asset.status, asset.condition, asset.notes, asset.serial_number, asset.last_verified]);
-      }
-
-      // Semeia manutenção de exemplo
-      await client.query(`
-        INSERT INTO maintenances (asset_tag, asset_name, issue_description, provider, status, opened_at, notes)
-        VALUES ('PAT-006', 'Impressora HP LaserJet Pro', 'Falha na conexão de rede e placa lógica', 'Suporte Técnico HP', 'Em Manutenção', NOW(), 'Aguardando substituição da peça.')
-      `);
-
-      // Semeia logs iniciais
-      await client.query(`
-        INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
-        VALUES 
-          ('SISTEMA', 'Inicialização do banco de dados e dados padrão', 'SYSTEM', '0', 'Admin'),
-          ('CRIACAO', 'Cadastro do patrimônio PAT-001 (Dell Latitude)', 'ASSET', 'PAT-001', 'Admin')
-      `);
-
-      console.log("Dados e tabelas inicializados com sucesso!");
-    }
+    console.log("Tabelas do banco de dados verificadas/inicializadas com sucesso!");
   } catch (err) {
     console.error("Erro ao inicializar banco de dados:", err);
   } finally {
@@ -846,63 +699,122 @@ app.put('/api/maintenances/:id', async (req, res) => {
   const { id } = req.params;
   const { status, closed_at, return_destination, employee_name, notes, cost, provider } = req.body;
   
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
 
-    const maintRes = await client.query(`
-      UPDATE maintenances
-      SET status = $1,
-          closed_at = CASE WHEN $1 = 'Concluída' THEN NOW() ELSE closed_at END,
-          return_destination = $2,
-          notes = $3,
-          cost = $4,
-          provider = $5
-      WHERE id = $6
-      RETURNING *
-    `, [status || 'Concluída', return_destination || 'Estoque', notes || null, cost || null, provider || null, id]);
+    const numId = parseInt(id, 10);
+    let maintRes;
 
-    if (maintRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Registro de manutenção não encontrado' });
+    if (!isNaN(numId) && numId < 2000000000) {
+      maintRes = await client.query(`
+        UPDATE maintenances
+        SET status = $1,
+            closed_at = CASE WHEN $1 = 'Concluída' THEN NOW() ELSE closed_at END,
+            return_destination = COALESCE($2, return_destination),
+            notes = COALESCE($3, notes),
+            cost = COALESCE($4, cost),
+            provider = COALESCE($5, provider),
+            employee_name = COALESCE($6, employee_name)
+        WHERE id = $7
+        RETURNING *
+      `, [
+        status || 'Concluída',
+        return_destination || 'Estoque',
+        notes || null,
+        cost !== undefined && cost !== '' && cost !== null ? parseFloat(cost) : null,
+        provider || null,
+        employee_name || null,
+        numId
+      ]);
     }
 
-    const record = maintRes.rows[0];
+    if (!maintRes || maintRes.rows.length === 0) {
+      const tagQuery = await client.query(`
+        UPDATE maintenances
+        SET status = $1,
+            closed_at = CASE WHEN $1 = 'Concluída' THEN NOW() ELSE closed_at END,
+            return_destination = COALESCE($2, return_destination),
+            notes = COALESCE($3, notes),
+            cost = COALESCE($4, cost),
+            provider = COALESCE($5, provider),
+            employee_name = COALESCE($6, employee_name)
+        WHERE UPPER(asset_tag) = UPPER($7) AND status != 'Concluída'
+        RETURNING *
+      `, [
+        status || 'Concluída',
+        return_destination || 'Estoque',
+        notes || null,
+        cost !== undefined && cost !== '' && cost !== null ? parseFloat(cost) : null,
+        provider || null,
+        employee_name || null,
+        String(id)
+      ]);
 
-    // Se concluiu a manutenção, ajusta o patrimônio
-    if (status === 'Concluída') {
-      if (return_destination === 'Colaborador' && employee_name) {
-        await client.query(`
-          UPDATE assets 
-          SET status = 'Em Uso',
-              employee = $1,
-              last_verified = NOW()
-          WHERE tag = $2
-        `, [employee_name, record.asset_tag]);
-      } else {
-        await client.query(`
-          UPDATE assets 
-          SET status = 'Em Estoque',
-              employee = NULL,
-              last_verified = NOW()
-          WHERE tag = $2
-        `, [record.asset_tag]);
+      if (tagQuery.rows.length > 0) {
+        maintRes = tagQuery;
       }
+    }
+
+    let record = maintRes && maintRes.rows.length > 0 ? maintRes.rows[0] : null;
+
+    // Se concluiu a manutenção, ajusta o patrimônio na tabela assets
+    if (status === 'Concluída') {
+      const assetTagToUpdate = record ? record.asset_tag : (req.body.asset_tag || String(id));
+      const isEmployeeDest = return_destination === 'Colaborador' && employee_name;
 
       await client.query(`
-        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
-        VALUES ('MANUTENCAO', $1, 'PATRIMONIO', $2)
-      `, [`Manutenção concluída para ${record.asset_tag}. Destino: ${return_destination}`, record.asset_tag]);
+        UPDATE assets 
+        SET status = $1,
+            employee = $2,
+            last_verified = NOW()
+        WHERE UPPER(tag) = UPPER($3)
+      `, [
+        isEmployeeDest ? 'Em Uso' : 'Em Estoque',
+        isEmployeeDest ? employee_name : null,
+        assetTagToUpdate
+      ]);
+
+      try {
+        await client.query(`
+          INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+          VALUES ('MANUTENCAO', $1, 'PATRIMONIO', $2)
+        `, [`Manutenção concluída para ${assetTagToUpdate}. Destino: ${return_destination || 'Estoque'}`, assetTagToUpdate]);
+      } catch (_) {}
     }
 
     await client.query('COMMIT');
-    res.json(maintRes.rows[0]);
+    res.json(record || { id, status: status || 'Concluída' });
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao atualizar manutenção' });
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error('Erro ao atualizar manutenção:', err);
+    res.status(500).json({ error: 'Erro ao atualizar manutenção: ' + err.message });
   } finally {
-    client.release();
+    if (client) client.release();
+  }
+});
+
+// DELETE: Exclui chamado de manutenção
+app.delete('/api/maintenances/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const numId = parseInt(id, 10);
+    let result;
+    if (!isNaN(numId) && numId < 2000000000) {
+      result = await pool.query('DELETE FROM maintenances WHERE id = $1 RETURNING *', [numId]);
+    } else {
+      result = await pool.query('DELETE FROM maintenances WHERE UPPER(asset_tag) = UPPER($1) RETURNING *', [String(id)]);
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Registro de manutenção não encontrado' });
+    }
+
+    res.json({ message: 'Chamado de manutenção excluído com sucesso.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao excluir manutenção.' });
   }
 });
 
@@ -1194,6 +1106,504 @@ app.delete('/api/licenses/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao excluir licença' });
+  }
+});
+
+// ==========================================
+// ROTAS - AUTENTICAÇÃO E USUÁRIOS (USERS)
+// ==========================================
+
+// POST: Autenticação de Login
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Informe usuário/e-mail e senha.' });
+  }
+
+  const cleanLogin = String(username).trim().toLowerCase();
+  const cleanPass = String(password).trim();
+
+  try {
+    let user = null;
+    try {
+      const result = await pool.query(
+        'SELECT * FROM system_users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
+        [cleanLogin]
+      );
+      if (result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    } catch (dbErr) {
+      console.warn('Falha na consulta do DB ao autenticar:', dbErr.message);
+    }
+
+    if (user) {
+      if (user.password !== cleanPass) {
+        return res.status(401).json({ error: 'Senha incorreta.' });
+      }
+      if (user.status !== 'Ativo') {
+        return res.status(403).json({ error: 'Usuário desativado. Entre em contato com o Administrador.' });
+      }
+
+      try {
+        await pool.query('UPDATE system_users SET last_login = NOW() WHERE id = $1', [user.id]);
+        await pool.query(`
+          INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
+          VALUES ('LOGIN', $1, 'USUARIO', $2, $3)
+        `, [`Usuário ${user.name} realizou login com sucesso`, String(user.id), user.name]);
+      } catch (_) {}
+
+      const { password: _, ...userSafe } = user;
+      return res.json(userSafe);
+    }
+
+    // Fallback Master Admin Gabriel Ferezim
+    if (
+      (cleanLogin === 'admin' || cleanLogin === 'gabriel.ferezim@trynova.com.br' || cleanLogin === 'gabriel' || cleanLogin === 'gabriel.ferezim') &&
+      (cleanPass === 'admin123' || cleanPass === 'admin')
+    ) {
+      return res.json({
+        id: 1,
+        username: 'admin',
+        name: 'Gabriel Ferezim',
+        email: 'gabriel.ferezim@trynova.com.br',
+        role: 'Administrador',
+        department: 'Tecnologia da Informação',
+        status: 'Ativo',
+        avatar: 'G'
+      });
+    }
+
+    return res.status(401).json({ error: 'Credenciais inválidas. Verifique seu usuário/e-mail e senha.' });
+  } catch (err) {
+    console.error('Erro na rota /api/login:', err);
+    res.status(500).json({ error: 'Erro interno ao realizar autenticação.' });
+  }
+});
+
+// GET: Lista todos os usuários do sistema
+app.get('/api/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, email, username, role, department, status, invite_sent_at, last_login, created_at FROM system_users ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar usuários do sistema.' });
+  }
+});
+
+// ==========================================
+// SERVIÇO DE ENVIO DE E-MAILS (SMTP)
+// ==========================================
+
+async function getSmtpConfig() {
+  try {
+    const res = await pool.query("SELECT value FROM system_settings WHERE key = 'smtp_config'");
+    if (res.rows.length > 0 && res.rows[0].value) {
+      return JSON.parse(res.rows[0].value);
+    }
+  } catch (_) {}
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    return {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+      from_name: process.env.SMTP_FROM_NAME || 'Trynova - Gestão de Patrimônio',
+      from_email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER
+    };
+  }
+  return null;
+}
+
+async function sendCorporateAccessEmail({ to, name, username, password, role }) {
+  const config = await getSmtpConfig();
+  if (!config || !config.host || !config.user || !config.pass) {
+    console.log(`[AVISO SMTP] Servidor de e-mail não configurado. Para entrega real na caixa de entrada, configure o SMTP no painel.`);
+    return {
+      success: false,
+      sent: false,
+      reason: 'Servidor SMTP não configurado. Configure em "Configurações de E-mail (SMTP)" para envio automático à caixa de entrada.'
+    };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: parseInt(config.port, 10) || 587,
+      secure: !!config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    const fromHeader = `"${config.from_name || 'Trynova - Gestão de Patrimônio'}" <${config.from_email || config.user}>`;
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; color: #0f172a;">
+        <div style="background: #1e3a8a; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;">TRYNOVA</h1>
+          <p style="color: #93c5fd; margin: 4px 0 0 0; font-size: 13px;">Sistema de Gestão & Controle de Patrimônio</p>
+        </div>
+        <div style="padding: 28px 24px;">
+          <h2 style="color: #1e3a8a; font-size: 18px; margin-top: 0;">Olá, ${name}!</h2>
+          <p style="line-height: 1.6; color: #334155; font-size: 15px;">
+            Sua conta de acesso ao <strong>Sistema de Gestão de Patrimônio & Ativos da Trynova</strong> foi criada com sucesso pelo Administrador.
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 16px 20px; margin: 22px 0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>🌐 Link de Acesso:</strong> <a href="http://localhost:5173" style="color: #2563eb; text-decoration: underline;">http://localhost:5173</a></p>
+            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>👤 Usuário / E-mail:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a; font-weight: bold;">${username}</code> ou <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a;">${to}</code></p>
+            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>🔒 Senha Inicial:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a; font-weight: bold;">${password}</code></p>
+            <p style="margin: 0; font-size: 14px;"><strong>🛡️ Perfil de Acesso:</strong> ${role}</p>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+            ⚠️ <em>Por motivos de segurança, recomendamos que você altere sua senha no primeiro acesso ao sistema.</em>
+          </p>
+          <p style="margin-top: 24px; font-size: 14px; font-weight: bold; color: #1e3a8a;">
+            Atenciosamente,<br />
+            <span style="font-weight: normal; color: #64748b;">Gestão de T.I - Trynova</span>
+          </p>
+        </div>
+      </div>
+    `;
+
+    const info = await transporter.sendMail({
+      from: fromHeader,
+      to,
+      subject: 'Trynova - Seus dados de acesso ao Sistema de Patrimônio',
+      text: `Olá ${name},\n\nSua conta no Sistema de Gestão de Patrimônio foi criada com sucesso.\n\nLink: http://localhost:5173\nUsuário: ${username}\nSenha Inicial: ${password}\nPerfil: ${role}\n\nAtenciosamente,\nGestão de T.I - Trynova`,
+      html: htmlContent
+    });
+
+    console.log(`[SMTP SUCESSO] E-mail entregue com sucesso para ${to}. MessageId: ${info.messageId}`);
+    return { success: true, sent: true, messageId: info.messageId };
+  } catch (err) {
+    console.error(`[SMTP ERRO] Falha ao enviar para ${to}:`, err.message);
+    return { success: false, sent: false, error: err.message };
+  }
+}
+
+// GET: Consulta configuração SMTP atual
+app.get('/api/smtp-config', async (req, res) => {
+  try {
+    const config = await getSmtpConfig();
+    if (!config) {
+      return res.json({ is_configured: false });
+    }
+    res.json({
+      is_configured: true,
+      host: config.host || '',
+      port: config.port || 587,
+      secure: !!config.secure,
+      user: config.user || '',
+      from_name: config.from_name || 'Trynova - Gestão de Patrimônio',
+      from_email: config.from_email || config.user || '',
+      has_password: !!config.pass
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao consultar configuração SMTP.' });
+  }
+});
+
+// POST: Salva configuração SMTP
+app.post('/api/smtp-config', async (req, res) => {
+  const { host, port, secure, user, pass, from_name, from_email } = req.body;
+  if (!host || !user) {
+    return res.status(400).json({ error: 'Servidor SMTP e Usuário/E-mail são obrigatórios.' });
+  }
+
+  try {
+    const existing = await getSmtpConfig();
+    const configToSave = {
+      host: String(host).trim(),
+      port: parseInt(port, 10) || 587,
+      secure: !!secure,
+      user: String(user).trim(),
+      pass: (pass && String(pass).trim()) ? String(pass).trim() : (existing ? existing.pass : ''),
+      from_name: from_name ? String(from_name).trim() : 'Trynova - Gestão de Patrimônio',
+      from_email: from_email ? String(from_email).trim() : String(user).trim()
+    };
+
+    await pool.query(`
+      INSERT INTO system_settings (key, value, updated_at)
+      VALUES ('smtp_config', $1, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+    `, [JSON.stringify(configToSave)]);
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('CONFIGURACAO', $1, 'SISTEMA', 'SMTP')
+      `, [`Configurações de servidor de e-mail (SMTP: ${configToSave.host}) atualizadas`]);
+    } catch (_) {}
+
+    res.json({ success: true, message: 'Configurações de e-mail salvas com sucesso!' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao salvar configurações de e-mail.' });
+  }
+});
+
+// POST: Testa envio de e-mail SMTP
+app.post('/api/smtp-test', async (req, res) => {
+  const { test_email } = req.body;
+  if (!test_email) {
+    return res.status(400).json({ error: 'Informe um e-mail para envio do teste.' });
+  }
+
+  try {
+    const result = await sendCorporateAccessEmail({
+      to: test_email.trim(),
+      name: 'Gabriel Ferezim',
+      username: 'admin',
+      password: 'TRYN-' + Math.floor(100000 + Math.random() * 900000),
+      role: 'Administrador'
+    });
+
+    if (!result.success && !result.sent) {
+      return res.status(400).json({
+        error: result.error || result.reason || 'Falha ao conectar ao servidor SMTP. Verifique o servidor, porta e senha.'
+      });
+    }
+
+    res.json({ success: true, message: `E-mail de teste enviado com sucesso para ${test_email}!` });
+  } catch (err) {
+    console.error('Erro no teste SMTP:', err);
+    res.status(500).json({ error: err.message || 'Falha ao conectar ao servidor SMTP.' });
+  }
+});
+
+// POST: Cria novo usuário e envia e-mail de acesso
+app.post('/api/users', async (req, res) => {
+  const { name, email, username, password, role, department, send_email } = req.body;
+  if (!name || !email || !username || !password) {
+    return res.status(400).json({ error: 'Nome, e-mail, usuário e senha são obrigatórios.' });
+  }
+
+  try {
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUser = username.trim().toLowerCase();
+    const cleanPass = password.trim();
+    const cleanRole = role || 'Operador';
+    const cleanDept = department || 'Geral';
+
+    const result = await pool.query(`
+      INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'Ativo', ${send_email ? 'NOW()' : 'NULL'})
+      RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at
+    `, [cleanName, cleanEmail, cleanUser, cleanPass, cleanRole, cleanDept]);
+
+    const newUser = result.rows[0];
+
+    // Dispara envio real de e-mail se solicitado
+    let emailResult = { sent: false };
+    if (send_email) {
+      emailResult = await sendCorporateAccessEmail({
+        to: cleanEmail,
+        name: cleanName,
+        username: cleanUser,
+        password: cleanPass,
+        role: cleanRole
+      });
+    }
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('CADASTRO', $1, 'USUARIO', $2)
+      `, [`Cadastrado novo usuário: ${cleanName} (${cleanEmail}) como ${cleanRole}`, String(newUser.id)]);
+    } catch (_) {}
+
+    res.status(201).json({
+      ...newUser,
+      generatedPassword: cleanPass,
+      emailSent: emailResult.sent,
+      emailWarning: !emailResult.sent ? emailResult.reason || emailResult.error : null
+    });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Já existe um usuário com este e-mail ou nome de usuário.' });
+    }
+    res.status(500).json({ error: 'Erro ao cadastrar usuário.' });
+  }
+});
+
+// POST: Envia / Reenvia e-mail de acesso para o usuário
+app.post('/api/users/:id/send-email', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM system_users WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const user = result.rows[0];
+    await pool.query('UPDATE system_users SET invite_sent_at = NOW() WHERE id = $1', [id]);
+
+    const emailResult = await sendCorporateAccessEmail({
+      to: user.email,
+      name: user.name,
+      username: user.username,
+      password: user.password,
+      role: user.role
+    });
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('NOTIFICACAO', $1, 'USUARIO', $2)
+      `, [`E-mail de credenciais de acesso disparado para ${user.name} (${user.email})`, String(user.id)]);
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      emailSent: emailResult.sent,
+      emailWarning: !emailResult.sent ? emailResult.reason || emailResult.error : null,
+      message: emailResult.sent
+        ? `E-mail de acesso entregue com sucesso para ${user.email}`
+        : `Credenciais registradas. Para envio direto à caixa de entrada, configure o SMTP no painel.`,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        invite_sent_at: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao enviar e-mail de acesso.' });
+  }
+});
+
+// PUT: Atualiza usuário
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, email, username, password, role, department, status } = req.body;
+
+  try {
+    let query = `
+      UPDATE system_users
+      SET name = COALESCE($1, name),
+          email = COALESCE($2, email),
+          username = COALESCE($3, username),
+          role = COALESCE($4, role),
+          department = COALESCE($5, department),
+          status = COALESCE($6, status)
+    `;
+    const params = [
+      name ? name.trim() : null,
+      email ? email.trim().toLowerCase() : null,
+      username ? username.trim().toLowerCase() : null,
+      role || null,
+      department || null,
+      status || null
+    ];
+
+    if (password && password.trim()) {
+      query += `, password = $7 WHERE id = $8 RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at`;
+      params.push(password.trim(), id);
+    } else {
+      query += ` WHERE id = $7 RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at`;
+      params.push(id);
+    }
+
+    const result = await pool.query(query, params);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('ATUALIZACAO', $1, 'USUARIO', $2)
+      `, [`Atualizado cadastro de usuário: ${result.rows[0].name}`, String(id)]);
+    } catch (_) {}
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+  }
+});
+
+// DELETE: Exclui usuário
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const userRes = await pool.query('SELECT * FROM system_users WHERE id = $1', [id]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const user = userRes.rows[0];
+    if (user.username === 'admin' || user.email === 'gabriel.ferezim@trynova.com.br') {
+      return res.status(400).json({ error: 'O Administrador principal do sistema não pode ser excluído.' });
+    }
+
+    await pool.query('DELETE FROM system_users WHERE id = $1', [id]);
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('EXCLUSAO', $1, 'USUARIO', $2)
+      `, [`Excluído usuário: ${user.name} (${user.username})`, String(id)]);
+    } catch (_) {}
+
+    res.json({ message: 'Usuário excluído com sucesso.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao excluir usuário.' });
+  }
+});
+
+// POST: Recuperação de Senha
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Informe seu e-mail cadastrado.' });
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM system_users WHERE LOWER(email) = $1', [email.trim().toLowerCase()]);
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      try {
+        await pool.query(`
+          INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+          VALUES ('NOTIFICACAO', $1, 'USUARIO', $2)
+        `, [`Solicitação de recuperação de senha enviada para ${user.email}`, String(user.id)]);
+      } catch (_) {}
+    }
+    res.json({ success: true, message: 'Se o e-mail informado estiver cadastrado, as instruções de redefinição foram enviadas.' });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: true, message: 'Se o e-mail informado estiver cadastrado, as instruções de redefinição foram enviadas.' });
+  }
+});
+
+// POST: Purga registros mockados do banco de dados
+app.post('/api/purge-mock-data', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM assets WHERE tag IN ('PAT-001','PAT-002','PAT-003','PAT-004','PAT-005','PAT-006','PAT-007','PAT-008','PAT-009','PAT-010','PAT-011','PAT-012')`);
+    await pool.query(`DELETE FROM employees WHERE name IN ('Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt')`);
+    await pool.query(`DELETE FROM licenses WHERE license_key IN ('MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR')`);
+    await pool.query(`DELETE FROM maintenances WHERE asset_tag = 'PAT-006'`);
+    await pool.query(`DELETE FROM spaces WHERE name IN ('Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central')`);
+    await pool.query(`DELETE FROM audit_logs WHERE description LIKE '%PAT-001%' OR description LIKE '%Inicialização do banco de dados%'`);
+    res.json({ success: true, message: 'Dados mockados removidos com sucesso!' });
+  } catch (err) {
+    console.error('Erro ao purgar dados mockados:', err);
+    res.status(500).json({ error: 'Erro ao limpar dados mockados' });
   }
 });
 

@@ -151,6 +151,22 @@ export default function SoftwareLicensesList({
     setIsFormOpen(true);
   };
 
+  const handleOpenPreset = (preset) => {
+    setEditingLicense(null);
+    setFormName(preset.name || '');
+    setFormCategory(preset.category || 'Produtividade');
+    setFormType(preset.type || 'Assinatura Anual');
+    setFormKey(preset.key || '');
+    setFormSeats(preset.seats || 5);
+    setFormExpiration(preset.expiration || '');
+    setFormCost(preset.cost ? String(preset.cost) : '');
+    setFormSupplier(preset.supplier || '');
+    setFormAdminUrl(preset.adminUrl || '');
+    setFormNotes(preset.notes || '');
+    setFormError('');
+    setIsFormOpen(true);
+  };
+
   const handleOpenEdit = (lic) => {
     setEditingLicense(lic);
     setFormName(lic.name || '');
@@ -860,11 +876,361 @@ export default function SoftwareLicensesList({
           </div>
         )
       ) : (
-        <div className="empty-state">
-          <p>Nenhuma licença de software encontrada para os critérios selecionados.</p>
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenCreate}>
-            Cadastrar Primeira Licença
-          </button>
+        <div style={{
+          backgroundColor: 'var(--bg-card)',
+          border: '1px dashed var(--border-color)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          boxShadow: 'var(--shadow-sm)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: '1rem'
+        }}>
+          {/* Ícone Estilizado com Brilho Trynova */}
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.12), rgba(59, 130, 246, 0.2))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1.25rem',
+            boxShadow: '0 0 25px rgba(59, 130, 246, 0.18)',
+            border: '1px solid rgba(59, 130, 246, 0.3)'
+          }}>
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.8">
+              <path d="M21 2l-2 2m-1.5 1.5L16 7m-1.5 1.5L13 10m-1.5 1.5L10 13m-1.5 1.5L7 16m-1.5 1.5L4 19"></path>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <circle cx="8" cy="10" r="2"></circle>
+              <path d="M12 10h4"></path>
+              <path d="M14 8v4"></path>
+            </svg>
+          </div>
+
+          {/* Título & Descrição */}
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 0.5rem 0' }}>
+            {searchTerm || selectedCategory !== 'Todos' || statusFilter !== 'Todos'
+              ? 'Nenhuma licença corresponde aos filtros aplicados'
+              : 'Nenhuma Licença de Software Cadastrada'}
+          </h2>
+
+          <p style={{
+            fontSize: '0.9rem',
+            color: 'var(--text-muted)',
+            maxWidth: '560px',
+            lineHeight: '1.6',
+            margin: '0 0 1.75rem 0'
+          }}>
+            {searchTerm || selectedCategory !== 'Todos' || statusFilter !== 'Todos'
+              ? 'Tente ajustar os termos de busca ou selecionar outra categoria nos filtros acima.'
+              : 'Centralize a gestão de chaves de ativação, assinaturas corporativas, controle de assentos por colaborador e datas de expiração.'}
+          </p>
+
+          {/* Botão de Ação Principal */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleOpenCreate}
+              style={{ padding: '0.65rem 1.4rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(30, 58, 138, 0.25)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Cadastrar Nova Licença</span>
+            </button>
+
+            {(searchTerm || selectedCategory !== 'Todos' || statusFilter !== 'Todos') && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('Todos');
+                  setStatusFilter('Todos');
+                }}
+                style={{ padding: '0.65rem 1.2rem', fontSize: '0.9rem' }}
+              >
+                Limpar Filtros
+              </button>
+            )}
+          </div>
+
+          {/* Atalhos Rápidos com Modelos Populares */}
+          {(!searchTerm && selectedCategory === 'Todos' && statusFilter === 'Todos') && (
+            <div style={{ width: '100%', maxWidth: '780px', borderTop: '1px solid var(--border-color)', paddingTop: '1.75rem' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                💡 Ou cadastre com 1 clique usando um modelo rápido:
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '0.75rem',
+                textAlign: 'left'
+              }}>
+                {/* Preset 1: Microsoft 365 */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'Microsoft 365 Business Standard',
+                    category: 'Produtividade',
+                    type: 'Assinatura Anual',
+                    seats: 10,
+                    cost: 1450.00,
+                    supplier: 'Microsoft Brasil',
+                    notes: 'Pacote Office completo (Word, Excel, PowerPoint, Teams, 1TB OneDrive).'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>💼</span> Microsoft 365 Business
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Office, Teams e 1TB Nuvem
+                  </span>
+                </div>
+
+                {/* Preset 2: Adobe CC */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'Adobe Creative Cloud All Apps',
+                    category: 'Design & Criação',
+                    type: 'Assinatura Anual',
+                    seats: 3,
+                    cost: 3200.00,
+                    supplier: 'Adobe Systems',
+                    notes: 'Photoshop, Illustrator, Premiere Pro, After Effects e InDesign.'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>🎨</span> Adobe Creative Cloud
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Design, Photoshop e Vídeo
+                  </span>
+                </div>
+
+                {/* Preset 3: Windows Pro OEM */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'Windows 11 Pro OEM',
+                    category: 'Sistema Operacional',
+                    type: 'Perpétua / Volume',
+                    seats: 15,
+                    cost: 0,
+                    supplier: 'Dell / Lenovo OEM',
+                    notes: 'Licenças OEM ativadas de fábrica nos notebooks corporativos.'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>🪟</span> Windows 11 Pro OEM
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Licenças Perpétuas / OEM
+                  </span>
+                </div>
+
+                {/* Preset 4: AutoCAD */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'AutoCAD Architecture',
+                    category: 'Engenharia / Projetos',
+                    type: 'Assinatura Anual',
+                    seats: 2,
+                    cost: 4800.00,
+                    supplier: 'Autodesk Brasil',
+                    notes: 'Projetos arquitetônicos, engenharia e plantas.'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>📐</span> AutoCAD Architecture
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Engenharia e Plantas
+                  </span>
+                </div>
+
+                {/* Preset 5: Antivírus EDR */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'Kaspersky Endpoint Security Cloud',
+                    category: 'Segurança & Antivírus',
+                    type: 'Assinatura Anual',
+                    seats: 20,
+                    cost: 1200.00,
+                    supplier: 'Kaspersky Lab',
+                    notes: 'Proteção corporativa em tempo real contra malwares e ransomware.'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>🛡️</span> Antivírus & Segurança
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Proteção Endpoint e EDR
+                  </span>
+                </div>
+
+                {/* Preset 6: Google Workspace */}
+                <div
+                  onClick={() => handleOpenPreset({
+                    name: 'Google Workspace Business Standard',
+                    category: 'Produtividade',
+                    type: 'Assinatura Mensal',
+                    seats: 10,
+                    cost: 840.00,
+                    supplier: 'Google Cloud Brasil',
+                    notes: 'Gmail corporativo, Drive compartilhado 2TB e Google Meet.'
+                  })}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>☁️</span> Google Workspace
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Gmail, Drive e Meet
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Destaques das Funcionalidades */}
+          <div style={{
+            display: 'flex',
+            gap: '1.5rem',
+            marginTop: '2.5rem',
+            paddingTop: '1.5rem',
+            borderTop: '1px solid var(--border-color)',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Controle de Assentos Livres & Ocupados
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Alertas de Vencimento e Renovação
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--primary)' }}>
+              <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span> Atribuição Direta por Colaborador & Tag
+            </div>
+          </div>
         </div>
       )}
 

@@ -5,7 +5,8 @@ export default function MaintenanceList({
   assets = [],
   employees = [],
   onCreateMaintenance,
-  onUpdateMaintenance
+  onUpdateMaintenance,
+  onDeleteMaintenance
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Em Aberto');
@@ -263,20 +264,39 @@ export default function MaintenanceList({
                       </span>
                     </td>
                     <td className="actions-cell">
-                      {!isClosed ? (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleStartCloseTicket(ticket)}
-                          title="Concluir manutenção e devolver ao estoque/colaborador"
-                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
-                        >
-                          Concluir
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                          ✓ Finalizado
-                        </span>
-                      )}
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {!isClosed ? (
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleStartCloseTicket(ticket)}
+                            title="Concluir manutenção e devolver ao estoque/colaborador"
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                          >
+                            Concluir
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                            ✓ Finalizado
+                          </span>
+                        )}
+                        {onDeleteMaintenance && (
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => {
+                              if (window.confirm(`Deseja excluir o registro de manutenção #${ticket.asset_tag} (${ticket.asset_name})?`)) {
+                                onDeleteMaintenance(ticket.id);
+                              }
+                            }}
+                            title="Excluir chamado de manutenção"
+                            style={{ padding: '0.35rem 0.5rem', color: 'var(--color-danger)' }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
