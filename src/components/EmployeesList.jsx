@@ -13,8 +13,12 @@ export default function EmployeesList({
   onDecommission,
   onSendToStock,
   onOnboardEmployeeWithKit,
-  onOffboardEmployee
+  onOffboardEmployee,
+  currentUser = null
 }) {
+  const userRole = currentUser?.role || 'Operador';
+  const isReadOnly = userRole === 'Visualizador';
+  const isAdmin = userRole === 'Administrador';
   const [searchTerm, setSearchTerm] = useState('');
   const [layoutMode, setLayoutMode] = useState('list'); // 'list' ou 'grid'
   const [selectedSectorTab, setSelectedSectorTab] = useState('Todos');
@@ -382,28 +386,32 @@ export default function EmployeesList({
             <span>Exportar CSV</span>
           </button>
 
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setIsOnboardingModalOpen(true)}
-            title="Cadastrar novo colaborador e entregar kit de equipamentos do estoque"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-            </svg>
-            <span>Onboarding com Kit</span>
-          </button>
+          {!isReadOnly && (
+            <>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setIsOnboardingModalOpen(true)}
+                title="Cadastrar novo colaborador e entregar kit de equipamentos do estoque"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+                <span>Onboarding com Kit</span>
+              </button>
 
-          <button type="button" className="btn btn-secondary btn-sm" onClick={openAddModal}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <line x1="19" y1="8" x2="19" y2="14" />
-              <line x1="22" y1="11" x2="16" y2="11" />
-            </svg>
-            <span>Cadastrar Colaborador</span>
-          </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={openAddModal}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+                <span>Cadastrar Colaborador</span>
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -675,6 +683,7 @@ export default function EmployeesList({
                               onDelete={handleDeleteClick}
                               onViewAssets={() => setActiveEmployeeAssets(emp)}
                               onOffboard={handleOpenOffboard}
+                              userRole={userRole}
                             />
                           </div>
                         </div>
@@ -776,6 +785,7 @@ export default function EmployeesList({
                                     onDelete={handleDeleteClick}
                                     onViewAssets={() => setActiveEmployeeAssets(emp)}
                                     onOffboard={handleOpenOffboard}
+                                    userRole={userRole}
                                   />
                                 </td>
                               </tr>

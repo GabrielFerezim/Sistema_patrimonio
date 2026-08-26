@@ -242,8 +242,24 @@ export default function App() {
       const resUsers = await fetch('/api/users');
       if (resUsers.ok) {
         const data = await resUsers.json();
-        setUsers(data);
-        localStorage.setItem('trynova_users', JSON.stringify(data));
+        try {
+          const oldSaved = JSON.parse(localStorage.getItem('trynova_users') || '[]');
+          const dbIds = new Set(data.map(u => u.id));
+          const dbUsernames = new Set(data.map(u => u.username?.toLowerCase()));
+          const localOnly = oldSaved.filter(o => !dbIds.has(o.id) && !dbUsernames.has(o.username?.toLowerCase()));
+          const merged = [
+            ...data.map(u => {
+              const match = oldSaved.find(o => o.id === u.id || o.username?.toLowerCase() === u.username?.toLowerCase() || o.email?.toLowerCase() === u.email?.toLowerCase());
+              return (match && match.password) ? { ...u, password: match.password } : u;
+            }),
+            ...localOnly
+          ];
+          setUsers(merged);
+          localStorage.setItem('trynova_users', JSON.stringify(merged));
+        } catch (_) {
+          setUsers(data);
+          localStorage.setItem('trynova_users', JSON.stringify(data));
+        }
       } else {
         throw new Error();
       }
@@ -254,16 +270,30 @@ export default function App() {
           setUsers(JSON.parse(saved));
         } catch (_) {}
       } else {
-        const initialU = [{
-          id: 1,
-          name: 'Gabriel Ferezim',
-          email: 'gabriel.ferezim@trynova.com.br',
-          username: 'admin',
-          role: 'Administrador',
-          department: 'Tecnologia da Informação',
-          status: 'Ativo',
-          created_at: new Date().toISOString()
-        }];
+        const initialU = [
+          {
+            id: 1,
+            name: 'Gabriel Ferezim',
+            email: 'gabriel.ferezim@trynova.com.br',
+            username: 'admin',
+            password: 'admin123',
+            role: 'Administrador',
+            department: 'Tecnologia da Informação',
+            status: 'Ativo',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 2,
+            name: 'Mateus Silva',
+            email: 'mateus.silva@trynova.com.br',
+            username: 'mateus',
+            password: 'mateus123',
+            role: 'Operador',
+            department: 'Suporte de T.I',
+            status: 'Ativo',
+            created_at: new Date().toISOString()
+          }
+        ];
         setUsers(initialU);
         localStorage.setItem('trynova_users', JSON.stringify(initialU));
       }
@@ -306,7 +336,18 @@ export default function App() {
   }, [auditLogs]);
 
   useEffect(() => {
-    if (users.length > 0) localStorage.setItem('trynova_users', JSON.stringify(users));
+    if (users.length > 0) {
+      try {
+        const oldSaved = JSON.parse(localStorage.getItem('trynova_users') || '[]');
+        const merged = users.map(u => {
+          const match = oldSaved.find(o => o.id === u.id || o.username?.toLowerCase() === u.username?.toLowerCase() || o.email?.toLowerCase() === u.email?.toLowerCase());
+          return (match && match.password) ? { ...u, password: match.password } : u;
+        });
+        localStorage.setItem('trynova_users', JSON.stringify(merged));
+      } catch (_) {
+        localStorage.setItem('trynova_users', JSON.stringify(users));
+      }
+    }
   }, [users]);
 
   // ----------------------------------------------------
@@ -1121,16 +1162,25 @@ export default function App() {
         throw new Error(err.error || 'Erro ao criar usuário');
       }
       const created = await response.json();
-      setUsers(prev => [created, ...prev]);
+      const createdWithPass = { ...created, password: userData.password };
+      setUsers(prev => {
+        const updated = [createdWithPass, ...prev.filter(u => u.id !== created.id)];
+        localStorage.setItem('trynova_users', JSON.stringify(updated));
+        return updated;
+      });
       addToast(`Usuário "${created.name}" criado com sucesso!`, 'success');
       if (userData.send_email) {
         addToast(`E-mail com dados de acesso disparado para ${created.email}`, 'info');
       }
       addAuditLog('CADASTRO', `Cadastrado usuário: ${created.name} (${created.email})`, String(created.id), 'USUARIO');
-      return created;
+      return createdWithPass;
     } catch (err) {
       const localNew = { ...userData, id: Date.now(), created_at: new Date().toISOString(), status: 'Ativo' };
-      setUsers(prev => [localNew, ...prev]);
+      setUsers(prev => {
+        const updated = [localNew, ...prev];
+        localStorage.setItem('trynova_users', JSON.stringify(updated));
+        return updated;
+      });
       addToast(`Usuário "${localNew.name}" cadastrado localmente!`, 'success');
       addAuditLog('CADASTRO', `Cadastrado usuário: ${localNew.name}`, String(localNew.id), 'USUARIO');
       return localNew;
@@ -1149,11 +1199,24 @@ export default function App() {
         throw new Error(err.error || 'Erro ao atualizar usuário');
       }
       const updated = await response.json();
-      setUsers(prev => prev.map(u => u.id === id ? updated : u));
+      setUsers(prev => {
+        const nextUsers = prev.map(u => {
+          if (u.id === id) {
+            return { ...u, ...updated, password: updateData.password || u.password };
+          }
+          return u;
+        });
+        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
+        return nextUsers;
+      });
       addToast(`Usuário "${updated.name}" atualizado!`, 'success');
       addAuditLog('ATUALIZACAO', `Atualizado usuário: ${updated.name}`, String(id), 'USUARIO');
     } catch (err) {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updateData } : u));
+      setUsers(prev => {
+        const nextUsers = prev.map(u => u.id === id ? { ...u, ...updateData } : u);
+        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
+        return nextUsers;
+      });
       addToast('Usuário atualizado com sucesso!', 'success');
     }
   };
@@ -1166,11 +1229,19 @@ export default function App() {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || 'Erro ao excluir usuário');
       }
-      setUsers(prev => prev.filter(u => u.id !== id));
+      setUsers(prev => {
+        const nextUsers = prev.filter(u => u.id !== id);
+        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
+        return nextUsers;
+      });
       addToast(`Usuário "${target ? target.name : id}" excluído com sucesso.`, 'info');
       addAuditLog('EXCLUSAO', `Excluído usuário: ${target ? target.name : id}`, String(id), 'USUARIO');
     } catch (err) {
-      setUsers(prev => prev.filter(u => u.id !== id));
+      setUsers(prev => {
+        const nextUsers = prev.filter(u => u.id !== id);
+        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
+        return nextUsers;
+      });
       addToast(`Usuário excluído.`, 'info');
     }
   };
@@ -1195,6 +1266,21 @@ export default function App() {
   // ----------------------------------------------------
   // NAVEGAÇÃO & ATALHOS
   // ----------------------------------------------------
+  useEffect(() => {
+    const roleStr = String(user?.role || '').trim().toLowerCase();
+    const isUserAdmin = 
+      roleStr === 'administrador' || 
+      roleStr === 'admin' || 
+      user?.username?.toLowerCase() === 'admin' || 
+      user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' || 
+      !user;
+
+    if (activeTab === 'users' && user && !isUserAdmin) {
+      setActiveTab('dashboard');
+      addToast('Acesso restrito: seu perfil de acesso não permite gerenciar usuários.', 'error');
+    }
+  }, [activeTab, user]);
+
   const handleNavigateToAssetsWithFilter = (filterType, filterValue) => {
     if (filterType === 'status') setAssetStatusFilter(filterValue);
     if (filterType === 'location') setAssetLocationFilter(filterValue);
@@ -1280,6 +1366,7 @@ export default function App() {
           onTransferAsset={handleTransferAssetBetweenSpaces}
           onRemoveFromSpace={handleRemoveAssetFromSpace}
           onEditAsset={handleEditAsset}
+          currentUser={user}
         />
       ) : activeTab === 'stock' ? (
         <StockList
@@ -1287,6 +1374,7 @@ export default function App() {
           employees={employees}
           onAssign={handleAssignAsset}
           onDecommission={handleDecommissionAsset}
+          currentUser={user}
         />
       ) : activeTab === 'employees' ? (
         <EmployeesList
@@ -1298,6 +1386,7 @@ export default function App() {
           onSendToStock={handleSendToStockAsset}
           onOnboardEmployeeWithKit={handleOnboardEmployeeWithKit}
           onOffboardEmployee={handleOffboardEmployee}
+          currentUser={user}
         />
       ) : activeTab === 'maintenance' ? (
         <MaintenanceList
@@ -1307,6 +1396,7 @@ export default function App() {
           onCreateMaintenance={handleCreateMaintenance}
           onUpdateMaintenance={handleUpdateMaintenance}
           onDeleteMaintenance={handleDeleteMaintenance}
+          currentUser={user}
         />
       ) : activeTab === 'licenses' ? (
         <SoftwareLicensesList
@@ -1317,6 +1407,7 @@ export default function App() {
           onDeleteLicense={handleDeleteLicense}
           onAssignSeat={handleAssignLicenseSeat}
           onUnassignSeat={handleUnassignLicenseSeat}
+          currentUser={user}
         />
       ) : activeTab === 'decommissioned' ? (
         <DecommissionedList
@@ -1324,6 +1415,7 @@ export default function App() {
           onReactivate={handleReactivateAsset}
           onEdit={handleEditAsset}
           onDelete={handleDeleteAsset}
+          currentUser={user}
         />
       ) : activeTab === 'audit' ? (
         <AuditLogView logs={auditLogs} />
@@ -1369,6 +1461,7 @@ export default function App() {
           setLocationFilter={setAssetLocationFilter}
           equipmentFilter={assetEquipmentFilter}
           setEquipmentFilter={setAssetEquipmentFilter}
+          currentUser={user}
         />
       )}
 

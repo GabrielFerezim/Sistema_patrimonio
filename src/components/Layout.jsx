@@ -34,6 +34,7 @@ export default function Layout({
           theme={theme}
           toggleTheme={toggleTheme}
           assetCounts={assetCounts}
+          user={user}
         />
 
         {/* Área Principal */}

@@ -8,8 +8,17 @@ export default function Sidebar({
   onToggleCollapse,
   theme,
   toggleTheme,
-  assetCounts = { total: 0, stock: 0, maintenance: 0, employees: 0, decommissioned: 0, spaces: 0, licenses: 0 }
+  assetCounts = { total: 0, stock: 0, maintenance: 0, employees: 0, decommissioned: 0, spaces: 0, licenses: 0, users: 0 },
+  user = null
 }) {
+  const roleStr = String(user?.role || '').trim().toLowerCase();
+  const isAdmin = 
+    roleStr === 'administrador' || 
+    roleStr === 'admin' || 
+    user?.username?.toLowerCase() === 'admin' || 
+    user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' ||
+    !user;
+  const isReadOnly = roleStr === 'visualizador' || roleStr === 'viewer';
   const [paineisOpen, setPaineisOpen] = useState(true);
   const [gerenciarOpen, setGerenciarOpen] = useState(true);
   const [sistemaOpen, setSistemaOpen] = useState(true);
@@ -295,51 +304,53 @@ export default function Sidebar({
               </div>
             </div>
 
-            {/* Seção 3: SISTEMA & ACESSOS */}
-            <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
-              <div
-                className="nav-category-header"
-                onClick={() => !collapsed && setSistemaOpen(!sistemaOpen)}
-                title={collapsed ? undefined : "Recolher Sistema"}
-              >
-                <span>SISTEMA</span>
-                {!collapsed && (
-                  <svg
-                    className={`category-chevron ${sistemaOpen ? 'open' : ''}`}
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                )}
-              </div>
-
-              <div className={`nav-category-items ${sistemaOpen || collapsed ? 'show' : ''}`}>
-                {/* Usuários & Acessos */}
-                <button
-                  className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('users')}
-                  title={collapsed ? "Usuários & Acessos" : undefined}
+            {/* Seção 3: SISTEMA & ACESSOS (Apenas Administrador) */}
+            {isAdmin && (
+              <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
+                <div
+                  className="nav-category-header"
+                  onClick={() => !collapsed && setSistemaOpen(!sistemaOpen)}
+                  title={collapsed ? undefined : "Recolher Sistema"}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  </svg>
-                  <span>Usuários & Acessos</span>
-                  {assetCounts.users > 0 && !collapsed && (
-                    <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
-                      {assetCounts.users}
-                    </span>
+                  <span>SISTEMA</span>
+                  {!collapsed && (
+                    <svg
+                      className={`category-chevron ${sistemaOpen ? 'open' : ''}`}
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                   )}
-                </button>
+                </div>
+
+                <div className={`nav-category-items ${sistemaOpen || collapsed ? 'show' : ''}`}>
+                  {/* Usuários & Acessos */}
+                  <button
+                    className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('users')}
+                    title={collapsed ? "Usuários & Acessos" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Usuários & Acessos</span>
+                    {assetCounts.users > 0 && !collapsed && (
+                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
+                        {assetCounts.users}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </nav>
 

@@ -8,8 +8,12 @@ export default function SoftwareLicensesList({
   onSaveLicense,
   onDeleteLicense,
   onAssignSeat,
-  onUnassignSeat
+  onUnassignSeat,
+  currentUser = null
 }) {
+  const userRole = currentUser?.role || 'Operador';
+  const isReadOnly = userRole === 'Visualizador';
+  const isAdmin = userRole === 'Administrador';
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -285,17 +289,19 @@ export default function SoftwareLicensesList({
             <span>Exportar CSV</span>
           </button>
 
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleOpenCreate}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Nova Licença</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleOpenCreate}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Nova Licença</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -532,34 +538,38 @@ export default function SoftwareLicensesList({
 
                       {/* Botões de Ação do Card */}
                       <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button
-                          type="button"
-                          className="btn-action-icon"
-                          onClick={() => handleOpenEdit(lic)}
-                          title="Editar Licença"
-                          style={{ padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer' }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-action-icon"
-                          onClick={() => {
-                            if (window.confirm(`Tem certeza de que deseja excluir a licença "${lic.name}"?`)) {
-                              onDeleteLicense(lic.id);
-                            }
-                          }}
-                          title="Excluir Licença"
-                          style={{ padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--color-danger)', cursor: 'pointer' }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            className="btn-action-icon"
+                            onClick={() => handleOpenEdit(lic)}
+                            title="Editar Licença"
+                            style={{ padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer' }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="btn-action-icon"
+                            onClick={() => {
+                              if (window.confirm(`Tem certeza de que deseja excluir a licença "${lic.name}"?`)) {
+                                onDeleteLicense(lic.id);
+                              }
+                            }}
+                            title="Excluir Licença"
+                            style={{ padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--color-danger)', cursor: 'pointer' }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -673,7 +683,7 @@ export default function SoftwareLicensesList({
                       <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                         ATRIBUIÇÕES ({assignedArray.length}):
                       </span>
-                      {free > 0 ? (
+                      {free > 0 && !isReadOnly ? (
                         <button
                           type="button"
                           onClick={() => handleOpenAssignModal(lic)}
@@ -690,7 +700,9 @@ export default function SoftwareLicensesList({
                           + Atribuir Assento
                         </button>
                       ) : (
-                        <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)' }}>Limite Atingido</span>
+                        <span style={{ fontSize: '0.72rem', color: free === 0 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
+                          {free === 0 ? 'Limite Atingido' : `${free} livre(s)`}
+                        </span>
                       )}
                     </div>
 
@@ -714,14 +726,16 @@ export default function SoftwareLicensesList({
                               <strong>{item.user}</strong>
                               {item.machine && <span style={{ color: 'var(--text-muted)', marginLeft: '0.3rem' }}>({item.machine})</span>}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleUnassignSeat(lic.id, idx, item.user)}
-                              style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
-                              title="Liberar este assento de licença"
-                            >
-                              Liberar
-                            </button>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleUnassignSeat(lic.id, idx, item.user)}
+                                style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600 }}
+                                title="Liberar este assento de licença"
+                              >
+                                Liberar
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -840,32 +854,36 @@ export default function SoftwareLicensesList({
                       <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{lic.supplier || '-'}</td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'flex-end' }}>
-                          <button
-                            type="button"
-                            className="btn-action-icon"
-                            onClick={() => handleOpenEdit(lic)}
-                            title="Editar"
-                            style={{ padding: '0.3rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer' }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action-icon"
-                            onClick={() => {
-                              if (window.confirm(`Excluir a licença "${lic.name}"?`)) onDeleteLicense(lic.id);
-                            }}
-                            title="Excluir"
-                            style={{ padding: '0.3rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--color-danger)', cursor: 'pointer' }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              className="btn-action-icon"
+                              onClick={() => handleOpenEdit(lic)}
+                              title="Editar"
+                              style={{ padding: '0.3rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer' }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              </svg>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="btn-action-icon"
+                              onClick={() => {
+                                if (window.confirm(`Excluir a licença "${lic.name}"?`)) onDeleteLicense(lic.id);
+                              }}
+                              title="Excluir"
+                              style={{ padding: '0.3rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: 'var(--bg-app)', color: 'var(--color-danger)', cursor: 'pointer' }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -4,8 +4,10 @@ export default function StockList({
   assets = [], 
   employees = [], 
   onAssign, 
-  onDecommission 
+  onDecommission,
+  currentUser = null
 }) {
+  const isReadOnly = currentUser?.role === 'Visualizador';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   
@@ -208,31 +210,33 @@ export default function StockList({
                   </p>
                 )}
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  <button 
-                    className="btn btn-primary btn-deliver"
-                    onClick={() => handleStartAssign(asset)}
-                    style={{ flexGrow: 1 }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="8.5" cy="7" r="4" />
-                    </svg>
-                    Entregar ao Colaborador
-                  </button>
+                {!isReadOnly && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                    <button 
+                      className="btn btn-primary btn-deliver"
+                      onClick={() => handleStartAssign(asset)}
+                      style={{ flexGrow: 1 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                      </svg>
+                      Entregar ao Colaborador
+                    </button>
 
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => setDecommissionAsset(asset)}
-                    title="Dar Baixa no Equipamento"
-                    style={{ color: 'var(--color-warning)', padding: '0 0.65rem' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="8" y1="12" x2="16" y2="12" />
-                    </svg>
-                  </button>
-                </div>
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => setDecommissionAsset(asset)}
+                      title="Dar Baixa no Equipamento"
+                      style={{ color: 'var(--color-warning)', padding: '0 0.65rem' }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="8" y1="12" x2="16" y2="12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

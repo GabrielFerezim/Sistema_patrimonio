@@ -188,25 +188,96 @@ async function initDb() {
 
     // Semeia usuário Admin principal Gabriel Ferezim se não existir
     try {
-      const userRes = await client.query('SELECT COUNT(*) FROM system_users');
-      const userCount = parseInt(userRes.rows[0].count, 10);
-      if (userCount === 0) {
-        await client.query(`
-          INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
-          VALUES ($1, $2, $3, $4, $5, $6, 'Ativo', NOW())
-          ON CONFLICT (username) DO NOTHING
-        `, [
-          'Gabriel Ferezim',
-          'gabriel.ferezim@trynova.com.br',
-          'admin',
-          'admin123',
-          'Administrador',
-          'Tecnologia da Informação'
-        ]);
-      }
+      await client.query(`
+        INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
+        VALUES 
+          ('Gabriel Ferezim', 'gabriel.ferezim@trynova.com.br', 'admin', 'admin123', 'Administrador', 'Tecnologia da Informação', 'Ativo', NOW()),
+          ('Mateus Silva', 'mateus.silva@trynova.com.br', 'mateus', 'mateus123', 'Operador', 'Suporte de T.I', 'Ativo', NOW())
+        ON CONFLICT (username) DO NOTHING;
+      `);
     } catch (_) {}
 
-    console.log("Tabelas do banco de dados verificadas/inicializadas com sucesso!");
+    // Views analíticas para o Power BI
+    try {
+      await client.query(`
+        CREATE OR REPLACE VIEW vw_powerbi_patrimonios AS
+        SELECT 
+          a.id AS id_patrimonio,
+          a.tag AS tag_patrimonio,
+          a.name AS nome_equipamento,
+          a.equipment AS tipo_equipamento,
+          a.location AS localizacao,
+          COALESCE(a.employee, 'Disponível / Em Estoque') AS colaborador_responsavel,
+          e.sector AS colaborador_setor,
+          e.team AS colaborador_equipe_cliente,
+          e.role AS colaborador_cargo,
+          a.status AS status_patrimonio,
+          a.condition AS condicao_conservacao,
+          a.serial_number AS numero_serie,
+          a.purchase_date AS data_aquisicao,
+          COALESCE(a.value, 0) AS valor_aquisicao_brl,
+          a.notes AS observacoes,
+          a.last_verified AS data_ultima_auditoria,
+          a.created_at AS data_cadastro
+        FROM assets a
+        LEFT JOIN employees e ON LOWER(TRIM(a.employee)) = LOWER(TRIM(e.name));
+      `);
+
+      await client.query(`
+        CREATE OR REPLACE VIEW vw_powerbi_manutencoes AS
+        SELECT 
+          m.id AS id_manutencao,
+          m.asset_tag AS tag_patrimonio,
+          m.asset_name AS nome_equipamento,
+          m.issue_description AS motivo_defeito,
+          m.provider AS assistencia_fornecedor,
+          COALESCE(m.cost, 0) AS custo_reparo_brl,
+          m.status AS status_manutencao,
+          m.opened_at AS data_abertura_chamado,
+          m.closed_at AS data_conclusao_chamado,
+          m.expected_return_at AS previsao_retorno,
+          m.return_destination AS destino_apos_reparo,
+          m.employee_name AS colaborador_vinculado
+        FROM maintenances m;
+      `);
+
+      await client.query(`
+        CREATE OR REPLACE VIEW vw_powerbi_licencas AS
+        SELECT 
+          l.id AS id_licenca,
+          l.name AS software_nome,
+          l.category AS categoria_software,
+          l.license_type AS tipo_licenca,
+          l.supplier AS fornecedor,
+          l.total_seats AS assentos_totais,
+          COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(l.assigned_to) = 'array' THEN l.assigned_to ELSE '[]'::jsonb END), 0) AS assentos_em_uso,
+          (l.total_seats - COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(l.assigned_to) = 'array' THEN l.assigned_to ELSE '[]'::jsonb END), 0)) AS assentos_disponiveis,
+          COALESCE(l.cost, 0) AS custo_total_licenca_brl,
+          l.expiration_date AS data_expiracao,
+          l.notes AS observacoes
+        FROM licenses l;
+      `);
+
+      await client.query(`
+        CREATE OR REPLACE VIEW vw_powerbi_colaboradores AS
+        SELECT 
+          e.id AS id_colaborador,
+          e.name AS nome_colaborador,
+          e.sector AS setor,
+          e.ramal AS ramal,
+          e.team AS equipe_cliente,
+          e.role AS cargo,
+          COUNT(a.id) AS total_equipamentos_em_custodia,
+          COALESCE(SUM(a.value), 0) AS valor_total_custodia_brl
+        FROM employees e
+        LEFT JOIN assets a ON LOWER(TRIM(a.employee)) = LOWER(TRIM(e.name))
+        GROUP BY e.id, e.name, e.sector, e.ramal, e.team, e.role;
+      `);
+    } catch (vErr) {
+      console.warn("Aviso ao criar views do Power BI:", vErr.message);
+    }
+
+    console.log("Tabelas e Views do Power BI verificadas/inicializadas com sucesso!");
   } catch (err) {
     console.error("Erro ao inicializar banco de dados:", err);
   } finally {
@@ -848,25 +919,6 @@ app.post('/api/audit-logs', async (req, res) => {
 });
 
 // ==========================================
-// AUTENTICAÇÃO
-// ==========================================
-
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (username === 'admin' && password === 'admin123') {
-    res.json({ 
-      success: true, 
-      username: 'admin', 
-      name: 'Gabriel Ferezim (Admin)',
-      role: 'Administrador do Sistema',
-      avatar: 'G'
-    });
-  } else {
-    res.status(401).json({ error: 'Usuário ou senha incorretos. Dica padrão: admin / admin123' });
-  }
-});
-
-// ==========================================
 // ROTAS CRUD - ESPAÇOS / AMBIENTES (SPACES)
 // ==========================================
 
@@ -1127,7 +1179,7 @@ app.post('/api/login', async (req, res) => {
     let user = null;
     try {
       const result = await pool.query(
-        'SELECT * FROM system_users WHERE LOWER(username) = $1 OR LOWER(email) = $1',
+        'SELECT * FROM system_users WHERE LOWER(TRIM(username)) = $1 OR LOWER(TRIM(email)) = $1',
         [cleanLogin]
       );
       if (result.rows.length > 0) {
@@ -1138,7 +1190,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     if (user) {
-      if (user.password !== cleanPass) {
+      if (String(user.password).trim() !== cleanPass) {
         return res.status(401).json({ error: 'Senha incorreta.' });
       }
       if (user.status !== 'Ativo') {

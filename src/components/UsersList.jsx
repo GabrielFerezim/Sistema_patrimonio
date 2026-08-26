@@ -330,6 +330,53 @@ export default function UsersList({
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  const userRoleStr = String(currentUser?.role || '').trim().toLowerCase();
+  const isCurrentUserAdmin = 
+    userRoleStr === 'administrador' || 
+    userRoleStr === 'admin' || 
+    currentUser?.username?.toLowerCase() === 'admin' || 
+    currentUser?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' || 
+    !currentUser;
+
+  if (currentUser && !isCurrentUserAdmin) {
+    return (
+      <div className="access-denied-container" style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
+        <div style={{
+          maxWidth: '520px',
+          margin: '0 auto',
+          backgroundColor: 'var(--bg-card)',
+          padding: '2.5rem 2rem',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-md)'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            color: 'var(--color-danger)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.25rem auto'
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 0.5rem 0' }}>
+            Acesso Restrito ao Administrador
+          </h2>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 1.5rem 0' }}>
+            Seu perfil atual de acesso (<strong>{currentUser.role}</strong>) não possui permissão para visualizar, criar ou editar os usuários e credenciais do sistema.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="users-list-container">
       {/* Header Principal */}

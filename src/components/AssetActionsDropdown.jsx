@@ -8,8 +8,13 @@ export default function AssetActionsDropdown({
   onSendToMaintenance,
   onDecommission,
   onReactivate,
-  onDelete
+  onDelete,
+  userRole = 'Administrador'
 }) {
+  if (userRole === 'Visualizador') {
+    return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Somente Leitura</span>;
+  }
+  const isAdmin = userRole === 'Administrador';
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState({});
   const containerRef = useRef(null);
@@ -178,8 +183,8 @@ export default function AssetActionsDropdown({
               </li>
             )}
 
-            {/* 8. Excluir */}
-            {onDelete && (
+            {/* 8. Excluir (Apenas Administrador) */}
+            {isAdmin && onDelete && (
               <li
                 className="asset-dropdown-item item-delete"
                 onClick={() => {

@@ -38,9 +38,26 @@ export default function Login({ onLoginSuccess }) {
       const userData = await response.json();
       onLoginSuccess(userData);
     } catch (err) {
-      // Fallback para login offline padrão
+      // Fallback para login offline padrão ou usuários cadastrados no localStorage
       const cleanU = username.trim().toLowerCase();
       const cleanP = password.trim();
+
+      try {
+        const localUsers = JSON.parse(localStorage.getItem('trynova_users') || '[]');
+        const matchedLocal = localUsers.find(
+          u => (u.username?.toLowerCase() === cleanU || u.email?.toLowerCase() === cleanU) && String(u.password).trim() === cleanP
+        );
+        if (matchedLocal) {
+          if (matchedLocal.status === 'Inativo') {
+            setError('Usuário desativado. Entre em contato com o Administrador.');
+            return;
+          }
+          const { password: _, ...safeUser } = matchedLocal;
+          onLoginSuccess(safeUser);
+          return;
+        }
+      } catch (_) {}
+
       if (
         (cleanU === 'admin' || cleanU === 'gabriel.ferezim@trynova.com.br' || cleanU === 'gabriel') &&
         (cleanP === 'admin123' || cleanP === 'admin')
@@ -56,17 +73,11 @@ export default function Login({ onLoginSuccess }) {
           avatar: 'G'
         });
       } else {
-        setError(err.message || 'Erro ao autenticar. Verifique seus dados.');
+        setError(err.message || 'Erro ao autenticar. Verifique seu usuário e senha.');
       }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoFill = () => {
-    setUsername('admin');
-    setPassword('admin123');
-    setError('');
   };
 
   const handleForgotSubmit = async (e) => {
@@ -97,15 +108,21 @@ export default function Login({ onLoginSuccess }) {
 
       <div className="login-card">
         <div className="login-header">
-          <div className="login-logo-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div className="login-logo-container">
             <img
               src="/trynova_logo.png"
               alt="Trynova"
-              style={{ maxHeight: '42px', maxWidth: '240px', objectFit: 'contain' }}
+              style={{ maxHeight: '44px', maxWidth: '240px', objectFit: 'contain' }}
               onError={(e) => {
                 e.target.style.display = 'none';
+                const fb = document.getElementById('login-brand-fallback');
+                if (fb) fb.style.display = 'flex';
               }}
             />
+            <div id="login-brand-fallback" style={{ display: 'none', alignItems: 'center', gap: '0.6rem' }}>
+              <div className="login-logo-icon">T</div>
+              <span className="brand-text">TRYNOVA</span>
+            </div>
           </div>
           <p className="login-subtitle">Sistema de Gestão & Controle de Patrimônio</p>
         </div>
@@ -152,7 +169,7 @@ export default function Login({ onLoginSuccess }) {
                   setForgotMessage('');
                   setIsForgotModalOpen(true);
                 }}
-                style={{ background: 'none', border: 'none', color: 'var(--primary-light)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', padding: 0 }}
               >
                 Esqueceu a senha?
               </button>
@@ -201,11 +218,6 @@ export default function Login({ onLoginSuccess }) {
               'Acessar Sistema'
             )}
           </button>
-
-          {/* Dica de Acesso Rápido para Gabriel Ferezim (Admin) */}
-          <div className="login-demo-hint" onClick={handleDemoFill} title="Clique para preencher acesso de Administrador">
-            <span>🛡️ Acesso Administrador: <strong>admin</strong> / <strong>admin123</strong> (Clique para preencher)</span>
-          </div>
         </form>
       </div>
 

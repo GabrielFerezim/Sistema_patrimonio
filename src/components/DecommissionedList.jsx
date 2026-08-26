@@ -5,8 +5,12 @@ export default function DecommissionedList({
   assets = [],
   onReactivate,
   onEdit,
-  onDelete
+  onDelete,
+  currentUser = null
 }) {
+  const userRole = currentUser?.role || 'Operador';
+  const isReadOnly = userRole === 'Visualizador';
+  const isAdmin = userRole === 'Administrador';
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [reactivateConfirmAsset, setReactivateConfirmAsset] = useState(null);
@@ -262,8 +266,8 @@ export default function DecommissionedList({
                     {/* Ações */}
                     <td className="actions-cell">
                       <div className="table-actions-wrapper">
-                        {/* Botão de Reativar */}
-                        {onReactivate && (
+                        {/* Reativar */}
+                        {!isReadOnly && onReactivate && (
                           <button
                             type="button"
                             className="btn btn-sm btn-primary"
@@ -286,7 +290,7 @@ export default function DecommissionedList({
                         )}
 
                         {/* Editar */}
-                        {onEdit && (
+                        {!isReadOnly && onEdit && (
                           <button
                             type="button"
                             className="btn-action-icon edit"
@@ -300,8 +304,8 @@ export default function DecommissionedList({
                           </button>
                         )}
 
-                        {/* Excluir Definitivo */}
-                        {onDelete && (
+                        {/* Excluir Definitivo (Apenas Administrador) */}
+                        {isAdmin && onDelete && (
                           <button
                             type="button"
                             className="btn-action-icon delete"
@@ -365,24 +369,28 @@ export default function DecommissionedList({
                     </div>
                   </div>
 
-                  <div className="card-actions" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-                    {onReactivate && (
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => setReactivateConfirmAsset(asset)}
-                        style={{ flex: 1 }}
-                      >
-                        Reativar no Estoque
-                      </button>
-                    )}
-                    <button
-                      className="btn-action-mobile delete"
-                      onClick={() => setDeleteConfirmAsset(asset)}
-                      title="Excluir"
-                    >
-                      Excluir
-                    </button>
-                  </div>
+                  {!isReadOnly && (
+                    <div className="card-actions" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                      {onReactivate && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => setReactivateConfirmAsset(asset)}
+                          style={{ flex: 1 }}
+                        >
+                          Reativar no Estoque
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          className="btn-action-mobile delete"
+                          onClick={() => setDeleteConfirmAsset(asset)}
+                          title="Excluir"
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

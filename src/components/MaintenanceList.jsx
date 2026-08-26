@@ -6,8 +6,12 @@ export default function MaintenanceList({
   employees = [],
   onCreateMaintenance,
   onUpdateMaintenance,
-  onDeleteMaintenance
+  onDeleteMaintenance,
+  currentUser = null
 }) {
+  const userRole = currentUser?.role || 'Operador';
+  const isReadOnly = userRole === 'Visualizador';
+  const isAdmin = userRole === 'Administrador';
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Em Aberto');
 
@@ -127,15 +131,17 @@ export default function MaintenanceList({
           <h1 className="page-title">Controle de Manutenção</h1>
           <p className="page-subtitle">Gerencie os reparos, ordens de serviço, assistência técnica e custos de equipamentos</p>
         </div>
-        <div className="page-header-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Abrir Chamado</span>
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="page-header-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Abrir Chamado</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Grade de KPIs Resumidos */}
@@ -265,7 +271,7 @@ export default function MaintenanceList({
                     </td>
                     <td className="actions-cell">
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {!isClosed ? (
+                        {!isReadOnly && ticket.status === 'Em Aberto' ? (
                           <button
                             className="btn btn-sm btn-primary"
                             onClick={() => handleStartCloseTicket(ticket)}
@@ -275,11 +281,13 @@ export default function MaintenanceList({
                             Concluir
                           </button>
                         ) : (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                            ✓ Finalizado
-                          </span>
+                          ticket.status === 'Concluída' && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                              ✓ Finalizado
+                            </span>
+                          )
                         )}
-                        {onDeleteMaintenance && (
+                        {isAdmin && onDeleteMaintenance && (
                           <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => {

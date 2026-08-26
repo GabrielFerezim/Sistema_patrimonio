@@ -21,8 +21,12 @@ export default function AssetList({
   locationFilter,
   setLocationFilter,
   equipmentFilter,
-  setEquipmentFilter
+  setEquipmentFilter,
+  currentUser = null
 }) {
+  const userRole = currentUser?.role || 'Operador';
+  const isReadOnly = userRole === 'Visualizador';
+  const isAdmin = userRole === 'Administrador';
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('tag-asc');
   const [deleteConfirmAsset, setDeleteConfirmAsset] = useState(null);
@@ -145,28 +149,32 @@ export default function AssetList({
               <span>Exportar</span>
             </button>
 
-            <button 
-              type="button"
-              className="btn btn-secondary btn-sm" 
-              onClick={handleImportClick}
-              title="Importar patrimônios via CSV"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <span>Importar</span>
-            </button>
+            {!isReadOnly && (
+              <button 
+                type="button"
+                className="btn btn-secondary btn-sm" 
+                onClick={handleImportClick}
+                title="Importar patrimônios via CSV"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span>Importar</span>
+              </button>
+            )}
           </div>
 
-          <button type="button" className="btn btn-primary btn-sm" onClick={onAddNew}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Novo Patrimônio</span>
-          </button>
+          {!isReadOnly && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={onAddNew}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Novo Patrimônio</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -398,17 +406,19 @@ export default function AssetList({
                       {/* Ações */}
                       <td className="actions-cell">
                         <div className="table-actions-wrapper">
-                          <button
-                            type="button"
-                            className="btn-action-icon edit"
-                            onClick={() => onEdit(asset)}
-                            title="Editar Patrimônio"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              className="btn-action-icon edit"
+                              onClick={() => onEdit(asset)}
+                              title="Editar Patrimônio"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                          )}
                           
                           <AssetActionsDropdown
                             asset={asset}
@@ -418,6 +428,7 @@ export default function AssetList({
                             onDecommission={setDecommissionAsset}
                             onReactivate={onReactivate}
                             onDelete={setDeleteConfirmAsset}
+                            userRole={userRole}
                           />
                         </div>
                       </td>
