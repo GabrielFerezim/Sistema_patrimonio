@@ -23,22 +23,48 @@ const initialAuditLogs = [];
 const initialLicenses = [];
 
 export default function App() {
-  const [assets, setAssets] = useState([]);
-  const [spaces, setSpaces] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [assets, setAssets] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_patrimonio');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
+  const [spaces, setSpaces] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_spaces');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
+  const [employees, setEmployees] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_employees');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
   const [licenses, setLicenses] = useState(() => {
     try {
       const saved = localStorage.getItem('trynova_licenses');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed.filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key));
-      }
-    } catch (_) {}
-    return [];
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
   });
-  const [maintenances, setMaintenances] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [maintenances, setMaintenances] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_maintenances');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
+  const [auditLogs, setAuditLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_audit_logs');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trynova_users');
+      return saved ? JSON.parse(saved) : [];
+    } catch (_) { return []; }
+  });
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -64,7 +90,6 @@ export default function App() {
     cleanStorage('trynova_patrimonio', a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || ''));
     cleanStorage('trynova_employees', e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name));
     cleanStorage('trynova_licenses', l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key));
-    cleanStorage('trynova_spaces', s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name));
     cleanStorage('trynova_maintenances', m => m.asset_tag !== 'PAT-006');
     cleanStorage('trynova_audit_logs', l => !l.description?.includes('PAT-001'));
   }, []);
@@ -210,15 +235,20 @@ export default function App() {
       const resSpaces = await fetch('/api/spaces');
       if (resSpaces.ok) {
         const data = await resSpaces.json();
-        const clean = Array.isArray(data) ? data.filter(s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name)) : [];
-        setSpaces(clean);
-        localStorage.setItem('trynova_spaces', JSON.stringify(clean));
+        const validSpaces = Array.isArray(data) ? data : [];
+        setSpaces(validSpaces);
+        localStorage.setItem('trynova_spaces', JSON.stringify(validSpaces));
       } else {
-        throw new Error();
+        throw new Error('API spaces error');
       }
     } catch {
       const saved = localStorage.getItem('trynova_spaces');
-      setSpaces(saved ? JSON.parse(saved).filter(s => !['Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central'].includes(s.name)) : []);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) setSpaces(parsed);
+        } catch (_) {}
+      }
     }
 
     // 6. Licenses / Licenças de Software
@@ -316,7 +346,7 @@ export default function App() {
   }, [assets]);
 
   useEffect(() => {
-    if (spaces.length > 0) localStorage.setItem('trynova_spaces', JSON.stringify(spaces));
+    localStorage.setItem('trynova_spaces', JSON.stringify(spaces));
   }, [spaces]);
 
   useEffect(() => {
@@ -587,7 +617,7 @@ export default function App() {
   // ----------------------------------------------------
   const handleSaveSpace = async (savedSpace) => {
     try {
-      if (savedSpace.id && typeof savedSpace.id === 'number' && savedSpace.id < 1500000000000) {
+      if (savedSpace.isEdit && savedSpace.id) {
         const response = await fetch(`/api/spaces/${savedSpace.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -620,20 +650,27 @@ export default function App() {
           body: JSON.stringify(savedSpace)
         });
 
-        let created = savedSpace;
+        let created;
         if (response.ok) {
           created = await response.json();
         } else {
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 400 || response.status === 409) {
+            addToast(errorData.error || 'Já existe um espaço com esse nome.', 'warning');
+            return;
+          }
           created = { ...savedSpace, id: Date.now() };
         }
 
-        setSpaces(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+        setSpaces(prev => [...prev.filter(s => s.id !== created.id), created].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
         addToast(`Espaço "${created.name}" cadastrado com sucesso!`, 'success');
         addAuditLog('CADASTRO', `Cadastrado novo espaço ${created.name} (${created.floor})`, created.name, 'ESPACO');
       }
     } catch (err) {
       console.error('Erro ao salvar espaço:', err);
-      addToast('Erro ao salvar espaço no servidor. Salvo localmente.', 'warning');
+      const created = { ...savedSpace, id: savedSpace.id || Date.now() };
+      setSpaces(prev => [...prev.filter(s => s.id !== created.id), created].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+      addToast('Espaço salvo localmente.', 'info');
     }
   };
 

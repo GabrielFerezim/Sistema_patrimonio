@@ -142,14 +142,15 @@ export default function SpacesList({
     }
 
     onSaveSpace({
-      id: editingSpace ? editingSpace.id : Date.now(),
+      id: editingSpace ? editingSpace.id : undefined,
       name: spaceFormName.trim(),
       floor: spaceFormFloor.trim(),
       type: spaceFormType,
       description: spaceFormDesc.trim() || null,
       color: spaceFormColor,
       icon: spaceFormIcon,
-      oldName: editingSpace ? editingSpace.name : null
+      oldName: editingSpace ? editingSpace.name : null,
+      isEdit: Boolean(editingSpace)
     });
 
     setIsSpaceModalOpen(false);
@@ -585,12 +586,16 @@ export default function SpacesList({
                       </button>
                     )}
 
-                    {isAdmin && (
+                    {!isReadOnly && (
                       <button
                         type="button"
                         className="btn-action-icon delete"
-                        onClick={() => setDeleteConfirmSpace(space)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmSpace(space);
+                        }}
                         title="Excluir Espaço"
+                        style={{ color: '#ef4444' }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <polyline points="3 6 5 6 21 6" />
@@ -802,14 +807,49 @@ export default function SpacesList({
               )}
             </div>
 
-            <footer className="form-footer" style={{ marginTop: '1rem' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => setSelectedSpaceDetails(null)}
-              >
-                Fechar
-              </button>
+            <footer className="form-footer" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                {!isReadOnly && (
+                  <button 
+                    type="button" 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => {
+                      const sp = selectedSpaceDetails;
+                      setSelectedSpaceDetails(null);
+                      setDeleteConfirmSpace(sp);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Excluir Espaço</span>
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={(e) => {
+                      const sp = selectedSpaceDetails;
+                      setSelectedSpaceDetails(null);
+                      handleOpenEditSpaceModal(sp, e);
+                    }}
+                  >
+                    Editar Dados da Sala
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setSelectedSpaceDetails(null)}
+                >
+                  Fechar
+                </button>
+              </div>
             </footer>
           </div>
         </div>
@@ -924,13 +964,36 @@ export default function SpacesList({
                 </div>
               </div>
 
-              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsSpaceModalOpen(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingSpace ? 'Salvar Alterações' : 'Criar Espaço'}
-                </button>
+              <footer className="form-footer" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  {editingSpace && !isReadOnly && (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() => {
+                        const sp = editingSpace;
+                        setIsSpaceModalOpen(false);
+                        setEditingSpace(null);
+                        setDeleteConfirmSpace(sp);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      <span>Excluir Espaço</span>
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsSpaceModalOpen(false)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editingSpace ? 'Salvar Alterações' : 'Criar Espaço'}
+                  </button>
+                </div>
               </footer>
             </form>
           </div>

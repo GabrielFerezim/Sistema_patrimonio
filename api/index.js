@@ -962,8 +962,12 @@ app.post('/api/spaces', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao cadastrar espaço. Verifique se o nome já existe.' });
+    console.error('Erro ao cadastrar espaço:', err);
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'Já existe um espaço cadastrado com este nome.' });
+    } else {
+      res.status(500).json({ error: 'Erro ao cadastrar espaço no banco de dados.' });
+    }
   }
 });
 
@@ -1036,6 +1040,13 @@ app.delete('/api/spaces/:id', async (req, res) => {
         VALUES ('EXCLUSAO', $1, 'ESPACO', $2)
       `, [`Excluído espaço ${spaceName}. Equipamentos retornaram ao Estoque Central.`, spaceName]);
     } catch (_) {}
+
+    res.json({ message: 'Espaço excluído com sucesso' });
+  } catch (err) {
+    console.error('Erro ao excluir espaço:', err);
+    res.status(500).json({ error: 'Erro ao excluir espaço' });
+  }
+});
 
 // ==========================================
 // ROTAS CRUD - LICENÇAS DE SOFTWARE (LICENSES)
@@ -1650,7 +1661,6 @@ app.post('/api/purge-mock-data', async (req, res) => {
     await pool.query(`DELETE FROM employees WHERE name IN ('Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt')`);
     await pool.query(`DELETE FROM licenses WHERE license_key IN ('MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR')`);
     await pool.query(`DELETE FROM maintenances WHERE asset_tag = 'PAT-006'`);
-    await pool.query(`DELETE FROM spaces WHERE name IN ('Sala de Reunião - 2º Andar', 'Auditório Trynova', 'Laboratório de T.I', 'Recepção Central')`);
     await pool.query(`DELETE FROM audit_logs WHERE description LIKE '%PAT-001%' OR description LIKE '%Inicialização do banco de dados%'`);
     res.json({ success: true, message: 'Dados mockados removidos com sucesso!' });
   } catch (err) {
