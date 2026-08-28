@@ -2,7 +2,6 @@ import express from 'express';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -1257,194 +1256,9 @@ app.get('/api/users', async (req, res) => {
 
 // ==========================================
 // SERVIÇO DE ENVIO DE E-MAILS (SMTP)
-// ==========================================
-
-async function getSmtpConfig() {
-  try {
-    const res = await pool.query("SELECT value FROM system_settings WHERE key = 'smtp_config'");
-    if (res.rows.length > 0 && res.rows[0].value) {
-      return JSON.parse(res.rows[0].value);
-    }
-  } catch (_) {}
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    return {
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-      from_name: process.env.SMTP_FROM_NAME || 'Trynova - Gestão de Patrimônio',
-      from_email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER
-    };
-  }
-  return null;
-}
-
-async function sendCorporateAccessEmail({ to, name, username, password, role }) {
-  const config = await getSmtpConfig();
-  if (!config || !config.host || !config.user || !config.pass) {
-    console.log(`[AVISO SMTP] Servidor de e-mail não configurado. Para entrega real na caixa de entrada, configure o SMTP no painel.`);
-    return {
-      success: false,
-      sent: false,
-      reason: 'Servidor SMTP não configurado. Configure em "Configurações de E-mail (SMTP)" para envio automático à caixa de entrada.'
-    };
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: parseInt(config.port, 10) || 587,
-      secure: !!config.secure,
-      auth: {
-        user: config.user,
-        pass: config.pass
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
-
-    const fromHeader = `"${config.from_name || 'Trynova - Gestão de Patrimônio'}" <${config.from_email || config.user}>`;
-    const htmlContent = `
-      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; color: #0f172a;">
-        <div style="background: #1e3a8a; padding: 24px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 1px;">TRYNOVA</h1>
-          <p style="color: #93c5fd; margin: 4px 0 0 0; font-size: 13px;">Sistema de Gestão & Controle de Patrimônio</p>
-        </div>
-        <div style="padding: 28px 24px;">
-          <h2 style="color: #1e3a8a; font-size: 18px; margin-top: 0;">Olá, ${name}!</h2>
-          <p style="line-height: 1.6; color: #334155; font-size: 15px;">
-            Sua conta de acesso ao <strong>Sistema de Gestão de Patrimônio & Ativos da Trynova</strong> foi criada com sucesso pelo Administrador.
-          </p>
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 16px 20px; margin: 22px 0;">
-            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>🌐 Link de Acesso:</strong> <a href="http://localhost:5173" style="color: #2563eb; text-decoration: underline;">http://localhost:5173</a></p>
-            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>👤 Usuário / E-mail:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a; font-weight: bold;">${username}</code> ou <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a;">${to}</code></p>
-            <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>🔒 Senha Inicial:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #1e3a8a; font-weight: bold;">${password}</code></p>
-            <p style="margin: 0; font-size: 14px;"><strong>🛡️ Perfil de Acesso:</strong> ${role}</p>
-          </div>
-          <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
-            ⚠️ <em>Por motivos de segurança, recomendamos que você altere sua senha no primeiro acesso ao sistema.</em>
-          </p>
-          <p style="margin-top: 24px; font-size: 14px; font-weight: bold; color: #1e3a8a;">
-            Atenciosamente,<br />
-            <span style="font-weight: normal; color: #64748b;">Gestão de T.I - Trynova</span>
-          </p>
-        </div>
-      </div>
-    `;
-
-    const info = await transporter.sendMail({
-      from: fromHeader,
-      to,
-      subject: 'Trynova - Seus dados de acesso ao Sistema de Patrimônio',
-      text: `Olá ${name},\n\nSua conta no Sistema de Gestão de Patrimônio foi criada com sucesso.\n\nLink: http://localhost:5173\nUsuário: ${username}\nSenha Inicial: ${password}\nPerfil: ${role}\n\nAtenciosamente,\nGestão de T.I - Trynova`,
-      html: htmlContent
-    });
-
-    console.log(`[SMTP SUCESSO] E-mail entregue com sucesso para ${to}. MessageId: ${info.messageId}`);
-    return { success: true, sent: true, messageId: info.messageId };
-  } catch (err) {
-    console.error(`[SMTP ERRO] Falha ao enviar para ${to}:`, err.message);
-    return { success: false, sent: false, error: err.message };
-  }
-}
-
-// GET: Consulta configuração SMTP atual
-app.get('/api/smtp-config', async (req, res) => {
-  try {
-    const config = await getSmtpConfig();
-    if (!config) {
-      return res.json({ is_configured: false });
-    }
-    res.json({
-      is_configured: true,
-      host: config.host || '',
-      port: config.port || 587,
-      secure: !!config.secure,
-      user: config.user || '',
-      from_name: config.from_name || 'Trynova - Gestão de Patrimônio',
-      from_email: config.from_email || config.user || '',
-      has_password: !!config.pass
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao consultar configuração SMTP.' });
-  }
-});
-
-// POST: Salva configuração SMTP
-app.post('/api/smtp-config', async (req, res) => {
-  const { host, port, secure, user, pass, from_name, from_email } = req.body;
-  if (!host || !user) {
-    return res.status(400).json({ error: 'Servidor SMTP e Usuário/E-mail são obrigatórios.' });
-  }
-
-  try {
-    const existing = await getSmtpConfig();
-    const configToSave = {
-      host: String(host).trim(),
-      port: parseInt(port, 10) || 587,
-      secure: !!secure,
-      user: String(user).trim(),
-      pass: (pass && String(pass).trim()) ? String(pass).trim() : (existing ? existing.pass : ''),
-      from_name: from_name ? String(from_name).trim() : 'Trynova - Gestão de Patrimônio',
-      from_email: from_email ? String(from_email).trim() : String(user).trim()
-    };
-
-    await pool.query(`
-      INSERT INTO system_settings (key, value, updated_at)
-      VALUES ('smtp_config', $1, NOW())
-      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
-    `, [JSON.stringify(configToSave)]);
-
-    try {
-      await pool.query(`
-        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
-        VALUES ('CONFIGURACAO', $1, 'SISTEMA', 'SMTP')
-      `, [`Configurações de servidor de e-mail (SMTP: ${configToSave.host}) atualizadas`]);
-    } catch (_) {}
-
-    res.json({ success: true, message: 'Configurações de e-mail salvas com sucesso!' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao salvar configurações de e-mail.' });
-  }
-});
-
-// POST: Testa envio de e-mail SMTP
-app.post('/api/smtp-test', async (req, res) => {
-  const { test_email } = req.body;
-  if (!test_email) {
-    return res.status(400).json({ error: 'Informe um e-mail para envio do teste.' });
-  }
-
-  try {
-    const result = await sendCorporateAccessEmail({
-      to: test_email.trim(),
-      name: 'Gabriel Ferezim',
-      username: 'admin',
-      password: 'TRYN-' + Math.floor(100000 + Math.random() * 900000),
-      role: 'Administrador'
-    });
-
-    if (!result.success && !result.sent) {
-      return res.status(400).json({
-        error: result.error || result.reason || 'Falha ao conectar ao servidor SMTP. Verifique o servidor, porta e senha.'
-      });
-    }
-
-    res.json({ success: true, message: `E-mail de teste enviado com sucesso para ${test_email}!` });
-  } catch (err) {
-    console.error('Erro no teste SMTP:', err);
-    res.status(500).json({ error: err.message || 'Falha ao conectar ao servidor SMTP.' });
-  }
-});
-
-// POST: Cria novo usuário e envia e-mail de acesso
+// POST: Cria novo usuário
 app.post('/api/users', async (req, res) => {
-  const { name, email, username, password, role, department, send_email } = req.body;
+  const { name, email, username, password, role, department } = req.body;
   if (!name || !email || !username || !password) {
     return res.status(400).json({ error: 'Nome, e-mail, usuário e senha são obrigatórios.' });
   }
@@ -1458,24 +1272,12 @@ app.post('/api/users', async (req, res) => {
     const cleanDept = department || 'Geral';
 
     const result = await pool.query(`
-      INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
-      VALUES ($1, $2, $3, $4, $5, $6, 'Ativo', ${send_email ? 'NOW()' : 'NULL'})
-      RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at
+      INSERT INTO system_users (name, email, username, password, role, department, status)
+      VALUES ($1, $2, $3, $4, $5, $6, 'Ativo')
+      RETURNING id, name, email, username, role, department, status, last_login, created_at
     `, [cleanName, cleanEmail, cleanUser, cleanPass, cleanRole, cleanDept]);
 
     const newUser = result.rows[0];
-
-    // Dispara envio real de e-mail se solicitado
-    let emailResult = { sent: false };
-    if (send_email) {
-      emailResult = await sendCorporateAccessEmail({
-        to: cleanEmail,
-        name: cleanName,
-        username: cleanUser,
-        password: cleanPass,
-        role: cleanRole
-      });
-    }
 
     try {
       await pool.query(`
@@ -1484,67 +1286,13 @@ app.post('/api/users', async (req, res) => {
       `, [`Cadastrado novo usuário: ${cleanName} (${cleanEmail}) como ${cleanRole}`, String(newUser.id)]);
     } catch (_) {}
 
-    res.status(201).json({
-      ...newUser,
-      generatedPassword: cleanPass,
-      emailSent: emailResult.sent,
-      emailWarning: !emailResult.sent ? emailResult.reason || emailResult.error : null
-    });
+    res.status(201).json(newUser);
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
       return res.status(400).json({ error: 'Já existe um usuário com este e-mail ou nome de usuário.' });
     }
     res.status(500).json({ error: 'Erro ao cadastrar usuário.' });
-  }
-});
-
-// POST: Envia / Reenvia e-mail de acesso para o usuário
-app.post('/api/users/:id/send-email', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query('SELECT * FROM system_users WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
-    }
-
-    const user = result.rows[0];
-    await pool.query('UPDATE system_users SET invite_sent_at = NOW() WHERE id = $1', [id]);
-
-    const emailResult = await sendCorporateAccessEmail({
-      to: user.email,
-      name: user.name,
-      username: user.username,
-      password: user.password,
-      role: user.role
-    });
-
-    try {
-      await pool.query(`
-        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
-        VALUES ('NOTIFICACAO', $1, 'USUARIO', $2)
-      `, [`E-mail de credenciais de acesso disparado para ${user.name} (${user.email})`, String(user.id)]);
-    } catch (_) {}
-
-    res.json({
-      success: true,
-      emailSent: emailResult.sent,
-      emailWarning: !emailResult.sent ? emailResult.reason || emailResult.error : null,
-      message: emailResult.sent
-        ? `E-mail de acesso entregue com sucesso para ${user.email}`
-        : `Credenciais registradas. Para envio direto à caixa de entrada, configure o SMTP no painel.`,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-        invite_sent_at: new Date().toISOString()
-      }
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao enviar e-mail de acesso.' });
   }
 });
 

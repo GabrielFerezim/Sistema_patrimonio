@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export default function UsersList({
   users = [],
@@ -6,7 +6,6 @@ export default function UsersList({
   onCreateUser,
   onUpdateUser,
   onDeleteUser,
-  onSendUserEmail,
   highlightText = (text) => text
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,11 +15,9 @@ export default function UsersList({
   // Modais
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [emailPreviewUser, setEmailPreviewUser] = useState(null);
   const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
-  const [isSmtpModalOpen, setIsSmtpModalOpen] = useState(false);
+  const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Form State Usuário
   const [formName, setFormName] = useState('');
@@ -30,148 +27,8 @@ export default function UsersList({
   const [formRole, setFormRole] = useState('Operador');
   const [formDepartment, setFormDepartment] = useState('Tecnologia da Informação');
   const [formStatus, setFormStatus] = useState('Ativo');
-  const [formSendEmail, setFormSendEmail] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
-
-  // SMTP Settings State
-  const [smtpHost, setSmtpHost] = useState('');
-  const [smtpPort, setSmtpPort] = useState(587);
-  const [smtpSecure, setSmtpSecure] = useState(false);
-  const [smtpUser, setSmtpUser] = useState('');
-  const [smtpPass, setSmtpPass] = useState('');
-  const [smtpFromName, setSmtpFromName] = useState('Trynova - Gestão de Patrimônio');
-  const [smtpFromEmail, setSmtpFromEmail] = useState('');
-  const [smtpConfigured, setSmtpConfigured] = useState(false);
-  const [smtpTestEmail, setSmtpTestEmail] = useState('');
-  const [smtpTestResult, setSmtpTestResult] = useState(null);
-  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
-  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
-  const [smtpFeedback, setSmtpFeedback] = useState('');
-
-  // Carrega configurações SMTP ao montar
-  useEffect(() => {
-    fetchSmtpConfig();
-  }, []);
-
-  const fetchSmtpConfig = async () => {
-    try {
-      const res = await fetch('/api/smtp-config');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.is_configured) {
-          setSmtpHost(data.host || '');
-          setSmtpPort(data.port || 587);
-          setSmtpSecure(!!data.secure);
-          setSmtpUser(data.user || '');
-          setSmtpFromName(data.from_name || 'Trynova - Gestão de Patrimônio');
-          setSmtpFromEmail(data.from_email || '');
-          setSmtpConfigured(true);
-        }
-      }
-    } catch (_) {}
-  };
-
-  // Presets Rápidos de SMTP
-  const applyPreset = (type) => {
-    setSmtpFeedback('');
-    setSmtpTestResult(null);
-    if (type === 'gmail') {
-      setSmtpHost('smtp.gmail.com');
-      setSmtpPort(587);
-      setSmtpSecure(false);
-      setSmtpFromName('Trynova - Gestão de Patrimônio');
-      if (!smtpUser.includes('@gmail.com') && !smtpUser) {
-        setSmtpUser('seu-email@gmail.com');
-      }
-    } else if (type === 'office365') {
-      setSmtpHost('smtp.office365.com');
-      setSmtpPort(587);
-      setSmtpSecure(false);
-      setSmtpFromName('Trynova - Gestão de Patrimônio');
-    } else if (type === 'trynova') {
-      setSmtpHost('mail.trynova.com.br');
-      setSmtpPort(587);
-      setSmtpSecure(false);
-      setSmtpFromName('Trynova - Gestão de Patrimônio');
-      if (!smtpUser) setSmtpUser('notificacoes@trynova.com.br');
-    }
-  };
-
-  // Salvar Configurações SMTP
-  const handleSaveSmtp = async (e) => {
-    if (e) e.preventDefault();
-    setIsSavingSmtp(true);
-    setSmtpFeedback('');
-
-    try {
-      const res = await fetch('/api/smtp-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpSecure,
-          user: smtpUser,
-          pass: smtpPass,
-          from_name: smtpFromName,
-          from_email: smtpFromEmail || smtpUser
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao salvar SMTP');
-      }
-
-      setSmtpConfigured(true);
-      setSmtpFeedback('✓ Configurações de e-mail salvas com sucesso!');
-    } catch (err) {
-      setSmtpFeedback('❌ ' + err.message);
-    } finally {
-      setIsSavingSmtp(false);
-    }
-  };
-
-  // Testar Envio de E-mail SMTP
-  const handleTestSmtp = async () => {
-    const targetEmail = smtpTestEmail.trim() || (currentUser ? currentUser.email : smtpUser);
-    if (!targetEmail || !targetEmail.includes('@')) {
-      alert('Por favor, informe um e-mail de destino válido para o teste.');
-      return;
-    }
-
-    // Salva primeiro para garantir que o teste use as credenciais mais recentes
-    await handleSaveSmtp();
-
-    setIsTestingSmtp(true);
-    setSmtpTestResult(null);
-
-    try {
-      const res = await fetch('/api/smtp-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test_email: targetEmail })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao testar conexão SMTP');
-      }
-
-      setSmtpTestResult({
-        success: true,
-        message: `✓ E-mail de teste enviado com sucesso para ${targetEmail}! Verifique sua caixa de entrada (e pasta de spam).`
-      });
-    } catch (err) {
-      setSmtpTestResult({
-        success: false,
-        message: `❌ Falha ao enviar: ${err.message}`
-      });
-    } finally {
-      setIsTestingSmtp(false);
-    }
-  };
 
   // Auto-gera senha segura
   const generateSecurePassword = () => {
@@ -193,7 +50,6 @@ export default function UsersList({
     setFormRole('Operador');
     setFormDepartment('Tecnologia da Informação');
     setFormStatus('Ativo');
-    setFormSendEmail(true);
     setFormError('');
     setShowPassword(false);
     generateSecurePassword();
@@ -229,24 +85,20 @@ export default function UsersList({
         username: formUsername.trim().toLowerCase(),
         password: formPassword.trim(),
         role: formRole,
-        department: formDepartment,
-        send_email: formSendEmail
+        department: formDepartment
       });
 
       setIsCreateModalOpen(false);
 
-      if (formSendEmail) {
-        setEmailPreviewUser({
-          ...created,
-          name: formName.trim(),
-          email: formEmail.trim().toLowerCase(),
-          username: formUsername.trim().toLowerCase(),
-          password: formPassword.trim(),
-          role: formRole,
-          emailSent: created?.emailSent,
-          emailWarning: created?.emailWarning
-        });
-      }
+      // Mostra tela de credenciais para fácil cópia
+      setCreatedUserCredentials({
+        name: formName.trim(),
+        email: formEmail.trim().toLowerCase(),
+        username: formUsername.trim().toLowerCase(),
+        password: formPassword.trim(),
+        role: formRole,
+        department: formDepartment
+      });
     } catch (err) {
       setFormError(err.message || 'Erro ao criar usuário.');
     }
@@ -276,34 +128,16 @@ export default function UsersList({
     }
   };
 
-  // Reenviar e-mail de acesso
-  const handleResendEmail = async (user) => {
-    setIsSendingEmail(true);
-    try {
-      const res = await onSendUserEmail(user.id);
-      setEmailPreviewUser({
-        ...user,
-        password: '(Senha confidencial cadastrada - ou redefina na edição)',
-        emailSent: res?.emailSent,
-        emailWarning: res?.emailWarning
-      });
-    } catch (err) {
-      alert(err.message || 'Erro ao enviar e-mail.');
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
-  // Copiar dados do e-mail
+  // Copiar dados do usuário
   const handleCopyCredentials = (user) => {
     const textToCopy = `*TRYNOVA - Credenciais de Acesso ao Sistema de Patrimônio*\n\n` +
       `👤 *Nome:* ${user.name}\n` +
       `📧 *E-mail:* ${user.email}\n` +
       `🔑 *Usuário:* ${user.username}\n` +
-      `🔒 *Senha:* ${user.password || user.generatedPassword || 'Sua senha cadastrada'}\n` +
+      `🔒 *Senha:* ${user.password || 'Sua senha cadastrada'}\n` +
       `🛡️ *Perfil:* ${user.role}\n` +
       `🌐 *Link de Acesso:* ${window.location.origin}\n\n` +
-      `_Acesse o sistema e atualize sua senha no primeiro login se desejar._`;
+      `_Acesse o sistema com seu usuário e senha._`;
 
     navigator.clipboard.writeText(textToCopy);
     setCopySuccess(true);
@@ -314,6 +148,7 @@ export default function UsersList({
   const totalUsers = users.length;
   const adminUsers = users.filter(u => u.role === 'Administrador').length;
   const operatorUsers = users.filter(u => u.role === 'Operador' || u.role === 'Técnico').length;
+  const rhUsers = users.filter(u => u.role === 'Recursos Humanos' || u.role === 'RH').length;
   const activeUsers = users.filter(u => (u.status || 'Ativo') === 'Ativo').length;
 
   // Filtragem
@@ -384,31 +219,11 @@ export default function UsersList({
         <div className="page-title-group">
           <h1>Usuários & Acessos</h1>
           <p className="page-subtitle">
-            Gerencie as contas de acesso ao sistema, defina permissões e envie credenciais automaticamente por e-mail.
+            Gerencie os usuários do sistema, defina perfis de acesso e permissões de segurança.
           </p>
         </div>
 
         <div className="page-actions-group">
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              setSmtpFeedback('');
-              setSmtpTestResult(null);
-              setSmtpTestEmail(currentUser ? currentUser.email : '');
-              setIsSmtpModalOpen(true);
-            }}
-            title="Configurar servidor de envio de e-mails (Gmail, Outlook, Host próprio)"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: smtpConfigured ? 'var(--color-success)' : 'var(--text-muted)' }}>
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-              <polyline points="22,6 12,13 2,6"></polyline>
-            </svg>
-            <span>Configurar E-mail (SMTP)</span>
-            {smtpConfigured && (
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></span>
-            )}
-          </button>
-
           <button className="btn btn-primary" onClick={openCreateModal}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -420,41 +235,6 @@ export default function UsersList({
           </button>
         </div>
       </header>
-
-      {/* Alerta de Configuração SMTP se ainda não configurado */}
-      {!smtpConfigured && (
-        <div style={{
-          backgroundColor: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          borderRadius: 'var(--radius-md)',
-          padding: '0.85rem 1.25rem',
-          marginBottom: '1.25rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>💡</span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-              Para que os e-mails cheguem <strong>diretamente na caixa de entrada real</strong> dos usuários, configure seu servidor de envio (Gmail, Outlook ou SMTP próprio).
-            </span>
-          </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => {
-              setSmtpFeedback('');
-              setSmtpTestResult(null);
-              setSmtpTestEmail(currentUser ? currentUser.email : '');
-              setIsSmtpModalOpen(true);
-            }}
-            style={{ fontSize: '0.78rem' }}
-          >
-            ⚙️ Configurar Agora
-          </button>
-        </div>
-      )}
 
       {/* Grade de KPIs */}
       <div className="kpi-grid">
@@ -548,6 +328,7 @@ export default function UsersList({
                 <option value="Todos">Todos os Perfis</option>
                 <option value="Administrador">Administrador</option>
                 <option value="Operador">Operador</option>
+                <option value="Recursos Humanos">Recursos Humanos / RH</option>
                 <option value="Visualizador">Visualizador / Consulta</option>
               </select>
             </div>
@@ -579,7 +360,7 @@ export default function UsersList({
               <th>Perfil de Acesso</th>
               <th>Status</th>
               <th>Último Acesso</th>
-              <th className="actions-header">Ações</th>
+              <th className="actions-header" style={{ textAlign: 'right' }}>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -630,7 +411,7 @@ export default function UsersList({
 
                     {/* Perfil */}
                     <td>
-                      <span className={`status-badge ${isAdmin ? 'in-use' : 'in-stock'}`} style={{ fontWeight: 600 }}>
+                      <span className={`status-badge ${user.role === 'Administrador' ? 'in-use' : ((user.role === 'Recursos Humanos' || user.role === 'RH') ? 'novo' : 'in-stock')}`} style={{ fontWeight: 600 }}>
                         {user.role || 'Operador'}
                       </span>
                     </td>
@@ -653,18 +434,17 @@ export default function UsersList({
 
                     {/* Ações */}
                     <td className="actions-cell" style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
-                          onClick={() => handleResendEmail(user)}
-                          title="Enviar / Reenviar e-mail de acesso"
-                          disabled={isSendingEmail}
+                          onClick={() => handleCopyCredentials(user)}
+                          title="Copiar dados de acesso para área de transferência"
                           style={{ padding: '0.3rem 0.55rem' }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--primary)' }}>
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                           </svg>
                         </button>
 
@@ -677,7 +457,7 @@ export default function UsersList({
                         >
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                           </svg>
                         </button>
 
@@ -711,196 +491,12 @@ export default function UsersList({
         </table>
       </div>
 
-      {/* MODAL: CONFIGURAÇÃO DE E-MAIL (SMTP) */}
-      {isSmtpModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '640px', width: '90%' }}>
-            <header className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <span style={{ fontSize: '1.4rem' }}>⚙️</span>
-                <div>
-                  <h2>Configurações do Servidor de E-mail (SMTP)</h2>
-                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Defina o servidor para que as credenciais cheguem na caixa de entrada dos usuários.
-                  </p>
-                </div>
-              </div>
-              <button className="modal-close-btn" onClick={() => setIsSmtpModalOpen(false)} aria-label="Fechar">
-                &times;
-              </button>
-            </header>
-
-            <form onSubmit={handleSaveSmtp} className="modal-form">
-              {/* Presets Rápidos */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'block' }}>
-                  Preenchimento Automático por Provedor:
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => applyPreset('gmail')}>
-                    🔵 Gmail / Google Workspace
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => applyPreset('office365')}>
-                    🟠 Outlook / Office 365
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => applyPreset('trynova')}>
-                    🟢 Trynova / SMTP Próprio
-                  </button>
-                </div>
-              </div>
-
-              {smtpFeedback && (
-                <div style={{
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: smtpFeedback.startsWith('✓') ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-                  color: smtpFeedback.startsWith('✓') ? 'var(--color-success)' : 'var(--color-danger)',
-                  fontSize: '0.85rem',
-                  marginBottom: '1rem',
-                  fontWeight: 600
-                }}>
-                  {smtpFeedback}
-                </div>
-              )}
-
-              <div className="form-grid">
-                <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label htmlFor="smtp-host">Servidor SMTP (Host) *</label>
-                  <input
-                    type="text"
-                    id="smtp-host"
-                    value={smtpHost}
-                    onChange={(e) => setSmtpHost(e.target.value)}
-                    placeholder="Ex: smtp.gmail.com ou smtp.office365.com"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="smtp-port">Porta SMTP *</label>
-                  <input
-                    type="number"
-                    id="smtp-port"
-                    value={smtpPort}
-                    onChange={(e) => setSmtpPort(Number(e.target.value))}
-                    placeholder="587 ou 465"
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '1.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={smtpSecure}
-                      onChange={(e) => setSmtpSecure(e.target.checked)}
-                    />
-                    <span>Conexão SSL/TLS Direta (Porta 465)</span>
-                  </label>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="smtp-user">Usuário / E-mail de Envio *</label>
-                  <input
-                    type="email"
-                    id="smtp-user"
-                    value={smtpUser}
-                    onChange={(e) => setSmtpUser(e.target.value)}
-                    placeholder="Ex: notificacoes@trynova.com.br"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="smtp-pass">Senha ou Senha de App *</label>
-                  <input
-                    type="password"
-                    id="smtp-pass"
-                    value={smtpPass}
-                    onChange={(e) => setSmtpPass(e.target.value)}
-                    placeholder="Senha do e-mail ou Senha de App"
-                  />
-                </div>
-
-                <div className="form-group full-width">
-                  <label htmlFor="smtp-from-name">Nome do Remetente</label>
-                  <input
-                    type="text"
-                    id="smtp-from-name"
-                    value={smtpFromName}
-                    onChange={(e) => setSmtpFromName(e.target.value)}
-                    placeholder="Ex: Trynova - Gestão de Patrimônio"
-                  />
-                </div>
-              </div>
-
-              {/* Dica para Gmail / Senha de App */}
-              <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.75rem 1rem', margin: '0.75rem 0', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                📌 <strong>Como usar Gmail:</strong> Acesse sua Conta Google &gt; <em>Segurança</em> &gt; <em>Verificação em 2 etapas</em> &gt; <strong>Senhas de app</strong>. Crie uma senha de app e cole no campo acima.
-              </div>
-
-              {/* Área de Teste de Envio */}
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.75rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', display: 'block' }}>
-                  🧪 Testar Envio em Tempo Real
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="email"
-                    placeholder="Digite seu e-mail para receber um teste"
-                    value={smtpTestEmail}
-                    onChange={(e) => setSmtpTestEmail(e.target.value)}
-                    style={{ flexGrow: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleTestSmtp}
-                    disabled={isTestingSmtp || !smtpHost || !smtpUser}
-                  >
-                    {isTestingSmtp ? 'Enviando teste...' : 'Enviar Teste'}
-                  </button>
-                </div>
-
-                {smtpTestResult && (
-                  <div style={{
-                    marginTop: '0.65rem',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: smtpTestResult.success ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-                    color: smtpTestResult.success ? 'var(--color-success)' : 'var(--color-danger)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600
-                  }}>
-                    {smtpTestResult.message}
-                  </div>
-                )}
-              </div>
-
-              <footer className="form-footer" style={{ marginTop: '1.25rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsSmtpModalOpen(false)}>
-                  Fechar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSavingSmtp}>
-                  {isSavingSmtp ? 'Salvando...' : 'Salvar Configurações'}
-                </button>
-              </footer>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* MODAL: NOVO USUÁRIO */}
       {isCreateModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '580px', width: '90%' }}>
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
             <header className="modal-header">
-              <div>
-                <h2>Cadastrar Novo Usuário</h2>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Crie os dados de acesso e envie as instruções diretamente para o e-mail do colaborador.
-                </p>
-              </div>
+              <h2>Cadastrar Novo Usuário</h2>
               <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)} aria-label="Fechar">
                 &times;
               </button>
@@ -908,8 +504,8 @@ export default function UsersList({
 
             <form onSubmit={handleCreateSubmit} className="modal-form">
               {formError && (
-                <div className="login-error-alert" style={{ marginBottom: '1rem' }}>
-                  <span>{formError}</span>
+                <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', padding: '0.65rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                  {formError}
                 </div>
               )}
 
@@ -920,13 +516,7 @@ export default function UsersList({
                     type="text"
                     id="user-name"
                     value={formName}
-                    onChange={(e) => {
-                      setFormName(e.target.value);
-                      if (!formUsername) {
-                        const clean = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '.');
-                        setFormUsername(clean);
-                      }
-                    }}
+                    onChange={(e) => setFormName(e.target.value)}
                     placeholder="Ex: João da Silva"
                     required
                   />
@@ -970,6 +560,7 @@ export default function UsersList({
                   >
                     <option value="Administrador">Administrador (Acesso Total)</option>
                     <option value="Operador">Operador / Técnico (Gestão e Cadastros)</option>
+                    <option value="Recursos Humanos">Recursos Humanos (Colaboradores e Termos)</option>
                     <option value="Visualizador">Visualizador (Apenas Consulta)</option>
                   </select>
                 </div>
@@ -981,13 +572,13 @@ export default function UsersList({
                     id="user-dept"
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
-                    placeholder="Ex: T.I, Marketing, Operações..."
+                    placeholder="Ex: Suporte Técnico, RH, Financeiro..."
                   />
                 </div>
 
                 <div className="form-group full-width">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <label htmlFor="user-pass" style={{ margin: 0 }}>Senha Inicial de Acesso *</label>
+                    <label htmlFor="user-password" style={{ margin: 0 }}>Senha de Acesso Inicial *</label>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -997,49 +588,35 @@ export default function UsersList({
                       ⚡ Gerar Senha Segura
                     </button>
                   </div>
-                  <div className="input-wrapper" style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      id="user-pass"
+                      id="user-password"
                       value={formPassword}
                       onChange={(e) => setFormPassword(e.target.value)}
-                      placeholder="Defina ou gere uma senha"
+                      placeholder="Mínimo 6 caracteres"
                       required
+                      style={{ flexGrow: 1 }}
                     />
                     <button
                       type="button"
-                      className="password-toggle-btn"
+                      className="btn btn-secondary"
                       onClick={() => setShowPassword(!showPassword)}
-                      tabIndex="-1"
+                      title={showPassword ? 'Ocultar Senha' : 'Ver Senha'}
+                      style={{ padding: '0.45rem 0.75rem' }}
                     >
-                      {showPassword ? 'Ocultar' : 'Ver'}
+                      {showPassword ? '🙈' : '👁️'}
                     </button>
                   </div>
                 </div>
-
-                {/* Checkbox de Envio de E-mail */}
-                <div className="form-group full-width" style={{ backgroundColor: 'var(--bg-app)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontWeight: 600 }}>
-                    <input
-                      type="checkbox"
-                      checked={formSendEmail}
-                      onChange={(e) => setFormSendEmail(e.target.checked)}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
-                    <span>📧 Enviar e-mail de acesso corporativo com instruções para o usuário</span>
-                  </label>
-                  <p style={{ margin: '0.35rem 0 0 1.6rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    O destinatário receberá o link do sistema, seu usuário, senha inicial e orientações de segurança.
-                  </p>
-                </div>
               </div>
 
-              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+              <footer className="form-footer" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsCreateModalOpen(false)}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Criar Usuário & Enviar
+                  Criar Usuário
                 </button>
               </footer>
             </form>
@@ -1047,17 +624,64 @@ export default function UsersList({
         </div>
       )}
 
+      {/* MODAL: CREDENCIAIS CRIADAS (FACILITADOR PARA COPIAR) */}
+      {createdUserCredentials && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <header className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>✅</span>
+                <h2>Usuário Criado com Sucesso!</h2>
+              </div>
+              <button className="modal-close-btn" onClick={() => setCreatedUserCredentials(null)} aria-label="Fechar">
+                &times;
+              </button>
+            </header>
+
+            <div style={{ padding: '0.5rem 0 1rem 0' }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-medium)', marginBottom: '1rem' }}>
+                As credenciais do usuário <strong>{createdUserCredentials.name}</strong> foram salvas. Você pode copiá-las abaixo para enviar diretamente ao colaborador:
+              </p>
+
+              <div style={{
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                fontSize: '0.85rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div><strong>Login / Usuário:</strong> <code>{createdUserCredentials.username}</code></div>
+                <div><strong>E-mail:</strong> {createdUserCredentials.email}</div>
+                <div><strong>Senha Inicial:</strong> <code style={{ color: 'var(--color-success)', fontWeight: 700 }}>{createdUserCredentials.password}</code></div>
+                <div><strong>Perfil:</strong> {createdUserCredentials.role}</div>
+              </div>
+            </div>
+
+            <footer className="form-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => handleCopyCredentials(createdUserCredentials)}
+              >
+                {copySuccess ? '✓ Copiado!' : '📋 Copiar Credenciais'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setCreatedUserCredentials(null)}>
+                Concluir
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: EDITAR USUÁRIO */}
       {editingUser && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '580px', width: '90%' }}>
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
             <header className="modal-header">
-              <div>
-                <h2>Editar Usuário</h2>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Atualize permissões, departamento ou redefina a senha de <strong>{editingUser.name}</strong>.
-                </p>
-              </div>
+              <h2>Editar Usuário: {editingUser.name}</h2>
               <button className="modal-close-btn" onClick={() => setEditingUser(null)} aria-label="Fechar">
                 &times;
               </button>
@@ -1065,8 +689,8 @@ export default function UsersList({
 
             <form onSubmit={handleEditSubmit} className="modal-form">
               {formError && (
-                <div className="login-error-alert" style={{ marginBottom: '1rem' }}>
-                  <span>{formError}</span>
+                <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', padding: '0.65rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                  {formError}
                 </div>
               )}
 
@@ -1113,6 +737,7 @@ export default function UsersList({
                   >
                     <option value="Administrador">Administrador (Acesso Total)</option>
                     <option value="Operador">Operador / Técnico (Gestão e Cadastros)</option>
+                    <option value="Recursos Humanos">Recursos Humanos (Colaboradores e Termos)</option>
                     <option value="Visualizador">Visualizador (Apenas Consulta)</option>
                   </select>
                 </div>
@@ -1151,7 +776,7 @@ export default function UsersList({
                 </div>
               </div>
 
-              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+              <footer className="form-footer" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setEditingUser(null)}>
                   Cancelar
                 </button>
@@ -1164,151 +789,33 @@ export default function UsersList({
         </div>
       )}
 
-      {/* MODAL: PRÉ-VISUALIZAÇÃO DO E-MAIL DE ACESSO ENVIADO */}
-      {emailPreviewUser && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '620px', width: '90%' }}>
-            <header className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>📨</span>
-                <div>
-                  <h2>E-mail de Acesso Corporativo</h2>
-                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Instruções e credenciais de acesso para <strong>{emailPreviewUser.email}</strong>.
-                  </p>
-                </div>
-              </div>
-              <button className="modal-close-btn" onClick={() => setEmailPreviewUser(null)} aria-label="Fechar">
-                &times;
-              </button>
-            </header>
-
-            {/* Status do Envio */}
-            <div style={{
-              padding: '0.65rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              marginBottom: '1rem',
-              backgroundColor: emailPreviewUser.emailSent ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-              color: emailPreviewUser.emailSent ? 'var(--color-success)' : 'var(--color-warning)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <span>
-                {emailPreviewUser.emailSent
-                  ? `✓ Entregue com sucesso na caixa de entrada de ${emailPreviewUser.email}!`
-                  : `⚠️ Servidor SMTP não conectado. Configure o SMTP no botão acima para entrega automática.`}
-              </span>
-              {!emailPreviewUser.emailSent && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setEmailPreviewUser(null);
-                    setIsSmtpModalOpen(true);
-                  }}
-                  style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                >
-                  ⚙️ Configurar SMTP
-                </button>
-              )}
-            </div>
-
-            {/* Template do E-mail */}
-            <div style={{
-              backgroundColor: 'var(--bg-app)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              padding: '1.25rem',
-              marginBottom: '1rem'
-            }}>
-              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Para:</div>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{emailPreviewUser.name} &lt;{emailPreviewUser.email}&gt;</div>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Assunto: Trynova - Seus dados de acesso
-                </div>
-              </div>
-
-              <div style={{ fontSize: '0.85rem', lineHeight: '1.6', color: 'var(--text-main)' }}>
-                <p>Olá, <strong>{emailPreviewUser.name}</strong>!</p>
-                <p>Sua conta de acesso ao <strong>Sistema de Gestão de Patrimônio & Ativos da Trynova</strong> foi configurada com sucesso pelo Administrador.</p>
-
-                <div style={{
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px dashed var(--primary-light)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '0.85rem 1rem',
-                  margin: '0.85rem 0'
-                }}>
-                  <div style={{ marginBottom: '0.4rem' }}>
-                    🌐 <strong>URL do Sistema:</strong> <a href={window.location.origin} target="_blank" rel="noreferrer" style={{ color: 'var(--primary-light)', textDecoration: 'underline' }}>{window.location.origin}</a>
-                  </div>
-                  <div style={{ marginBottom: '0.4rem' }}>
-                    👤 <strong>Usuário / E-mail:</strong> <code>{emailPreviewUser.username}</code> ou <code>{emailPreviewUser.email}</code>
-                  </div>
-                  <div style={{ marginBottom: '0.4rem' }}>
-                    🔒 <strong>Senha Inicial:</strong> <code style={{ backgroundColor: 'var(--bg-app)', padding: '2px 6px', fontWeight: 700, color: 'var(--primary)' }}>{emailPreviewUser.password || emailPreviewUser.generatedPassword || 'Definida pelo Administrador'}</code>
-                  </div>
-                  <div>
-                    🛡️ <strong>Perfil de Acesso:</strong> {emailPreviewUser.role}
-                  </div>
-                </div>
-
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  ⚠️ <em>Por segurança, recomendamos alterar sua senha após o primeiro acesso ao sistema.</em>
-                </p>
-                <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--primary)' }}>
-                  Atenciosamente,<br />Gestão de T.I - Trynova
-                </p>
-              </div>
-            </div>
-
-            <footer className="form-footer" style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => handleCopyCredentials(emailPreviewUser)}
-              >
-                {copySuccess ? '✓ Copiado com Sucesso!' : '📋 Copiar Credenciais'}
-              </button>
-
-              <button type="button" className="btn btn-primary" onClick={() => setEmailPreviewUser(null)}>
-                Concluir
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
-
       {/* MODAL: CONFIRMAR EXCLUSÃO */}
       {deleteConfirmUser && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '440px', width: '90%', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⚠️</div>
-            <h3>Excluir Usuário?</h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0.5rem 0 1.25rem 0' }}>
-              Tem certeza que deseja remover o acesso de <strong>{deleteConfirmUser.name}</strong> (@{deleteConfirmUser.username})? Esta ação não pode ser desfeita.
+        <div className="modal-overlay danger">
+          <div className="modal-content confirm-dialog">
+            <div className="confirm-icon-wrapper">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <h2>Excluir Usuário?</h2>
+            <p>
+              Tem certeza de que deseja excluir o acesso de <strong>{deleteConfirmUser.name}</strong> (@{deleteConfirmUser.username})? Esta ação não pode ser desfeita.
             </p>
-
             <div className="confirm-buttons">
-              <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirmUser(null)}>
+              <button className="btn btn-secondary" onClick={() => setDeleteConfirmUser(null)}>
                 Cancelar
               </button>
               <button
-                type="button"
-                className="btn btn-primary"
-                style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
-                onClick={async () => {
-                  await onDeleteUser(deleteConfirmUser.id);
+                className="btn btn-danger"
+                onClick={() => {
+                  onDeleteUser(deleteConfirmUser.id);
                   setDeleteConfirmUser(null);
                 }}
               >
-                Sim, Excluir
+                Excluir Usuário
               </button>
             </div>
           </div>

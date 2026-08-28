@@ -48,6 +48,13 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
     }
   }, [asset, existingTags]);
 
+  const isSpaceLocation = (loc) => {
+    if (!loc) return false;
+    const cleanLoc = loc.trim().toLowerCase();
+    return cleanLoc !== 'estoque' && cleanLoc !== 'estoque central' &&
+      spaces.some(s => s.name && s.name.trim().toLowerCase() === cleanLoc);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -57,6 +64,13 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
       // Se mudar status para fora de "Em Uso", limpa colaborador
       if (name === 'status' && value !== 'Em Uso') {
         updated.employee = '';
+      }
+
+      // Se selecionar uma sala/espaço Trynova e estiver em estoque, muda status para "Em Uso"
+      if (name === 'location' && isSpaceLocation(value)) {
+        if (updated.status === 'Em Estoque') {
+          updated.status = 'Em Uso';
+        }
       }
 
       // Se selecionar colaborador, define status como "Em Uso" e atualiza localização
@@ -97,8 +111,9 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
 
     if (!formData.location.trim()) newErrors.location = 'A localização é obrigatória.';
     
-    if (formData.status === 'Em Uso' && !formData.employee.trim()) {
-      newErrors.employee = 'Defina um colaborador responsável para equipamentos em uso.';
+    // Só exige colaborador se estiver "Em Uso" e NÃO for uma sala/espaço físico
+    if (formData.status === 'Em Uso' && !formData.employee.trim() && !isSpaceLocation(formData.location)) {
+      newErrors.employee = 'Defina um colaborador responsável ou aloque o equipamento em uma sala/espaço.';
     }
 
     setErrors(newErrors);
@@ -108,13 +123,21 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      const isSpace = isSpaceLocation(formData.location);
+      let finalStatus = formData.status;
+      // Equipamentos alocados em salas/espaços Trynova saem do estoque automaticamente
+      if (isSpace && finalStatus === 'Em Estoque') {
+        finalStatus = 'Em Uso';
+      }
+
       onSave({
         ...(isEdit ? asset : {}),
         ...formData,
+        status: finalStatus,
         id: isEdit ? asset.id : Date.now(),
         tag: formData.tag.trim().toUpperCase(),
         name: formData.name.trim(),
-        employee: formData.status === 'Em Uso' ? formData.employee.trim() : null,
+        employee: finalStatus === 'Em Uso' ? (formData.employee ? formData.employee.trim() : null) : null,
         serial_number: formData.serial_number ? formData.serial_number.trim() : null,
         value: formData.value ? parseFloat(formData.value) : null,
         notes: formData.notes ? formData.notes.trim() : null,

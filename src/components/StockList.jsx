@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 export default function StockList({ 
   assets = [], 
   employees = [], 
+  spaces = [],
   onAssign, 
   onDecommission,
   currentUser = null
@@ -20,8 +21,16 @@ export default function StockList({
   const [decommissionAsset, setDecommissionAsset] = useState(null);
   const [decommissionReason, setDecommissionReason] = useState('');
 
-  // 1. Apenas itens com status "Em Estoque"
-  const stockAssets = assets.filter(a => a.status === 'Em Estoque');
+  // Helper para verificar se a localização é um espaço/sala cadastrada
+  const isSpaceLocation = (loc) => {
+    if (!loc) return false;
+    const cleanLoc = loc.trim().toLowerCase();
+    return cleanLoc !== 'estoque' && cleanLoc !== 'estoque central' &&
+      spaces.some(s => s.name && s.name.trim().toLowerCase() === cleanLoc);
+  };
+
+  // 1. Apenas itens com status "Em Estoque" e que NÃO estejam alocados em salas/espaços
+  const stockAssets = assets.filter(a => a.status === 'Em Estoque' && !isSpaceLocation(a.location));
 
   // 2. Filtro por busca e categoria
   const filteredStock = stockAssets.filter(asset => {

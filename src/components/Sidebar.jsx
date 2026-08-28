@@ -18,6 +18,7 @@ export default function Sidebar({
     user?.username?.toLowerCase() === 'admin' || 
     user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' ||
     !user;
+  const isRH = roleStr === 'recursos humanos' || roleStr === 'rh' || roleStr === 'dp';
   const isReadOnly = roleStr === 'visualizador' || roleStr === 'viewer';
   const [paineisOpen, setPaineisOpen] = useState(true);
   const [gerenciarOpen, setGerenciarOpen] = useState(true);
@@ -140,18 +141,20 @@ export default function Sidebar({
                   <span>Dashboard</span>
                 </button>
 
-                {/* Auditoria / Histórico */}
-                <button
-                  className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('audit')}
-                  title={collapsed ? "Histórico & Auditoria" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 14 14" />
-                  </svg>
-                  <span>Auditoria</span>
-                </button>
+                {/* Auditoria / Histórico (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('audit')}
+                    title={collapsed ? "Histórico & Auditoria" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 14 14" />
+                    </svg>
+                    <span>Auditoria</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -163,7 +166,7 @@ export default function Sidebar({
               onClick={() => !collapsed && setGerenciarOpen(!gerenciarOpen)}
               title={collapsed ? undefined : "Recolher Gerenciamento"}
             >
-              <span>GERENCIAMENTO</span>
+              <span>{isRH ? 'PESSOAS & TERMOS' : 'GERENCIAMENTO'}</span>
               <svg
                 className={`chevron-icon ${gerenciarOpen ? 'open' : ''}`}
                 width="12"
@@ -179,61 +182,67 @@ export default function Sidebar({
 
             <div className={`nav-category-content-wrapper ${gerenciarOpen ? 'expanded' : 'collapsed'}`}>
               <div className="nav-category-content">
-                {/* Patrimônios */}
-                <button
-                  className={`nav-item ${activeTab === 'assets' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('assets')}
-                  title={collapsed ? "Patrimônios" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                  <span>Patrimônios</span>
-                  {assetCounts.total > 0 && !collapsed && (
-                    <span className="nav-badge">{assetCounts.total}</span>
-                  )}
-                </button>
+                {/* Patrimônios (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'assets' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('assets')}
+                    title={collapsed ? "Patrimônios" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                      <line x1="12" y1="22.08" x2="12" y2="12" />
+                    </svg>
+                    <span>Patrimônios</span>
+                    {assetCounts.total > 0 && !collapsed && (
+                      <span className="nav-badge">{assetCounts.total}</span>
+                    )}
+                  </button>
+                )}
 
-                {/* Patrimônio Trynova por Espaço */}
-                <button
-                  className={`nav-item ${activeTab === 'spaces' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('spaces')}
-                  title={collapsed ? "Patrimônio Trynova (Espaços)" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                  </svg>
-                  <span>Patrimônio Trynova</span>
-                  {assetCounts.spaces > 0 && !collapsed && (
-                    <span className="nav-badge" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
-                      {assetCounts.spaces}
-                    </span>
-                  )}
-                </button>
+                {/* Patrimônio Trynova por Espaço (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'spaces' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('spaces')}
+                    title={collapsed ? "Patrimônio Trynova (Espaços)" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <span>Patrimônio Trynova</span>
+                    {assetCounts.spaces > 0 && !collapsed && (
+                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
+                        {assetCounts.spaces}
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Estoque */}
-                <button
-                  className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('stock')}
-                  title={collapsed ? "Estoque" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                    <polyline points="2 17 12 22 22 17" />
-                    <polyline points="2 12 12 17 22 12" />
-                  </svg>
-                  <span>Estoque</span>
-                  {assetCounts.stock > 0 && !collapsed && (
-                    <span className="nav-badge badge-warning">{assetCounts.stock}</span>
-                  )}
-                </button>
+                {/* Estoque (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('stock')}
+                    title={collapsed ? "Estoque" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                      <polyline points="2 17 12 22 22 17" />
+                      <polyline points="2 12 12 17 22 12" />
+                    </svg>
+                    <span>Estoque</span>
+                    {assetCounts.stock > 0 && !collapsed && (
+                      <span className="nav-badge badge-warning">{assetCounts.stock}</span>
+                    )}
+                  </button>
+                )}
 
-                {/* Funcionários */}
+                {/* Funcionários / Colaboradores (Visível para todos) */}
                 <button
                   className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`}
                   onClick={() => setActiveTab('employees')}
@@ -250,57 +259,63 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* Manutenção */}
-                <button
-                  className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('maintenance')}
-                  title={collapsed ? "Manutenção" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                  </svg>
-                  <span>Manutenção</span>
-                  {assetCounts.maintenance > 0 && !collapsed && (
-                    <span className="nav-badge badge-danger">{assetCounts.maintenance}</span>
-                  )}
-                </button>
+                {/* Manutenção (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('maintenance')}
+                    title={collapsed ? "Manutenção" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                    </svg>
+                    <span>Manutenção</span>
+                    {assetCounts.maintenance > 0 && !collapsed && (
+                      <span className="nav-badge badge-danger">{assetCounts.maintenance}</span>
+                    )}
+                  </button>
+                )}
 
-                {/* Licenças de Software */}
-                <button
-                  className={`nav-item ${activeTab === 'licenses' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('licenses')}
-                  title={collapsed ? "Licenças de Software" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                  <span>Licenças de Software</span>
-                  {assetCounts.licenses > 0 && !collapsed && (
-                    <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
-                      {assetCounts.licenses}
-                    </span>
-                  )}
-                </button>
+                {/* Licenças de Software (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'licenses' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('licenses')}
+                    title={collapsed ? "Licenças de Software" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                    <span>Licenças de Software</span>
+                    {assetCounts.licenses > 0 && !collapsed && (
+                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
+                        {assetCounts.licenses}
+                      </span>
+                    )}
+                  </button>
+                )}
 
-                {/* Itens Baixados */}
-                <button
-                  className={`nav-item ${activeTab === 'decommissioned' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('decommissioned')}
-                  title={collapsed ? "Itens Baixados" : undefined}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                  </svg>
-                  <span>Itens Baixados</span>
-                  {assetCounts.decommissioned > 0 && !collapsed && (
-                    <span className="nav-badge" style={{ backgroundColor: 'var(--text-light)', color: '#ffffff' }}>
-                      {assetCounts.decommissioned}
-                    </span>
-                  )}
-                </button>
+                {/* Itens Baixados (Oculto para RH) */}
+                {!isRH && (
+                  <button
+                    className={`nav-item ${activeTab === 'decommissioned' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('decommissioned')}
+                    title={collapsed ? "Itens Baixados" : undefined}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                    <span>Itens Baixados</span>
+                    {assetCounts.decommissioned > 0 && !collapsed && (
+                      <span className="nav-badge" style={{ backgroundColor: 'var(--text-light)', color: '#ffffff' }}>
+                        {assetCounts.decommissioned}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -412,26 +427,30 @@ export default function Sidebar({
           <span>Dashboard</span>
         </button>
 
-        <button
-          className={`mobile-nav-item ${activeTab === 'assets' ? 'active' : ''}`}
-          onClick={() => setActiveTab('assets')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-          </svg>
-          <span>Patrimônios</span>
-        </button>
+        {!isRH && (
+          <button
+            className={`mobile-nav-item ${activeTab === 'assets' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assets')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            </svg>
+            <span>Patrimônios</span>
+          </button>
+        )}
 
-        <button
-          className={`mobile-nav-item ${activeTab === 'stock' ? 'active' : ''}`}
-          onClick={() => setActiveTab('stock')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="12 2 2 7 12 12 22 7 12 2" />
-            <polyline points="2 17 12 22 22 17" />
-          </svg>
-          <span>Estoque</span>
-        </button>
+        {!isRH && (
+          <button
+            className={`mobile-nav-item ${activeTab === 'stock' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stock')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+            </svg>
+            <span>Estoque</span>
+          </button>
+        )}
 
         <button
           className={`mobile-nav-item ${activeTab === 'employees' ? 'active' : ''}`}
@@ -442,18 +461,20 @@ export default function Sidebar({
             <path d="M4 21v-2a4 4 0 0 1 3-3.87" />
             <circle cx="12" cy="7" r="4" />
           </svg>
-          <span>Equipe</span>
+          <span>Colaboradores</span>
         </button>
 
-        <button
-          className={`mobile-nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('maintenance')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-          </svg>
-          <span>Reparos</span>
-        </button>
+        {!isRH && (
+          <button
+            className={`mobile-nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('maintenance')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+            <span>Reparos</span>
+          </button>
+        )}
       </nav>
     </>
   );

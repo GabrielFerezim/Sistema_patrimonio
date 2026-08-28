@@ -4,14 +4,22 @@ export default function Dashboard({
   assets = [], 
   employees = [], 
   maintenances = [],
+  spaces = [],
   onNavigateToAssets, 
   onNavigateToTab,
   onAddNewAsset
 }) {
+  const isSpaceLocation = (loc) => {
+    if (!loc) return false;
+    const cleanLoc = loc.trim().toLowerCase();
+    return cleanLoc !== 'estoque' && cleanLoc !== 'estoque central' &&
+      spaces.some(s => s.name && s.name.trim().toLowerCase() === cleanLoc);
+  };
+
   const totalAssets = assets.length;
   
-  const inUseAssets = assets.filter(a => a.status === 'Em Uso');
-  const inStockAssets = assets.filter(a => a.status === 'Em Estoque');
+  const inUseAssets = assets.filter(a => a.status === 'Em Uso' || isSpaceLocation(a.location));
+  const inStockAssets = assets.filter(a => a.status === 'Em Estoque' && !isSpaceLocation(a.location));
   const maintenanceAssets = assets.filter(a => a.status === 'Manutenção');
   const decommissionedAssets = assets.filter(a => a.status === 'Baixado' || a.status === 'decommissioned');
 

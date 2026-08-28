@@ -56,8 +56,8 @@ export default function TopBar({
 
       {/* Lado Direito: Ações Rápidas, Tema e Perfil */}
       <div className="topbar-right">
-        {/* Botão de Adição Rápida (Oculto para Visualizador) */}
-        {user?.role !== 'Visualizador' && (
+        {/* Botão de Adição Rápida (Oculto para Visualizador e RH) */}
+        {user?.role !== 'Visualizador' && user?.role !== 'Recursos Humanos' && user?.role !== 'RH' && (
           <button 
             className="topbar-btn-quickadd" 
             onClick={onAddNewAsset}

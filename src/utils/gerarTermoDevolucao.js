@@ -39,17 +39,17 @@ export async function gerarTermoDevolucao(employee, returnedAssets = [], offboar
     const MARGIN    = 16;
     const CONTENT_W = PAGE_W - MARGIN * 2;
 
-    // 1. CABEÇALHO LIMPO COM LOGOTIPO COMPLETO (SEM TEXTO DUPLICADO)
+    // 1. CABEÇALHO LIMPO COM O LOGO OFICIAL (LINHAS PRETAS EM FUNDO BRANCO)
     try {
       const logoImg = new Image();
-      logoImg.src = '/trynova_logo.png';
+      logoImg.src = '/trynova_doc_logo.png?v=' + Date.now();
       await new Promise((res) => {
         logoImg.onload = res;
         logoImg.onerror = res;
         setTimeout(res, 400);
       });
       if (logoImg.complete && logoImg.naturalWidth > 0) {
-        doc.addImage(logoImg, 'PNG', MARGIN, 12, 50, 10.7);
+        doc.addImage(logoImg, 'PNG', MARGIN, 11, 16, 16);
       }
     } catch (_) {}
 

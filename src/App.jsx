@@ -383,40 +383,54 @@ export default function App() {
   // ----------------------------------------------------
   // MANIPULADORES DE PATRIMÔNIOS (ASSETS)
   // ----------------------------------------------------
+  const isSpaceLocation = useCallback((loc) => {
+    if (!loc) return false;
+    const cleanLoc = loc.trim().toLowerCase();
+    return cleanLoc !== 'estoque' && cleanLoc !== 'estoque central' &&
+      spaces.some(s => s.name && s.name.trim().toLowerCase() === cleanLoc);
+  }, [spaces]);
+
   const handleSaveAsset = async (savedAsset) => {
     try {
+      const isSpace = isSpaceLocation(savedAsset.location);
+      const assetToSave = {
+        ...savedAsset,
+        status: (isSpace && savedAsset.status === 'Em Estoque') ? 'Em Uso' : savedAsset.status,
+        employee: isSpace ? (savedAsset.employee ? savedAsset.employee.trim() : null) : savedAsset.employee
+      };
+
       if (editingAsset) {
-        const response = await fetch(`/api/assets/${savedAsset.id}`, {
+        const response = await fetch(`/api/assets/${assetToSave.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(savedAsset)
+          body: JSON.stringify(assetToSave)
         });
         
-        let updated = savedAsset;
+        let updated = assetToSave;
         if (response.ok) {
           updated = await response.json();
         }
         
         setAssets(prev => prev.map(item => item.id === updated.id ? updated : item));
-        addToast(`Patrimônio #${savedAsset.tag} atualizado com sucesso!`, 'success');
-        addAuditLog('ATUALIZACAO', `Atualizado patrimônio #${savedAsset.tag} (${savedAsset.name})`, savedAsset.tag, 'PATRIMONIO');
+        addToast(`Patrimônio #${assetToSave.tag} atualizado com sucesso!`, 'success');
+        addAuditLog('ATUALIZACAO', `Atualizado patrimônio #${assetToSave.tag} (${assetToSave.name})`, assetToSave.tag, 'PATRIMONIO');
       } else {
         const response = await fetch('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(savedAsset)
+          body: JSON.stringify(assetToSave)
         });
 
-        let created = savedAsset;
+        let created = assetToSave;
         if (response.ok) {
           created = await response.json();
         } else {
-          created = { ...savedAsset, id: Date.now() };
+          created = { ...assetToSave, id: Date.now() };
         }
 
         setAssets(prev => [created, ...prev]);
-        addToast(`Patrimônio #${savedAsset.tag} cadastrado com sucesso!`, 'success');
-        addAuditLog('CADASTRO', `Cadastrado novo patrimônio #${savedAsset.tag} (${savedAsset.name})`, savedAsset.tag, 'PATRIMONIO');
+        addToast(`Patrimônio #${assetToSave.tag} cadastrado com sucesso!`, 'success');
+        addAuditLog('CADASTRO', `Cadastrado novo patrimônio #${assetToSave.tag} (${assetToSave.name})`, assetToSave.tag, 'PATRIMONIO');
       }
       setIsFormOpen(false);
       setEditingAsset(null);
@@ -781,6 +795,9 @@ export default function App() {
   };
 
   const handleBatchMoveToSpace = async (assetIds, targetLocation) => {
+    const isTargetSpace = isSpaceLocation(targetLocation);
+    const targetStatus = isTargetSpace ? 'Em Uso' : (targetLocation === 'Estoque Central' ? 'Em Estoque' : 'Em Uso');
+
     for (const id of assetIds) {
       const asset = assets.find(a => a.id === id);
       if (!asset) continue;
@@ -788,7 +805,8 @@ export default function App() {
       const updated = {
         ...asset,
         location: targetLocation,
-        status: targetLocation === 'Estoque Central' ? 'Em Estoque' : 'Em Uso'
+        status: targetStatus,
+        employee: isTargetSpace ? null : asset.employee
       };
 
       try {
@@ -1283,23 +1301,6 @@ export default function App() {
     }
   };
 
-  const handleSendUserEmail = async (id) => {
-    const target = users.find(u => u.id === id);
-    try {
-      const response = await fetch(`/api/users/${id}/send-email`, { method: 'POST' });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao enviar e-mail');
-      }
-      const resData = await response.json();
-      addToast(`E-mail corporativo enviado com sucesso para ${target ? target.email : 'o usuário'}!`, 'success');
-      addAuditLog('NOTIFICACAO', `E-mail de credenciais enviado para ${target ? target.name : id}`, String(id), 'USUARIO');
-      return resData;
-    } catch (err) {
-      addToast(`E-mail de acesso enviado para ${target ? target.email : 'o usuário'}!`, 'success');
-    }
-  };
-
   // ----------------------------------------------------
   // NAVEGAÇÃO & ATALHOS
   // ----------------------------------------------------
@@ -1311,10 +1312,13 @@ export default function App() {
       user?.username?.toLowerCase() === 'admin' || 
       user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' || 
       !user;
+    const isUserRH = roleStr === 'recursos humanos' || roleStr === 'rh' || roleStr === 'dp';
 
     if (activeTab === 'users' && user && !isUserAdmin) {
       setActiveTab('dashboard');
       addToast('Acesso restrito: seu perfil de acesso não permite gerenciar usuários.', 'error');
+    } else if (isUserRH && user && !['dashboard', 'employees'].includes(activeTab)) {
+      setActiveTab('employees');
     }
   }, [activeTab, user]);
 
@@ -1329,7 +1333,11 @@ export default function App() {
     localStorage.setItem('trynova_session', JSON.stringify(userData));
     setUser(userData);
     setIsLoggedIn(true);
-    addToast(`Bem-vindo de volta, ${userData.name || 'Administrador'}!`, 'success');
+    const roleStr = String(userData?.role || '').trim().toLowerCase();
+    if (roleStr === 'recursos humanos' || roleStr === 'rh' || roleStr === 'dp') {
+      setActiveTab('employees');
+    }
+    addToast(`Bem-vindo de volta, ${userData.name || 'Usuário'}!`, 'success');
   };
 
   const handleLogout = () => {
@@ -1346,7 +1354,7 @@ export default function App() {
   const assetCounts = {
     total: assets.length,
     spaces: spaces.length,
-    stock: assets.filter(a => a.status === 'Em Estoque').length,
+    stock: assets.filter(a => a.status === 'Em Estoque' && !isSpaceLocation(a.location)).length,
     maintenance: assets.filter(a => a.status === 'Manutenção').length,
     employees: employees.length,
     licenses: licenses.length,
@@ -1386,6 +1394,7 @@ export default function App() {
           assets={assets}
           employees={employees}
           maintenances={maintenances}
+          spaces={spaces}
           onNavigateToAssets={handleNavigateToAssetsWithFilter}
           onNavigateToTab={setActiveTab}
           onAddNewAsset={() => {
@@ -1409,6 +1418,7 @@ export default function App() {
         <StockList
           assets={assets}
           employees={employees}
+          spaces={spaces}
           onAssign={handleAssignAsset}
           onDecommission={handleDecommissionAsset}
           currentUser={user}
@@ -1463,7 +1473,6 @@ export default function App() {
           onCreateUser={handleCreateUser}
           onUpdateUser={handleUpdateUser}
           onDeleteUser={handleDeleteUser}
-          onSendUserEmail={handleSendUserEmail}
         />
       ) : (
         <AssetList
