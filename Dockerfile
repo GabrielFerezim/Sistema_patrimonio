@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala todas as dependências necessárias para o build
-RUN npm install
+RUN npm install --no-audit --prefer-offline
 
 # Copia todo o código fonte da aplicação
 COPY . .
