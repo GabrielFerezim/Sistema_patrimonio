@@ -70,7 +70,6 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [toasts, setToasts] = useState([]);
 
   // Auto-limpeza de dados mockados legados
@@ -1371,8 +1370,6 @@ export default function App() {
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       onLogout={handleLogout}
-      collapsed={sidebarCollapsed}
-      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       theme={theme}
       toggleTheme={toggleTheme}
       user={user}

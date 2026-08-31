@@ -216,16 +216,16 @@ export default function UsersList({
     <div className="users-list-container">
       {/* Header Principal */}
       <header className="page-header">
-        <div className="page-title-group">
-          <h1>Usuários & Acessos</h1>
+        <div className="page-header-info">
+          <h1 className="page-title">Usuários & Acessos</h1>
           <p className="page-subtitle">
-            Gerencie os usuários do sistema, defina perfis de acesso e permissões de segurança.
+            Gerencie os usuários do sistema, defina perfis de acesso e permissões de segurança
           </p>
         </div>
 
-        <div className="page-actions-group">
-          <button className="btn btn-primary" onClick={openCreateModal}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <div className="page-header-actions">
+          <button className="btn btn-primary btn-sm" onClick={openCreateModal}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
               <circle cx="9" cy="7" r="4"></circle>
               <line x1="19" y1="8" x2="19" y2="14"></line>

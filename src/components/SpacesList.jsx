@@ -264,37 +264,35 @@ export default function SpacesList({
         </div>
 
         <div className="page-header-actions">
-          <div className="btn-group-secondary">
-            {spaces.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => exportSpacesToCSV(spaces, assets)}
-                title="Exportar inventário por espaços para CSV"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>Exportar Relatório</span>
-              </button>
-            )}
+          {spaces.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => exportSpacesToCSV(spaces, assets)}
+              title="Exportar inventário por espaços para CSV"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Exportar Relatório</span>
+            </button>
+          )}
 
-            {!isReadOnly && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => handleOpenAllocateModal('')}
-                title="Alocar equipamento em um ambiente"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14"></path>
-                </svg>
-                <span>Alocar Patrimônio</span>
-              </button>
-            )}
-          </div>
+          {!isReadOnly && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleOpenAllocateModal('')}
+              title="Alocar equipamento em um ambiente"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              <span>Alocar Patrimônio</span>
+            </button>
+          )}
 
           {!isReadOnly && (
             <button

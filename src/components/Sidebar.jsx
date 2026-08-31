@@ -4,8 +4,6 @@ export default function Sidebar({
   activeTab,
   setActiveTab,
   onLogout,
-  collapsed,
-  onToggleCollapse,
   theme,
   toggleTheme,
   assetCounts = { total: 0, stock: 0, maintenance: 0, employees: 0, decommissioned: 0, spaces: 0, licenses: 0, users: 0 },
@@ -16,20 +14,24 @@ export default function Sidebar({
     roleStr === 'administrador' || 
     roleStr === 'admin' || 
     user?.username?.toLowerCase() === 'admin' || 
-    user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' ||
+    user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' || 
     !user;
   const isRH = roleStr === 'recursos humanos' || roleStr === 'rh' || roleStr === 'dp';
   const isReadOnly = roleStr === 'visualizador' || roleStr === 'viewer';
+  
   const [paineisOpen, setPaineisOpen] = useState(true);
   const [gerenciarOpen, setGerenciarOpen] = useState(true);
+  const [servicosOpen, setServicosOpen] = useState(true);
   const [sistemaOpen, setSistemaOpen] = useState(true);
 
   // Auto-expande seções ativas
   useEffect(() => {
     if (activeTab === 'dashboard' || activeTab === 'audit') {
       setPaineisOpen(true);
-    } else if (['assets', 'spaces', 'stock', 'employees', 'maintenance', 'decommissioned', 'licenses'].includes(activeTab)) {
+    } else if (['assets', 'spaces', 'stock', 'employees'].includes(activeTab)) {
       setGerenciarOpen(true);
+    } else if (['maintenance', 'licenses', 'decommissioned'].includes(activeTab)) {
+      setServicosOpen(true);
     } else if (activeTab === 'users') {
       setSistemaOpen(true);
     }
@@ -67,36 +69,18 @@ export default function Sidebar({
         </div>
       </header>
 
-      {/* Barra Lateral Principal Desktop */}
-      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-        {/* Marca / Logotipo e Botão de Recolher */}
+      {/* Barra Lateral Principal Desktop (Estática) */}
+      <aside className="sidebar">
+        {/* Marca / Logotipo */}
         <div className="brand">
-          {!collapsed ? (
-            <div className="brand-container-full">
-              <img
-                src="/trynova_logo.png"
-                alt="Trynova"
-                className="brand-logo-full"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-            </div>
-          ) : (
-            <div className="brand-container-icon">
-              <span className="brand-icon-letter">T</span>
-            </div>
-          )}
-
-          <button
-            className="hamburger-btn"
-            onClick={onToggleCollapse}
-            title={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
+          <div className="brand-container-full">
+            <img
+              src="/trynova_logo.png"
+              alt="Trynova"
+              className="brand-logo-full"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
         </div>
 
         <div className="brand-divider" />
@@ -107,8 +91,8 @@ export default function Sidebar({
           <div className="nav-category-group">
             <div
               className="nav-category-header"
-              onClick={() => !collapsed && setPaineisOpen(!paineisOpen)}
-              title={collapsed ? undefined : "Recolher Painéis"}
+              onClick={() => setPaineisOpen(!paineisOpen)}
+              title="Recolher / Expandir Painéis"
             >
               <span>PAINÉIS</span>
               <svg
@@ -130,7 +114,6 @@ export default function Sidebar({
                 <button
                   className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                   onClick={() => setActiveTab('dashboard')}
-                  title={collapsed ? "Dashboard" : undefined}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="7" height="9" />
@@ -146,7 +129,6 @@ export default function Sidebar({
                   <button
                     className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`}
                     onClick={() => setActiveTab('audit')}
-                    title={collapsed ? "Histórico & Auditoria" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
@@ -159,12 +141,12 @@ export default function Sidebar({
             </div>
           </div>
 
-          {/* Seção 2: GERENCIAMENTO */}
+          {/* Seção 2: GERENCIAMENTO DE ATIVOS */}
           <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
             <div
               className="nav-category-header"
-              onClick={() => !collapsed && setGerenciarOpen(!gerenciarOpen)}
-              title={collapsed ? undefined : "Recolher Gerenciamento"}
+              onClick={() => setGerenciarOpen(!gerenciarOpen)}
+              title="Recolher / Expandir Gerenciamento"
             >
               <span>{isRH ? 'PESSOAS & TERMOS' : 'GERENCIAMENTO'}</span>
               <svg
@@ -187,7 +169,6 @@ export default function Sidebar({
                   <button
                     className={`nav-item ${activeTab === 'assets' ? 'active' : ''}`}
                     onClick={() => setActiveTab('assets')}
-                    title={collapsed ? "Patrimônios" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -195,7 +176,7 @@ export default function Sidebar({
                       <line x1="12" y1="22.08" x2="12" y2="12" />
                     </svg>
                     <span>Patrimônios</span>
-                    {assetCounts.total > 0 && !collapsed && (
+                    {assetCounts.total > 0 && (
                       <span className="nav-badge">{assetCounts.total}</span>
                     )}
                   </button>
@@ -206,7 +187,6 @@ export default function Sidebar({
                   <button
                     className={`nav-item ${activeTab === 'spaces' ? 'active' : ''}`}
                     onClick={() => setActiveTab('spaces')}
-                    title={collapsed ? "Patrimônio Trynova (Espaços)" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="3" width="7" height="7" />
@@ -215,10 +195,8 @@ export default function Sidebar({
                       <rect x="3" y="14" width="7" height="7" />
                     </svg>
                     <span>Patrimônio Trynova</span>
-                    {assetCounts.spaces > 0 && !collapsed && (
-                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary-color)', color: '#ffffff' }}>
-                        {assetCounts.spaces}
-                      </span>
+                    {assetCounts.spaces > 0 && (
+                      <span className="nav-badge badge-primary">{assetCounts.spaces}</span>
                     )}
                   </button>
                 )}
@@ -228,7 +206,6 @@ export default function Sidebar({
                   <button
                     className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`}
                     onClick={() => setActiveTab('stock')}
-                    title={collapsed ? "Estoque" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -236,7 +213,7 @@ export default function Sidebar({
                       <polyline points="2 12 12 17 22 12" />
                     </svg>
                     <span>Estoque</span>
-                    {assetCounts.stock > 0 && !collapsed && (
+                    {assetCounts.stock > 0 && (
                       <span className="nav-badge badge-warning">{assetCounts.stock}</span>
                     )}
                   </button>
@@ -246,7 +223,6 @@ export default function Sidebar({
                 <button
                   className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`}
                   onClick={() => setActiveTab('employees')}
-                  title={collapsed ? "Colaboradores" : undefined}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
@@ -254,34 +230,56 @@ export default function Sidebar({
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                   <span>Colaboradores</span>
-                  {assetCounts.employees > 0 && !collapsed && (
+                  {assetCounts.employees > 0 && (
                     <span className="nav-badge">{assetCounts.employees}</span>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
 
-                {/* Manutenção (Oculto para RH) */}
-                {!isRH && (
+          {/* Seção 3: SERVIÇOS & SUPORTE (Manutenção, Licenças e Baixados) */}
+          {!isRH && (
+            <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
+              <div
+                className="nav-category-header"
+                onClick={() => setServicosOpen(!servicosOpen)}
+                title="Recolher / Expandir Serviços & Suporte"
+              >
+                <span>SERVIÇOS & SUPORTE</span>
+                <svg
+                  className={`chevron-icon ${servicosOpen ? 'open' : ''}`}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
+
+              <div className={`nav-category-content-wrapper ${servicosOpen ? 'expanded' : 'collapsed'}`}>
+                <div className="nav-category-content">
+                  {/* Manutenção */}
                   <button
                     className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
                     onClick={() => setActiveTab('maintenance')}
-                    title={collapsed ? "Manutenção" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                     </svg>
                     <span>Manutenção</span>
-                    {assetCounts.maintenance > 0 && !collapsed && (
+                    {assetCounts.maintenance > 0 && (
                       <span className="nav-badge badge-danger">{assetCounts.maintenance}</span>
                     )}
                   </button>
-                )}
 
-                {/* Licenças de Software (Oculto para RH) */}
-                {!isRH && (
+                  {/* Licenças de Software */}
                   <button
                     className={`nav-item ${activeTab === 'licenses' ? 'active' : ''}`}
                     onClick={() => setActiveTab('licenses')}
-                    title={collapsed ? "Licenças de Software" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -289,66 +287,58 @@ export default function Sidebar({
                       <line x1="12" y1="17" x2="12" y2="21" />
                     </svg>
                     <span>Licenças de Software</span>
-                    {assetCounts.licenses > 0 && !collapsed && (
-                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
-                        {assetCounts.licenses}
-                      </span>
+                    {assetCounts.licenses > 0 && (
+                      <span className="nav-badge badge-primary">{assetCounts.licenses}</span>
                     )}
                   </button>
-                )}
 
-                {/* Itens Baixados (Oculto para RH) */}
-                {!isRH && (
+                  {/* Itens Baixados */}
                   <button
                     className={`nav-item ${activeTab === 'decommissioned' ? 'active' : ''}`}
                     onClick={() => setActiveTab('decommissioned')}
-                    title={collapsed ? "Itens Baixados" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="8" y1="12" x2="16" y2="12" />
                     </svg>
                     <span>Itens Baixados</span>
-                    {assetCounts.decommissioned > 0 && !collapsed && (
-                      <span className="nav-badge" style={{ backgroundColor: 'var(--text-light)', color: '#ffffff' }}>
-                        {assetCounts.decommissioned}
-                      </span>
+                    {assetCounts.decommissioned > 0 && (
+                      <span className="nav-badge badge-muted">{assetCounts.decommissioned}</span>
                     )}
                   </button>
-                )}
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Seção 3: SISTEMA & ACESSOS (Apenas Administrador) */}
-            {isAdmin && (
-              <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
-                <div
-                  className="nav-category-header"
-                  onClick={() => !collapsed && setSistemaOpen(!sistemaOpen)}
-                  title={collapsed ? undefined : "Recolher Sistema"}
+          {/* Seção 4: SISTEMA & ACESSOS (Apenas Administrador) */}
+          {isAdmin && (
+            <div className="nav-category-group" style={{ marginTop: '0.75rem' }}>
+              <div
+                className="nav-category-header"
+                onClick={() => setSistemaOpen(!sistemaOpen)}
+                title="Recolher / Expandir Sistema"
+              >
+                <span>SISTEMA</span>
+                <svg
+                  className={`chevron-icon ${sistemaOpen ? 'open' : ''}`}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
                 >
-                  <span>SISTEMA</span>
-                  {!collapsed && (
-                    <svg
-                      className={`category-chevron ${sistemaOpen ? 'open' : ''}`}
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  )}
-                </div>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
 
-                <div className={`nav-category-items ${sistemaOpen || collapsed ? 'show' : ''}`}>
+              <div className={`nav-category-content-wrapper ${sistemaOpen ? 'expanded' : 'collapsed'}`}>
+                <div className="nav-category-content">
                   {/* Usuários & Acessos */}
                   <button
                     className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
                     onClick={() => setActiveTab('users')}
-                    title={collapsed ? "Usuários & Acessos" : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -357,59 +347,15 @@ export default function Sidebar({
                       <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                     <span>Usuários & Acessos</span>
-                    {assetCounts.users > 0 && !collapsed && (
-                      <span className="nav-badge" style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}>
-                        {assetCounts.users}
-                      </span>
+                    {assetCounts.users > 0 && (
+                      <span className="nav-badge badge-primary">{assetCounts.users}</span>
                     )}
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </nav>
-
-        {/* Rodapé da Sidebar */}
-        <div className="sidebar-footer">
-          <button
-            className="nav-item theme-toggle-btn"
-            onClick={toggleTheme}
-            style={{ width: '100%', marginBottom: '0.25rem' }}
-            title={collapsed ? "Alternar Tema" : undefined}
-          >
-            {theme === 'dark' ? (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                </svg>
-                <span>Tema Claro</span>
-              </>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <span>Tema Escuro</span>
-              </>
-            )}
-          </button>
-
-          <button
-            className="nav-item logout-btn"
-            onClick={onLogout}
-            style={{ width: '100%' }}
-            title={collapsed ? "Sair" : undefined}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            <span>Sair</span>
-          </button>
-        </div>
       </aside>
 
       {/* Menu Inferior do Mobile (Bottom Navigation) */}
@@ -447,6 +393,7 @@ export default function Sidebar({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="12 2 2 7 12 12 22 7 12 2" />
               <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
             </svg>
             <span>Estoque</span>
           </button>

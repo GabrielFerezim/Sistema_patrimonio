@@ -20,7 +20,6 @@ export default function MaintenanceList({
   const [selectedAssetTag, setSelectedAssetTag] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
   const [provider, setProvider] = useState('');
-  const [cost, setCost] = useState('');
   const [expectedReturn, setExpectedReturn] = useState('');
   const [ticketNotes, setTicketNotes] = useState('');
 
@@ -28,7 +27,6 @@ export default function MaintenanceList({
   const [closingTicket, setClosingTicket] = useState(null);
   const [returnDestination, setReturnDestination] = useState('Estoque'); // 'Estoque' ou 'Colaborador'
   const [assignedEmployee, setAssignedEmployee] = useState('');
-  const [finalCost, setFinalCost] = useState('');
   const [finalNotes, setFinalNotes] = useState('');
 
   // Itens disponíveis para enviar à manutenção (ativos que não estejam já em manutenção)
@@ -38,7 +36,6 @@ export default function MaintenanceList({
     setSelectedAssetTag(availableAssetsForMaintenance.length > 0 ? availableAssetsForMaintenance[0].tag : '');
     setIssueDescription('');
     setProvider('');
-    setCost('');
     setExpectedReturn('');
     setTicketNotes('');
     setIsCreateModalOpen(true);
@@ -60,7 +57,6 @@ export default function MaintenanceList({
       asset_name: assetObj.name,
       issue_description: issueDescription.trim(),
       provider: provider.trim() || null,
-      cost: cost ? parseFloat(cost) : null,
       expected_return_at: expectedReturn || null,
       notes: ticketNotes.trim() || null,
       employee_name: assetObj.employee || null
@@ -73,7 +69,6 @@ export default function MaintenanceList({
     setClosingTicket(ticket);
     setReturnDestination(ticket.employee_name ? 'Colaborador' : 'Estoque');
     setAssignedEmployee(ticket.employee_name || '');
-    setFinalCost(ticket.cost ? String(ticket.cost) : '');
     setFinalNotes(ticket.notes || '');
   };
 
@@ -85,7 +80,6 @@ export default function MaintenanceList({
       status: 'Concluída',
       return_destination: returnDestination,
       employee_name: returnDestination === 'Colaborador' ? assignedEmployee : null,
-      cost: finalCost ? parseFloat(finalCost) : null,
       notes: finalNotes.trim() || null
     });
 
@@ -112,7 +106,6 @@ export default function MaintenanceList({
   // Métricas
   const activeCount = maintenances.filter(m => m.status !== 'Concluída').length;
   const completedCount = maintenances.filter(m => m.status === 'Concluída').length;
-  const totalCost = maintenances.reduce((acc, curr) => acc + (parseFloat(curr.cost) || 0), 0);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -129,7 +122,7 @@ export default function MaintenanceList({
       <header className="page-header">
         <div className="page-header-info">
           <h1 className="page-title">Controle de Manutenção</h1>
-          <p className="page-subtitle">Gerencie os reparos, ordens de serviço, assistência técnica e custos de equipamentos</p>
+          <p className="page-subtitle">Gerencie os reparos, ordens de serviço e assistência técnica de equipamentos</p>
         </div>
         {!isReadOnly && (
           <div className="page-header-actions">
@@ -227,7 +220,6 @@ export default function MaintenanceList({
                 <th>Assistência / Prestador</th>
                 <th>Data Envio</th>
                 <th>Previsão</th>
-                <th>Custo</th>
                 <th>Status</th>
                 <th className="actions-header">Ações</th>
               </tr>
@@ -257,13 +249,6 @@ export default function MaintenanceList({
                     <td>{ticket.provider || '-'}</td>
                     <td>{formatDate(ticket.opened_at)}</td>
                     <td>{ticket.expected_return_at || '-'}</td>
-                    <td>
-                      {ticket.cost ? (
-                        <strong>{parseFloat(ticket.cost).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
-                      ) : (
-                        <span className="unassigned">-</span>
-                      )}
-                    </td>
                     <td>
                       <span className={`status-badge ${isClosed ? 'em-uso' : 'manutencao'}`}>
                         {ticket.status}
@@ -384,18 +369,6 @@ export default function MaintenanceList({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="maint-cost">Custo Estimado (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    id="maint-cost"
-                    value={cost}
-                    onChange={(e) => setCost(e.target.value)}
-                    placeholder="Ex: 350.00"
-                  />
-                </div>
-
-                <div className="form-group full-width">
                   <label htmlFor="maint-return">Previsão de Retorno</label>
                   <input
                     type="date"

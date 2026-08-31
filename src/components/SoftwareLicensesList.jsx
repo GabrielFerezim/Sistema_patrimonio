@@ -270,7 +270,7 @@ export default function SoftwareLicensesList({
         <div className="page-header-info">
           <h1 className="page-title">Licenças de Software & Assinaturas</h1>
           <p className="page-subtitle">
-            Gestão de softwares corporativos, controle de assentos, chaves de ativação, vencimentos e custos
+            Gestão de softwares corporativos, controle de assentos, chaves de ativação e vencimentos
           </p>
         </div>
 
@@ -305,7 +305,7 @@ export default function SoftwareLicensesList({
         </div>
       </header>
 
-      {/* Grade de KPIs Financeiros e Operacionais */}
+      {/* Grade de KPIs Operacionais */}
       <div className="kpi-grid">
         <div className="kpi-card total">
           <div className="kpi-icon">
@@ -346,21 +346,6 @@ export default function SoftwareLicensesList({
             <span className="kpi-label">Assentos Livres</span>
             <span className="kpi-value" style={{ color: availableSeats > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
               {availableSeats}
-            </span>
-          </div>
-        </div>
-
-        <div className="kpi-card in-maintenance">
-          <div className="kpi-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div className="kpi-info">
-            <span className="kpi-label">Investimento Total</span>
-            <span className="kpi-value" style={{ fontSize: '1.25rem' }}>
-              R$ {totalAnnualCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>

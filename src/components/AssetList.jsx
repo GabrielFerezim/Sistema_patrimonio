@@ -134,37 +134,35 @@ export default function AssetList({
         </div>
         
         <div className="page-header-actions">
-          <div className="btn-group-secondary">
+          <button 
+            type="button"
+            className="btn btn-secondary btn-sm" 
+            onClick={() => exportAssetsToCSV(filteredAssets)} 
+            title="Exportar inventário filtrado para CSV"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Exportar CSV</span>
+          </button>
+
+          {!isReadOnly && (
             <button 
               type="button"
               className="btn btn-secondary btn-sm" 
-              onClick={() => exportAssetsToCSV(filteredAssets)} 
-              title="Exportar inventário filtrado para CSV"
+              onClick={handleImportClick}
+              title="Importar patrimônios via CSV"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span>Exportar</span>
+              <span>Importar CSV</span>
             </button>
-
-            {!isReadOnly && (
-              <button 
-                type="button"
-                className="btn btn-secondary btn-sm" 
-                onClick={handleImportClick}
-                title="Importar patrimônios via CSV"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                <span>Importar</span>
-              </button>
-            )}
-          </div>
+          )}
 
           {!isReadOnly && (
             <button type="button" className="btn btn-primary btn-sm" onClick={onAddNew}>

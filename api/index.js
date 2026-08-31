@@ -2,8 +2,13 @@ import express from 'express';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -1417,11 +1422,20 @@ app.post('/api/purge-mock-data', async (req, res) => {
   }
 });
 
-// Inicialização do servidor local
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+// Servir arquivos estáticos do frontend (gerados pelo 'npm run build')
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Redireciona qualquer outra rota não encontrada (SPA fallback) para o index.html
+app.use((req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
+// Inicialização do servidor (Lightsail, VPS, Docker ou Local)
+if (!process.env.VERCEL) {
   const port = process.env.PORT || 3001;
   app.listen(port, () => {
-    console.log(`🚀 Servidor Trynova API rodando com sucesso na porta ${port}`);
+    console.log(`🚀 Servidor Sistema Patrimônio rodando com sucesso na porta ${port}`);
   });
 }
 

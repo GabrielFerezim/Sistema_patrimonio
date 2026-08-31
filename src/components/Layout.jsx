@@ -8,8 +8,6 @@ export default function Layout({
   activeTab, 
   setActiveTab, 
   onLogout, 
-  collapsed, 
-  onToggleCollapse, 
   theme, 
   toggleTheme,
   user,
@@ -29,8 +27,6 @@ export default function Layout({
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onLogout={onLogout}
-          collapsed={collapsed}
-          onToggleCollapse={onToggleCollapse}
           theme={theme}
           toggleTheme={toggleTheme}
           assetCounts={assetCounts}

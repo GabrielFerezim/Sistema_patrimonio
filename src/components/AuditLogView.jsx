@@ -75,7 +75,7 @@ export default function AuditLogView({ logs = [], onClearLogs }) {
   return (
     <div className="audit-log-container">
       <header className="page-header">
-        <div>
+        <div className="page-header-info">
           <h1 className="page-title">Histórico & Auditoria</h1>
           <p className="page-subtitle">Rastreabilidade completa de todas as movimentações, entregas e alterações de patrimônio</p>
         </div>

@@ -99,7 +99,7 @@ export default function StockList({
   return (
     <div className="stock-list-container">
       <header className="page-header">
-        <div>
+        <div className="page-header-info">
           <h1 className="page-title">Estoque de Equipamentos</h1>
           <p className="page-subtitle">Disponibilidade de equipamentos prontos para entrega imediata aos colaboradores</p>
         </div>
