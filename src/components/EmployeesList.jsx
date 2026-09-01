@@ -318,6 +318,21 @@ export default function EmployeesList({
     setOffboardingEmployee(null);
   };
 
+  const getEquipmentCategoryIcon = (eqType) => {
+    const eq = (eqType || '').toLowerCase();
+    if (eq.includes('notebook') || eq.includes('laptop')) return '💻';
+    if (eq.includes('desktop') || eq.includes('computador') || eq.includes('pc')) return '🖥️';
+    if (eq.includes('monitor') || eq.includes('tela')) return '📺';
+    if (eq.includes('teclado') || eq.includes('mouse')) return '⌨️';
+    if (eq.includes('celular') || eq.includes('smartphone') || eq.includes('telefone')) return '📱';
+    if (eq.includes('cadeira')) return '🪑';
+    if (eq.includes('impressora')) return '🖨️';
+    if (eq.includes('servidor') || eq.includes('rede') || eq.includes('switch') || eq.includes('roteador')) return '🗄️';
+    if (eq.includes('tv') || eq.includes('projetor')) return '📽️';
+    if (eq.includes('ar') || eq.includes('climatizador')) return '❄️';
+    return '📦';
+  };
+
   // Realce de texto
   const highlightText = (text, search) => {
     if (!text) return '-';
@@ -689,18 +704,62 @@ export default function EmployeesList({
                                 Ramal: <strong>{highlightText(emp.ramal || '-', searchTerm)}</strong>
                               </span>
                             </div>
-                            <div className="profile-detail-row">
-                              <span className="detail-icon" title="Equipamentos" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                                </svg>
-                              </span>
-                              <span className="detail-text">
-                                Equipamentos: <strong>{emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}</strong>
-                              </span>
-                            </div>
                           </div>
+
+                          {/* Widget de Equipamentos no Card */}
+                          {(() => {
+                            const catCountMap = (emp.assets || []).reduce((acc, a) => {
+                              const cat = a.equipment || 'Outros';
+                              acc[cat] = (acc[cat] || 0) + 1;
+                              return acc;
+                            }, {});
+                            const catList = Object.entries(catCountMap);
+
+                            return (
+                              <div className="emp-card-equipment-widget">
+                                <div className="emp-card-equipment-header">
+                                  <span className="emp-card-equipment-label">Equipamentos em Posse</span>
+                                  <span className={`emp-card-equipment-badge ${emp.assets.length > 0 ? 'has-assets' : 'no-assets'}`}>
+                                    {emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}
+                                  </span>
+                                </div>
+
+                                {emp.assets.length > 0 ? (
+                                  <>
+                                    <div className="emp-card-categories-row">
+                                      {catList.slice(0, 3).map(([catName, count]) => (
+                                        <span key={catName} className="emp-card-cat-chip" title={`${count} ${catName}`}>
+                                          <span>{getEquipmentCategoryIcon(catName)}</span>
+                                          <span>{catName}</span>
+                                          <span className="emp-card-cat-count">{count}</span>
+                                        </span>
+                                      ))}
+                                      {catList.length > 3 && (
+                                        <span className="emp-card-cat-chip" style={{ opacity: 0.8 }}>
+                                          +{catList.length - 3}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="emp-card-btn-view-assets"
+                                      onClick={() => setActiveEmployeeAssets(emp)}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                      </svg>
+                                      <span>Ver {emp.assets.length} {emp.assets.length === 1 ? 'Patrimônio' : 'Patrimônios'}</span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-light)', fontStyle: 'italic' }}>
+                                    Nenhum equipamento vinculado
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           <div className="profile-term-section">
                             <TermActionsDropdown 
@@ -731,7 +790,7 @@ export default function EmployeesList({
                           <th>Colaborador</th>
                           <th>Cargo</th>
                           <th>Ramal</th>
-                          <th>Equipamentos</th>
+                          <th>Equipamentos Vinculados</th>
                           <th className="actions-header">Ações</th>
                         </tr>
                       </thead>
@@ -765,40 +824,40 @@ export default function EmployeesList({
                                 {/* Equipamentos */}
                                 <td className="assets-count-cell">
                                   {emp.assets.length > 0 ? (
-                                    <button 
-                                      type="button"
-                                      className="btn btn-secondary btn-sm"
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.45rem',
-                                        padding: '0.35rem 0.75rem',
-                                        fontSize: '0.8rem',
-                                        fontWeight: 600,
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: '1px solid var(--border-color)',
-                                        backgroundColor: 'var(--bg-card)',
-                                        color: 'var(--text-main)',
-                                        cursor: 'pointer',
-                                        transition: 'var(--transition-smooth)',
-                                        boxShadow: 'var(--shadow-xs)'
-                                      }}
-                                      onClick={() => setActiveEmployeeAssets(emp)}
-                                      title="Clique para ver os equipamentos vinculados a este colaborador"
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--primary)' }}>
-                                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                                      </svg>
-                                      <span>{emp.assets.length} {emp.assets.length === 1 ? 'Equipamento' : 'Equipamentos'}</span>
-                                    </button>
+                                    (() => {
+                                      const uniqueCats = Array.from(new Set(emp.assets.map(a => a.equipment || 'Outros')));
+                                      const icons = uniqueCats.slice(0, 3).map(c => getEquipmentCategoryIcon(c));
+
+                                      return (
+                                        <button 
+                                          type="button"
+                                          className="emp-equipment-btn-pill"
+                                          onClick={() => setActiveEmployeeAssets(emp)}
+                                          title={`Ver patrimônios de ${emp.name}`}
+                                        >
+                                          <span className="emp-equipment-icons-preview">
+                                            {icons.map((ic, i) => (
+                                              <span key={i}>{ic}</span>
+                                            ))}
+                                          </span>
+                                          <span className="emp-equipment-count-text">
+                                            {emp.assets.length} {emp.assets.length === 1 ? 'item' : 'itens'}
+                                          </span>
+                                          <span className="emp-equipment-action-arrow">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                              <polyline points="9 18 15 12 9 6"></polyline>
+                                            </svg>
+                                          </span>
+                                        </button>
+                                      );
+                                    })()
                                   ) : (
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-light)' }}>
+                                    <span className="emp-equipment-none-pill">
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <circle cx="12" cy="12" r="10" />
                                         <line x1="8" y1="12" x2="16" y2="12" />
                                       </svg>
-                                      Nenhum
+                                      Livre (Sem itens)
                                     </span>
                                   )}
                                 </td>

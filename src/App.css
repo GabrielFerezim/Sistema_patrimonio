@@ -1814,6 +1814,163 @@
   align-items: center;
 }
 
+/* ==========================================================================
+   INTERACTIVE COLLABORATOR EQUIPMENT PILLS & WIDGETS
+   ========================================================================== */
+.emp-equipment-btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 20px;
+  color: var(--primary-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.emp-equipment-btn-pill:hover {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: var(--primary-light);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.15);
+}
+
+.emp-equipment-icons-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.emp-equipment-count-text {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.emp-equipment-action-arrow {
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary-light);
+  transition: transform 0.2s ease;
+}
+
+.emp-equipment-btn-pill:hover .emp-equipment-action-arrow {
+  transform: translateX(2px);
+}
+
+.emp-equipment-none-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* Card Widget de Equipamentos no Grid */
+.emp-card-equipment-widget {
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color 0.2s ease;
+}
+
+.emp-card-equipment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.emp-card-equipment-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.emp-card-equipment-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+.emp-card-equipment-badge.has-assets {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary-light);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.emp-card-equipment-badge.no-assets {
+  color: var(--text-light);
+}
+
+.emp-card-categories-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.emp-card-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.emp-card-cat-count {
+  color: var(--primary-light);
+  font-weight: 700;
+}
+
+.emp-card-btn-view-assets {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.45rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0.2rem;
+}
+
+.emp-card-btn-view-assets:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
 .assets-count-badge-compact {
   display: inline-flex;
   align-items: center;
