@@ -448,196 +448,112 @@ export default function SpacesList({
         </div>
       </div>
 
-      {/* Grade de Cards dos Espaços com Design Premium V2 */}
+      {/* Grade de Cards dos Espaços com Design Simples e Slim */}
       {filteredSpaces.length > 0 ? (
-        <div className="spaces-premium-grid">
+        <div className="spaces-slim-grid">
           {filteredSpaces.map(space => {
             const spaceAssets = getAssetsForSpace(space.name);
-            const previewAssets = spaceAssets.slice(0, 3);
+            const previewAssets = spaceAssets.slice(0, 2);
             const remainingCount = spaceAssets.length - previewAssets.length;
 
-            // Agrupa categorias
-            const categoriesCountMap = spaceAssets.reduce((acc, a) => {
-              const cat = a.equipment || 'Outros';
-              acc[cat] = (acc[cat] || 0) + 1;
-              return acc;
-            }, {});
-            const categoriesList = Object.entries(categoriesCountMap);
-            const themeColor = space.color || '#3b82f6';
-
             return (
-              <div key={space.id} className="space-card-v2">
-                {/* Barra de cor superior vibrante */}
-                <div
-                  className="space-card-top-accent"
-                  style={{
-                    background: `linear-gradient(90deg, ${themeColor}, ${themeColor}60)`
-                  }}
-                />
-
-                <div className="space-card-inner">
-                  {/* Cabeçalho do Card */}
-                  <div className="space-card-header-v2">
-                    <div
-                      className="space-icon-squircle"
-                      style={{
-                        backgroundColor: `${themeColor}18`,
-                        color: themeColor,
-                        border: `1px solid ${themeColor}30`
-                      }}
-                    >
-                      {getSpaceIconSvg(space.icon || space.type)}
-                    </div>
-
-                    <div className="space-badges-stack">
-                      <span className="space-floor-pill">
-                        🏢 {space.floor}
-                      </span>
-                      <span
-                        className="space-type-pill"
-                        style={{
-                          backgroundColor: `${themeColor}15`,
-                          color: themeColor,
-                          borderColor: `${themeColor}35`
-                        }}
-                      >
-                        {space.type || 'Espaço'}
-                      </span>
-                    </div>
+              <div key={space.id} className="space-card-slim">
+                {/* Cabeçalho */}
+                <div className="space-slim-header">
+                  <h3 className="space-slim-title">
+                    {highlightText(space.name, searchTerm)}
+                  </h3>
+                  <div className="space-slim-pills">
+                    <span className="space-slim-pill">{space.floor}</span>
+                    <span className="space-slim-pill accent">{space.type || 'Geral'}</span>
                   </div>
+                </div>
 
-                  {/* Título & Descrição */}
-                  <div className="space-title-section">
-                    <h3 className="space-card-name">
-                      {highlightText(space.name, searchTerm)}
-                    </h3>
-                    {space.description ? (
-                      <p className="space-card-description" title={space.description}>
-                        {highlightText(space.description, searchTerm)}
-                      </p>
-                    ) : (
-                      <p className="space-card-description" style={{ fontStyle: 'italic', opacity: 0.6 }}>
-                        Sem descrição cadastrada
-                      </p>
+                {/* Descrição */}
+                {space.description && (
+                  <p className="space-slim-desc">
+                    {highlightText(space.description, searchTerm)}
+                  </p>
+                )}
+
+                {/* Linha de Estatística */}
+                <div className="space-slim-stats-row">
+                  <span className="space-slim-stats-label">Equipamentos alocados:</span>
+                  <span className="space-slim-stats-val">
+                    {spaceAssets.length} {spaceAssets.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </div>
+
+                {/* Preview de Itens */}
+                {spaceAssets.length > 0 && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {previewAssets.map(a => (
+                      <span key={a.id} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        • <strong>#{a.tag}</strong> {a.name}
+                      </span>
+                    ))}
+                    {remainingCount > 0 && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--primary-light)' }}>
+                        +{remainingCount} outros itens
+                      </span>
                     )}
                   </div>
+                )}
 
-                  {/* Painel de Equipamentos */}
-                  <div className="space-equipment-panel">
-                    <div className="space-panel-header">
-                      <span className="space-panel-label">Patrimônios Alocados</span>
-                      <span className={`space-items-counter-badge ${spaceAssets.length > 0 ? 'has-items' : 'empty'}`}>
-                        {spaceAssets.length} {spaceAssets.length === 1 ? 'item' : 'itens'}
-                      </span>
-                    </div>
+                {/* Ações */}
+                <div className="space-slim-actions">
+                  <button
+                    type="button"
+                    className="btn-space-slim-primary"
+                    onClick={() => setSelectedSpaceDetails(space)}
+                  >
+                    <span>Ver Itens</span>
+                  </button>
 
-                    {spaceAssets.length > 0 ? (
-                      <>
-                        {/* Categorias resumidas com ícones */}
-                        <div className="space-cat-breakdown">
-                          {categoriesList.slice(0, 3).map(([catName, count]) => (
-                            <span key={catName} className="space-cat-chip" title={`${count} ${catName}`}>
-                              <span className="space-cat-chip-icon">{getEquipmentCategoryIcon(catName)}</span>
-                              <span>{catName}</span>
-                              <span className="space-cat-chip-count">{count}</span>
-                            </span>
-                          ))}
-                          {categoriesList.length > 3 && (
-                            <span className="space-cat-chip" style={{ opacity: 0.8 }}>
-                              +{categoriesList.length - 3} tipos
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Lista dos primeiros itens */}
-                        <div className="space-items-mini-list">
-                          {previewAssets.map(asset => (
-                            <div key={asset.id} className="space-item-mini-row">
-                              <span className="space-item-mini-tag">#{asset.tag}</span>
-                              <span className="space-item-mini-name">{asset.name}</span>
-                              <span style={{ color: 'var(--text-light)', fontSize: '0.7rem' }}>
-                                {asset.equipment}
-                              </span>
-                            </div>
-                          ))}
-                          {remainingCount > 0 && (
-                            <span className="space-item-more-badge">
-                              + {remainingCount} outros equipamentos nesta sala
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-empty-notice">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <line x1="12" y1="8" x2="12" y2="12"></line>
-                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <span>Pronto para receber equipamentos</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rodapé e Botões de Ação */}
-                  <div className="space-card-actions-v2">
+                  {!isReadOnly && (
                     <button
                       type="button"
-                      className="btn-space-explore"
-                      onClick={() => setSelectedSpaceDetails(space)}
+                      className="btn-space-slim-icon"
+                      onClick={() => handleOpenAllocateModal(space.name)}
+                      title="Alocar equipamento"
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
                       </svg>
-                      <span>Ver Itens da Sala</span>
                     </button>
+                  )}
 
-                    {!isReadOnly && (
-                      <button
-                        type="button"
-                        className="btn-space-quick-icon"
-                        onClick={() => handleOpenAllocateModal(space.name)}
-                        title="Alocar equipamento nesta sala"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="12" y1="5" x2="12" y2="19"></line>
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                      </button>
-                    )}
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className="btn-space-slim-icon"
+                      onClick={(e) => handleOpenEditSpaceModal(space, e)}
+                      title="Editar Espaço"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  )}
 
-                    {!isReadOnly && (
-                      <button
-                        type="button"
-                        className="btn-space-quick-icon"
-                        onClick={(e) => handleOpenEditSpaceModal(space, e)}
-                        title="Editar Sala"
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {!isReadOnly && (
-                      <button
-                        type="button"
-                        className="btn-space-quick-icon danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirmSpace(space);
-                        }}
-                        title="Excluir Sala"
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className="btn-space-slim-icon danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirmSpace(space);
+                      }}
+                      title="Excluir Espaço"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             );
