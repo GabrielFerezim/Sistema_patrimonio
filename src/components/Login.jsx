@@ -127,14 +127,16 @@ export default function Login({ onLoginSuccess }) {
               src="/trynova_logo.png"
               alt="Trynova"
               style={{ maxHeight: '44px', maxWidth: '240px', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
             />
           </div>
-          <h1 className="login-title">Controle de Patrimônio</h1>
-          <p className="login-subtitle">Entre com suas credenciais de acesso corporativo</p>
+          <p className="login-subtitle">Sistema de Gestão & Controle de Patrimônio</p>
         </div>
 
         {error && (
-          <div className="login-error-banner" role="alert">
+          <div className="login-error-alert" role="alert">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
@@ -145,9 +147,9 @@ export default function Login({ onLoginSuccess }) {
         )}
 
         <form className="login-form" onSubmit={handleLoginSubmit}>
-          <div className="form-group">
+          <div className="login-form-group">
             <label htmlFor="username">Usuário ou E-mail</label>
-            <div className="input-icon-wrapper">
+            <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
@@ -165,9 +167,9 @@ export default function Login({ onLoginSuccess }) {
             </div>
           </div>
 
-          <div className="form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label htmlFor="password" style={{ marginBottom: 0 }}>Senha</label>
+          <div className="login-form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label htmlFor="password" style={{ margin: 0 }}>Senha de Acesso</label>
               <button
                 type="button"
                 className="btn-forgot-password"
@@ -182,7 +184,7 @@ export default function Login({ onLoginSuccess }) {
                 Esqueceu a senha?
               </button>
             </div>
-            <div className="input-icon-wrapper">
+            <div className="input-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -192,7 +194,7 @@ export default function Login({ onLoginSuccess }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Sua senha de acesso"
+                placeholder="Digite sua senha"
                 required
                 autoComplete="current-password"
               />
@@ -219,16 +221,13 @@ export default function Login({ onLoginSuccess }) {
 
           <button
             type="submit"
-            className="btn btn-primary btn-block btn-login"
+            className="login-btn"
             disabled={isLoading}
           >
             {isLoading ? (
-              <span className="btn-loading-content">
-                <span className="spinner-sm"></span>
-                <span>Entrando no sistema...</span>
-              </span>
+              <span className="login-spinner"></span>
             ) : (
-              <span>Entrar no Sistema</span>
+              'Acessar Sistema'
             )}
           </button>
         </form>
@@ -297,7 +296,7 @@ export default function Login({ onLoginSuccess }) {
             ) : (
               <form onSubmit={handleForgotSubmit} className="modal-form">
                 {forgotError && (
-                  <div className="login-error-banner" style={{ marginBottom: '1rem' }} role="alert">
+                  <div className="login-error-alert" style={{ marginBottom: '1rem' }} role="alert">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
