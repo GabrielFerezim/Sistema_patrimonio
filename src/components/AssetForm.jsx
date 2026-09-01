@@ -8,7 +8,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
     equipment: 'Notebook',
     tag: '',
     employee: '',
-    location: 'Tecnologia da Informação',
+    location: 'Estoque Central',
     status: 'Em Estoque',
     condition: 'Novo',
     serial_number: '',
@@ -19,6 +19,25 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
 
   const [errors, setErrors] = useState({});
 
+  // Setores padrão da empresa combinados com setores dos colaboradores
+  const defaultSectors = [
+    'Tecnologia da Informação',
+    'Recursos Humanos',
+    'Financeiro',
+    'Marketing',
+    'Vendas',
+    'Operações',
+    'Diretoria',
+    'Administração'
+  ];
+
+  const dynamicSectors = Array.from(
+    new Set([
+      ...defaultSectors,
+      ...employees.map(e => e.sector).filter(Boolean)
+    ])
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
   useEffect(() => {
     if (asset) {
       setFormData({
@@ -26,7 +45,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
         equipment: asset.equipment || 'Notebook',
         tag: asset.tag || '',
         employee: asset.employee || '',
-        location: asset.location || 'Tecnologia da Informação',
+        location: asset.location || 'Estoque Central',
         status: asset.status || 'Em Estoque',
         condition: asset.condition || 'Novo',
         serial_number: asset.serial_number || '',
@@ -44,7 +63,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
         .filter(n => !isNaN(n));
       const maxTagNum = numericTags.length > 0 ? Math.max(...numericTags) : existingTags.length;
       const nextTag = `PAT-${String(maxTagNum + 1).padStart(3, '0')}`;
-      setFormData(prev => ({ ...prev, tag: nextTag }));
+      setFormData(prev => ({ ...prev, tag: nextTag, location: 'Estoque Central', status: 'Em Estoque' }));
     }
   }, [asset, existingTags]);
 
@@ -61,19 +80,30 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // Se mudar status para fora de "Em Uso", limpa colaborador
-      if (name === 'status' && value !== 'Em Uso') {
-        updated.employee = '';
-      }
-
-      // Se selecionar uma sala/espaço Trynova e estiver em estoque, muda status para "Em Uso"
-      if (name === 'location' && isSpaceLocation(value)) {
-        if (updated.status === 'Em Estoque') {
-          updated.status = 'Em Uso';
+      // Se mudar status para fora de "Em Uso", limpa colaborador e se for para "Em Estoque" volta local para Estoque Central
+      if (name === 'status') {
+        if (value !== 'Em Uso') {
+          updated.employee = '';
+        }
+        if (value === 'Em Estoque' && prev.location !== 'Estoque Central') {
+          updated.location = 'Estoque Central';
         }
       }
 
-      // Se selecionar colaborador, define status como "Em Uso" e atualiza localização
+      // Se selecionar uma sala/espaço Trynova e estiver em estoque, muda status para "Em Uso"
+      if (name === 'location') {
+        if (isSpaceLocation(value)) {
+          if (updated.status === 'Em Estoque') {
+            updated.status = 'Em Uso';
+          }
+          updated.employee = '';
+        } else if (value === 'Estoque Central') {
+          updated.status = 'Em Estoque';
+          updated.employee = '';
+        }
+      }
+
+      // Se selecionar colaborador, define status como "Em Uso" e atualiza localização para o setor do colaborador
       if (name === 'employee' && value.trim() !== '') {
         if (prev.status !== 'Em Uso') {
           updated.status = 'Em Uso';
@@ -109,7 +139,9 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
       }
     }
 
-    if (!formData.location.trim()) newErrors.location = 'A localização é obrigatória.';
+    if (!formData.location || !formData.location.trim()) {
+      newErrors.location = 'Selecione a localização ou setor.';
+    }
     
     // Só exige colaborador se estiver "Em Uso" e NÃO for uma sala/espaço físico
     if (formData.status === 'Em Uso' && !formData.employee.trim() && !isSpaceLocation(formData.location)) {
@@ -137,6 +169,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
         id: isEdit ? asset.id : Date.now(),
         tag: formData.tag.trim().toUpperCase(),
         name: formData.name.trim(),
+        location: formData.location.trim(),
         employee: finalStatus === 'Em Uso' ? (formData.employee ? formData.employee.trim() : null) : null,
         serial_number: formData.serial_number ? formData.serial_number.trim() : null,
         value: formData.value ? parseFloat(formData.value) : null,
@@ -234,28 +267,46 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
 
             {/* Localização / Setor */}
             <div className="form-group">
-              <label htmlFor="location">Localização / Setor / Espaço *</label>
-              <input
-                type="text"
+              <label htmlFor="location">Localização / Setor *</label>
+              <select
                 id="location"
                 name="location"
-                list="location-options"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Ex: Sala de Reunião - 2º Andar, Estoque..."
                 className={errors.location ? 'input-error' : ''}
-              />
-              <datalist id="location-options">
-                <option value="Estoque Central" />
-                <option value="Tecnologia da Informação" />
-                <option value="Marketing" />
-                <option value="Vendas" />
-                <option value="Diretoria" />
-                <option value="Administração" />
-                {spaces.map(s => (
-                  <option key={s.id} value={s.name} />
-                ))}
-              </datalist>
+              >
+                <optgroup label="📦 Armazenamento">
+                  <option value="Estoque Central">Estoque Central</option>
+                </optgroup>
+
+                {spaces && spaces.length > 0 && (
+                  <optgroup label="🏢 Salas & Espaços Trynova">
+                    {spaces.map(s => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} ({s.floor})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+
+                <optgroup label="👥 Setores da Empresa">
+                  {dynamicSectors.map(sec => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
+                </optgroup>
+
+                {/* Localização personalizada (se houver vinda de dados anteriores) */}
+                {formData.location &&
+                  formData.location !== 'Estoque Central' &&
+                  !spaces.some(s => s.name === formData.location) &&
+                  !dynamicSectors.includes(formData.location) && (
+                    <optgroup label="📍 Local Atual">
+                      <option value={formData.location}>{formData.location}</option>
+                    </optgroup>
+                  )}
+              </select>
               {errors.location && <span className="error-text">{errors.location}</span>}
             </div>
 

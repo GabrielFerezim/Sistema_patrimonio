@@ -57,7 +57,7 @@ export async function gerarFichaManutencao(ticket, asset = null) {
       if (logoImg.complete && logoImg.naturalWidth > 0) {
         doc.addImage(logoImg, 'PNG', MARGIN, 10, 15, 15);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Título Principal
     doc.setFont('helvetica', 'bold');
@@ -116,13 +116,6 @@ export async function gerarFichaManutencao(ticket, asset = null) {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...COLORS.gray900);
     doc.text(employeeName, MARGIN + 76, cursorY + 16);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.gray700);
-    doc.text('Assistência:', MARGIN + 125, cursorY + 16);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.gray900);
-    doc.text(provider, MARGIN + 142, cursorY + 16);
 
     cursorY += 27;
 
@@ -308,7 +301,7 @@ export async function gerarFichaManutencao(ticket, asset = null) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
     doc.setTextColor(...COLORS.gray500);
-    doc.text('Trynova Tecnologia • Gestão de Ativos e Controle de Manutenção • Documento Oficial de Ordem de Serviço', PAGE_W / 2, PAGE_H - 7, { align: 'center' });
+    doc.text('Trynova • Gestão de Ativos e Controle de Manutenção • Documento Oficial de Ordem de Serviço', PAGE_W / 2, PAGE_H - 7, { align: 'center' });
 
     // Salva o PDF
     const filename = `Ficha_Tecnica_OS_${assetTag}_${ticketId}.pdf`;
