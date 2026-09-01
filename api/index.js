@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -190,15 +191,26 @@ async function initDb() {
       );
     `);
 
-    // Semeia usuário Admin principal Gabriel Ferezim se não existir
+    // Semeia usuário Admin principal com senha criptografada bcrypt se não existir
     try {
+      const adminPassHash = await bcrypt.hash('admin123', 10);
+      const mateusPassHash = await bcrypt.hash('mateus123', 10);
       await client.query(`
         INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
         VALUES 
-          ('Gabriel Ferezim', 'gabriel.ferezim@trynova.com.br', 'admin', 'admin123', 'Administrador', 'Tecnologia da Informação', 'Ativo', NOW()),
-          ('Mateus Silva', 'mateus.silva@trynova.com.br', 'mateus', 'mateus123', 'Operador', 'Suporte de T.I', 'Ativo', NOW())
+          ('Gabriel Ferezim', 'gabriel.ferezim@trynova.com.br', 'admin', $1, 'Administrador', 'Tecnologia da Informação', 'Ativo', NOW()),
+          ('Mateus Silva', 'mateus.silva@trynova.com.br', 'mateus', $2, 'Operador', 'Suporte de T.I', 'Ativo', NOW())
         ON CONFLICT (username) DO NOTHING;
-      `);
+      `, [adminPassHash, mateusPassHash]);
+
+      // Auto-migra qualquer senha existente em texto puro para bcrypt
+      const existingUsers = await client.query('SELECT id, password FROM system_users');
+      for (const u of existingUsers.rows) {
+        if (u.password && !u.password.startsWith('$2a$') && !u.password.startsWith('$2b$')) {
+          const hashed = await bcrypt.hash(u.password.trim(), 10);
+          await client.query('UPDATE system_users SET password = $1 WHERE id = $2', [hashed, u.id]);
+        }
+      }
     } catch (_) {}
 
     // Views analíticas para o Power BI
@@ -528,10 +540,15 @@ app.delete('/api/assets/:id', async (req, res) => {
 // ROTAS CRUD - FUNCIONÁRIOS (EMPLOYEES)
 // ==========================================
 
-// GET: Busca todos os funcionários
+// GET: Busca todos os funcionários (otimizado sem carregar base64 pesado)
 app.get('/api/employees', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM employees ORDER BY name ASC');
+    const result = await pool.query(`
+      SELECT id, name, sector, ramal, team, role, signed_term_name, signed_term_at, 
+             (signed_term IS NOT NULL AND signed_term != '') AS has_signed_term 
+      FROM employees 
+      ORDER BY name ASC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -549,7 +566,7 @@ app.post('/api/employees', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO employees (name, sector, ramal, team, role)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
+      RETURNING id, name, sector, ramal, team, role, signed_term_name, signed_term_at, (signed_term IS NOT NULL AND signed_term != '') AS has_signed_term
     `, [name.trim(), sector.trim(), ramal ? ramal.trim() : null, team ? team.trim() : 'Nenhuma', role ? role.trim() : null]);
 
     try {
@@ -593,7 +610,7 @@ app.put('/api/employees/:id', async (req, res) => {
       UPDATE employees 
       SET name = $1, sector = $2, ramal = $3, team = $4, role = $5
       WHERE id = $6
-      RETURNING *
+      RETURNING id, name, sector, ramal, team, role, signed_term_name, signed_term_at, (signed_term IS NOT NULL AND signed_term != '') AS has_signed_term
     `, [name.trim(), sector.trim(), ramal ? ramal.trim() : null, team ? team.trim() : 'Nenhuma', role ? role.trim() : null, id]);
     
     if (oldName !== name.trim()) {
@@ -1205,9 +1222,26 @@ app.post('/api/login', async (req, res) => {
     }
 
     if (user) {
-      if (String(user.password).trim() !== cleanPass) {
+      let isMatch = false;
+      const storedPass = String(user.password || '').trim();
+
+      if (storedPass.startsWith('$2a$') || storedPass.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(cleanPass, storedPass);
+      } else {
+        // Fallback e migração transparente de senha legada em texto puro
+        isMatch = storedPass === cleanPass;
+        if (isMatch) {
+          try {
+            const newHash = await bcrypt.hash(cleanPass, 10);
+            await pool.query('UPDATE system_users SET password = $1 WHERE id = $2', [newHash, user.id]);
+          } catch (_) {}
+        }
+      }
+
+      if (!isMatch) {
         return res.status(401).json({ error: 'Senha incorreta.' });
       }
+
       if (user.status !== 'Ativo') {
         return res.status(403).json({ error: 'Usuário desativado. Entre em contato com o Administrador.' });
       }
@@ -1222,23 +1256,6 @@ app.post('/api/login', async (req, res) => {
 
       const { password: _, ...userSafe } = user;
       return res.json(userSafe);
-    }
-
-    // Fallback Master Admin Gabriel Ferezim
-    if (
-      (cleanLogin === 'admin' || cleanLogin === 'gabriel.ferezim@trynova.com.br' || cleanLogin === 'gabriel' || cleanLogin === 'gabriel.ferezim') &&
-      (cleanPass === 'admin123' || cleanPass === 'admin')
-    ) {
-      return res.json({
-        id: 1,
-        username: 'admin',
-        name: 'Gabriel Ferezim',
-        email: 'gabriel.ferezim@trynova.com.br',
-        role: 'Administrador',
-        department: 'Tecnologia da Informação',
-        status: 'Ativo',
-        avatar: 'G'
-      });
     }
 
     return res.status(401).json({ error: 'Credenciais inválidas. Verifique seu usuário/e-mail e senha.' });
@@ -1261,7 +1278,7 @@ app.get('/api/users', async (req, res) => {
 
 // ==========================================
 // SERVIÇO DE ENVIO DE E-MAILS (SMTP)
-// POST: Cria novo usuário
+// POST: Cria novo usuário com senha criptografada bcrypt
 app.post('/api/users', async (req, res) => {
   const { name, email, username, password, role, department } = req.body;
   if (!name || !email || !username || !password) {
@@ -1276,11 +1293,13 @@ app.post('/api/users', async (req, res) => {
     const cleanRole = role || 'Operador';
     const cleanDept = department || 'Geral';
 
+    const hashedPassword = await bcrypt.hash(cleanPass, 10);
+
     const result = await pool.query(`
       INSERT INTO system_users (name, email, username, password, role, department, status)
       VALUES ($1, $2, $3, $4, $5, $6, 'Ativo')
       RETURNING id, name, email, username, role, department, status, last_login, created_at
-    `, [cleanName, cleanEmail, cleanUser, cleanPass, cleanRole, cleanDept]);
+    `, [cleanName, cleanEmail, cleanUser, hashedPassword, cleanRole, cleanDept]);
 
     const newUser = result.rows[0];
 
@@ -1326,8 +1345,9 @@ app.put('/api/users/:id', async (req, res) => {
     ];
 
     if (password && password.trim()) {
+      const hashedPassword = await bcrypt.hash(password.trim(), 10);
       query += `, password = $7 WHERE id = $8 RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at`;
-      params.push(password.trim(), id);
+      params.push(hashedPassword, id);
     } else {
       query += ` WHERE id = $7 RETURNING id, name, email, username, role, department, status, invite_sent_at, last_login, created_at`;
       params.push(id);

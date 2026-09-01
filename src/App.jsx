@@ -72,27 +72,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
 
-  // Auto-limpeza de dados mockados legados
-  useEffect(() => {
-    fetch('/api/purge-mock-data', { method: 'POST' }).catch(() => {});
-    const cleanStorage = (key, filterFn) => {
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            localStorage.setItem(key, JSON.stringify(parsed.filter(filterFn)));
-          }
-        }
-      } catch (_) {}
-    };
-    cleanStorage('trynova_patrimonio', a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || ''));
-    cleanStorage('trynova_employees', e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name));
-    cleanStorage('trynova_licenses', l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key));
-    cleanStorage('trynova_maintenances', m => m.asset_tag !== 'PAT-006');
-    cleanStorage('trynova_audit_logs', l => !l.description?.includes('PAT-001'));
-  }, []);
-
   // Filtros persistidos
   const [assetStatusFilter, setAssetStatusFilter] = useState('Todos');
   const [assetLocationFilter, setAssetLocationFilter] = useState('Todos');
@@ -161,7 +140,7 @@ export default function App() {
     }
   }, [user]);
 
-  // Carregamento de dados (com fallback automático offline)
+  // Carregamento de dados com fallback offline seguro
   const fetchAllData = useCallback(async () => {
     setIsLoading(true);
 
@@ -170,15 +149,13 @@ export default function App() {
       const resAssets = await fetch('/api/assets');
       if (resAssets.ok) {
         const data = await resAssets.json();
-        const clean = Array.isArray(data) ? data.filter(a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || '')) : [];
-        setAssets(clean);
-        localStorage.setItem('trynova_patrimonio', JSON.stringify(clean));
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setAssets(valid);
+        localStorage.setItem('trynova_patrimonio', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_patrimonio');
-      setAssets(saved ? JSON.parse(saved).filter(a => !/^PAT-00[1-9]|^PAT-01[0-5]/.test(a.tag || '')) : []);
+      if (saved) setAssets(JSON.parse(saved));
     }
 
     // 2. Employees
@@ -186,15 +163,13 @@ export default function App() {
       const resEmp = await fetch('/api/employees');
       if (resEmp.ok) {
         const data = await resEmp.json();
-        const clean = Array.isArray(data) ? data.filter(e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name)) : [];
-        setEmployees(clean);
-        localStorage.setItem('trynova_employees', JSON.stringify(clean));
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setEmployees(valid);
+        localStorage.setItem('trynova_employees', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_employees');
-      setEmployees(saved ? JSON.parse(saved).filter(e => !['Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt'].includes(e.name)) : []);
+      if (saved) setEmployees(JSON.parse(saved));
     }
 
     // 3. Maintenances
@@ -202,15 +177,13 @@ export default function App() {
       const resMaint = await fetch('/api/maintenances');
       if (resMaint.ok) {
         const data = await resMaint.json();
-        const clean = Array.isArray(data) ? data.filter(m => m.asset_tag !== 'PAT-006') : [];
-        setMaintenances(clean);
-        localStorage.setItem('trynova_maintenances', JSON.stringify(clean));
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setMaintenances(valid);
+        localStorage.setItem('trynova_maintenances', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_maintenances');
-      setMaintenances(saved ? JSON.parse(saved).filter(m => m.asset_tag !== 'PAT-006') : []);
+      if (saved) setMaintenances(JSON.parse(saved));
     }
 
     // 4. Audit Logs
@@ -218,15 +191,13 @@ export default function App() {
       const resLogs = await fetch('/api/audit-logs');
       if (resLogs.ok) {
         const data = await resLogs.json();
-        const clean = Array.isArray(data) ? data.filter(l => !l.description?.includes('PAT-001')) : [];
-        setAuditLogs(clean);
-        localStorage.setItem('trynova_audit_logs', JSON.stringify(clean));
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setAuditLogs(valid);
+        localStorage.setItem('trynova_audit_logs', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_audit_logs');
-      setAuditLogs(saved ? JSON.parse(saved).filter(l => !l.description?.includes('PAT-001')) : []);
+      if (saved) setAuditLogs(JSON.parse(saved));
     }
 
     // 5. Spaces / Ambientes Trynova
@@ -234,20 +205,13 @@ export default function App() {
       const resSpaces = await fetch('/api/spaces');
       if (resSpaces.ok) {
         const data = await resSpaces.json();
-        const validSpaces = Array.isArray(data) ? data : [];
-        setSpaces(validSpaces);
-        localStorage.setItem('trynova_spaces', JSON.stringify(validSpaces));
-      } else {
-        throw new Error('API spaces error');
+        const valid = Array.isArray(data) ? data : [];
+        setSpaces(valid);
+        localStorage.setItem('trynova_spaces', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_spaces');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) setSpaces(parsed);
-        } catch (_) {}
-      }
+      if (saved) setSpaces(JSON.parse(saved));
     }
 
     // 6. Licenses / Licenças de Software
@@ -255,15 +219,13 @@ export default function App() {
       const resLic = await fetch('/api/licenses');
       if (resLic.ok) {
         const data = await resLic.json();
-        const clean = Array.isArray(data) ? data.filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key)) : [];
-        setLicenses(clean);
-        localStorage.setItem('trynova_licenses', JSON.stringify(clean));
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setLicenses(valid);
+        localStorage.setItem('trynova_licenses', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_licenses');
-      setLicenses(saved ? JSON.parse(saved).filter(l => !['MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR'].includes(l.license_key)) : []);
+      if (saved) setLicenses(JSON.parse(saved));
     }
 
     // 7. Users / Usuários do Sistema
@@ -271,61 +233,13 @@ export default function App() {
       const resUsers = await fetch('/api/users');
       if (resUsers.ok) {
         const data = await resUsers.json();
-        try {
-          const oldSaved = JSON.parse(localStorage.getItem('trynova_users') || '[]');
-          const dbIds = new Set(data.map(u => u.id));
-          const dbUsernames = new Set(data.map(u => u.username?.toLowerCase()));
-          const localOnly = oldSaved.filter(o => !dbIds.has(o.id) && !dbUsernames.has(o.username?.toLowerCase()));
-          const merged = [
-            ...data.map(u => {
-              const match = oldSaved.find(o => o.id === u.id || o.username?.toLowerCase() === u.username?.toLowerCase() || o.email?.toLowerCase() === u.email?.toLowerCase());
-              return (match && match.password) ? { ...u, password: match.password } : u;
-            }),
-            ...localOnly
-          ];
-          setUsers(merged);
-          localStorage.setItem('trynova_users', JSON.stringify(merged));
-        } catch (_) {
-          setUsers(data);
-          localStorage.setItem('trynova_users', JSON.stringify(data));
-        }
-      } else {
-        throw new Error();
+        const valid = Array.isArray(data) ? data : [];
+        setUsers(valid);
+        localStorage.setItem('trynova_users', JSON.stringify(valid));
       }
     } catch {
       const saved = localStorage.getItem('trynova_users');
-      if (saved) {
-        try {
-          setUsers(JSON.parse(saved));
-        } catch (_) {}
-      } else {
-        const initialU = [
-          {
-            id: 1,
-            name: 'Gabriel Ferezim',
-            email: 'gabriel.ferezim@trynova.com.br',
-            username: 'admin',
-            password: 'admin123',
-            role: 'Administrador',
-            department: 'Tecnologia da Informação',
-            status: 'Ativo',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 2,
-            name: 'Mateus Silva',
-            email: 'mateus.silva@trynova.com.br',
-            username: 'mateus',
-            password: 'mateus123',
-            role: 'Operador',
-            department: 'Suporte de T.I',
-            status: 'Ativo',
-            created_at: new Date().toISOString()
-          }
-        ];
-        setUsers(initialU);
-        localStorage.setItem('trynova_users', JSON.stringify(initialU));
-      }
+      if (saved) setUsers(JSON.parse(saved));
     } finally {
       setIsLoading(false);
     }

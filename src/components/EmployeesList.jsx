@@ -156,12 +156,35 @@ export default function EmployeesList({
     });
   };
 
-  const handleDownloadSignedTerm = (empId) => {
-    const t = termData[empId];
+  const handleDownloadSignedTerm = async (empId) => {
+    let t = termData[empId];
+    if (!t || !t.signed_term) {
+      try {
+        const res = await fetch(`/api/employees/${empId}/term`);
+        if (res.ok) {
+          const data = await res.json();
+          t = {
+            ...t,
+            signed_term: data.signed_term,
+            signed_term_name: data.signed_term_name || t?.signed_term_name,
+            signed_term_at: data.signed_term_at || t?.signed_term_at
+          };
+          setTermData(prev => ({ ...prev, [empId]: t }));
+        } else {
+          alert('Nenhum arquivo de termo encontrado.');
+          return;
+        }
+      } catch {
+        alert('Erro ao carregar termo assinado do servidor.');
+        return;
+      }
+    }
+
     if (!t || !t.signed_term) {
       alert('Nenhum termo em anexo encontrado.');
       return;
     }
+
     const link = document.createElement('a');
     link.href = t.signed_term;
     link.download = t.signed_term_name || 'termo_assinado.pdf';
