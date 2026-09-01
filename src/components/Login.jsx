@@ -7,13 +7,15 @@ export default function Login({ onLoginSuccess }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Modal Esqueci Senha
+  // Modal Esqueci Minha Senha
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [tempPasswordResult, setTempPasswordResult] = useState('');
   const [isForgotLoading, setIsForgotLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError('Por favor, informe seu usuário ou e-mail e sua senha de acesso.');
@@ -72,9 +74,10 @@ export default function Login({ onLoginSuccess }) {
           status: 'Ativo',
           avatar: 'G'
         });
-      } else {
-        setError(err.message || 'Erro ao autenticar. Verifique seu usuário e senha.');
+        return;
       }
+
+      setError(err.message || 'Erro ao autenticar. Verifique seu usuário e senha.');
     } finally {
       setIsLoading(false);
     }
@@ -86,16 +89,27 @@ export default function Login({ onLoginSuccess }) {
 
     setIsForgotLoading(true);
     setForgotMessage('');
+    setForgotError('');
+    setTempPasswordResult('');
 
     try {
-      await fetch('/api/forgot-password', {
+      const res = await fetch('/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail.trim() })
       });
-      setForgotMessage(`Se o e-mail ${forgotEmail} estiver cadastrado, as orientações de recuperação foram enviadas.`);
-    } catch (_) {
-      setForgotMessage(`Se o e-mail ${forgotEmail} estiver cadastrado, as orientações de recuperação foram enviadas.`);
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setForgotMessage(data.message || `Instruções enviadas para ${forgotEmail}!`);
+        if (data.tempPassword) {
+          setTempPasswordResult(data.tempPassword);
+        }
+      } else {
+        setForgotError(data.error || 'Nenhum usuário encontrado com o e-mail informado.');
+      }
+    } catch (err) {
+      setForgotError('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
     } finally {
       setIsForgotLoading(false);
     }
@@ -113,109 +127,108 @@ export default function Login({ onLoginSuccess }) {
               src="/trynova_logo.png"
               alt="Trynova"
               style={{ maxHeight: '44px', maxWidth: '240px', objectFit: 'contain' }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-                const fb = document.getElementById('login-brand-fallback');
-                if (fb) fb.style.display = 'flex';
-              }}
             />
-            <div id="login-brand-fallback" style={{ display: 'none', alignItems: 'center', gap: '0.6rem' }}>
-              <div className="login-logo-icon">T</div>
-              <span className="brand-text">TRYNOVA</span>
-            </div>
           </div>
-          <p className="login-subtitle">Sistema de Gestão & Controle de Patrimônio</p>
+          <h1 className="login-title">Controle de Patrimônio</h1>
+          <p className="login-subtitle">Entre com suas credenciais de acesso corporativo</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && (
-            <div className="login-error-alert">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <span>{error}</span>
-            </div>
-          )}
+        {error && (
+          <div className="login-error-banner" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
 
-          <div className="login-form-group">
-            <label htmlFor="username">Usuário ou E-mail Corporativo</label>
-            <div className="input-wrapper">
+        <form className="login-form" onSubmit={handleLoginSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">Usuário ou E-mail</label>
+            <div className="input-icon-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
               </svg>
               <input
-                type="text"
                 id="username"
-                placeholder="Ex: admin ou seu.email@trynova.com.br"
+                type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
-                autoComplete="username"
+                placeholder="Seu usuário ou e-mail"
                 required
+                autoFocus
+                autoComplete="username"
               />
             </div>
           </div>
 
-          <div className="login-form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <label htmlFor="password" style={{ margin: 0 }}>Senha de Acesso</label>
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label htmlFor="password" style={{ marginBottom: 0 }}>Senha</label>
               <button
                 type="button"
+                className="btn-forgot-password"
                 onClick={() => {
                   setForgotEmail(username.includes('@') ? username : '');
                   setForgotMessage('');
+                  setForgotError('');
+                  setTempPasswordResult('');
                   setIsForgotModalOpen(true);
                 }}
-                style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', padding: 0 }}
               >
                 Esqueceu a senha?
               </button>
             </div>
-            <div className="input-wrapper">
+            <div className="input-icon-wrapper">
               <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <input
-                type={showPassword ? 'text' : 'password'}
                 id="password"
-                placeholder="Digite sua senha"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                autoComplete="current-password"
+                placeholder="Sua senha de acesso"
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
                 className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                tabIndex="-1"
-                aria-label={showPassword ? 'Esconder senha' : 'Exibir senha'}
+                title={showPassword ? 'Ocultar Senha' : 'Ver Senha'}
               >
                 {showPassword ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
                 ) : (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
                 )}
               </button>
             </div>
           </div>
 
-          <button type="submit" className="login-btn" disabled={isLoading}>
+          <button
+            type="submit"
+            className="btn btn-primary btn-block btn-login"
+            disabled={isLoading}
+          >
             {isLoading ? (
-              <span className="login-spinner"></span>
+              <span className="btn-loading-content">
+                <span className="spinner-sm"></span>
+                <span>Entrando no sistema...</span>
+              </span>
             ) : (
-              'Acessar Sistema'
+              <span>Entrar no Sistema</span>
             )}
           </button>
         </form>
@@ -245,20 +258,55 @@ export default function Login({ onLoginSuccess }) {
                     <polyline points="22,6 12,13 2,6"></polyline>
                   </svg>
                 </div>
-                <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: '1.5', marginBottom: '1rem' }}>
                   {forgotMessage}
                 </p>
+
+                {tempPasswordResult && (
+                  <div style={{
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.85rem 1rem',
+                    marginBottom: '1.25rem',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>
+                      Sua nova senha temporária:
+                    </span>
+                    <code style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary-light)', letterSpacing: '1.5px' }}>
+                      {tempPasswordResult}
+                    </code>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ marginTop: '1.25rem', width: '100%' }}
-                  onClick={() => setIsForgotModalOpen(false)}
+                  style={{ width: '100%' }}
+                  onClick={() => {
+                    if (tempPasswordResult) {
+                      setPassword(tempPasswordResult);
+                    }
+                    setIsForgotModalOpen(false);
+                  }}
                 >
-                  Voltar ao Login
+                  {tempPasswordResult ? 'Preencher Senha & Entrar' : 'Voltar ao Login'}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleForgotSubmit} className="modal-form">
+                {forgotError && (
+                  <div className="login-error-banner" style={{ marginBottom: '1rem' }} role="alert">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label htmlFor="forgot-email">E-mail Cadastrado</label>
                   <input

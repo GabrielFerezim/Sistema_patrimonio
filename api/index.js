@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 
 dotenv.config();
 
@@ -1402,28 +1403,148 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// Helper para envio de e-mails de recuperação via SMTP
+async function sendPasswordResetEmail(toEmail, userName, userLogin, tempPassword) {
+  const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587', 10);
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || `"Trynova Patrimônio" <${user || 'suporte@trynova.com.br'}>`;
+  const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+
+  if (!host || !user || !pass) {
+    console.warn(`[SMTP] Variáveis de e-mail não configuradas no .env (SMTP_HOST, SMTP_USER, SMTP_PASS). Senha temporária para ${toEmail}: ${tempPassword}`);
+    return {
+      sent: false,
+      reason: 'SMTP_NOT_CONFIGURED',
+      message: 'Servidor SMTP não configurado nas variáveis de ambiente (.env).'
+    };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: isSecure,
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
+        .container { max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .header { background-color: #1e3a8a; padding: 24px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .content { padding: 28px 24px; color: #334155; line-height: 1.6; font-size: 14px; }
+        .pwd-box { background-color: #f1f5f9; border: 1.5px dashed #3b82f6; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+        .pwd-code { font-family: 'Courier New', monospace; font-size: 24px; font-weight: 800; color: #1e3a8a; letter-spacing: 3px; }
+        .footer { background-color: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>TRYNOVA PATRIMÔNIO</h1>
+        </div>
+        <div class="content">
+          <p>Olá, <strong>${userName}</strong>,</p>
+          <p>Recebemos uma solicitação de recuperação de senha para a sua conta (Usuário: <code>${userLogin}</code>).</p>
+          <p>Sua nova <strong>senha temporária</strong> para acessar o sistema é:</p>
+          <div class="pwd-box">
+            <span class="pwd-code">${tempPassword}</span>
+          </div>
+          <p>Use esta senha para entrar no sistema. Por segurança, altere sua senha no seu primeiro login após o acesso.</p>
+        </div>
+        <div class="footer">
+          Trynova Tecnologia • Sistema de Gestão Patrimonial<br>
+          Se você não solicitou esta redefinição, entre em contato com o suporte de T.I.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await transporter.sendMail({
+    from,
+    to: toEmail,
+    subject: 'Sua Nova Senha de Acesso - Trynova Patrimônio',
+    text: `Olá, ${userName}!\n\nSua nova senha temporária de acesso ao Sistema de Patrimônio Trynova é: ${tempPassword}\n\nUsuário: ${userLogin}\n\nAcesse o sistema e altere sua senha.`,
+    html: htmlContent
+  });
+
+  return { sent: true };
+}
+
 // POST: Recuperação de Senha
 app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
-  if (!email) {
+  if (!email || !email.trim()) {
     return res.status(400).json({ error: 'Informe seu e-mail cadastrado.' });
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+
   try {
-    const result = await pool.query('SELECT * FROM system_users WHERE LOWER(email) = $1', [email.trim().toLowerCase()]);
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
-      try {
-        await pool.query(`
-          INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
-          VALUES ('NOTIFICACAO', $1, 'USUARIO', $2)
-        `, [`Solicitação de recuperação de senha enviada para ${user.email}`, String(user.id)]);
-      } catch (_) {}
+    const result = await pool.query('SELECT * FROM system_users WHERE LOWER(email) = $1', [cleanEmail]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nenhum usuário encontrado com o e-mail informado.' });
     }
-    res.json({ success: true, message: 'Se o e-mail informado estiver cadastrado, as instruções de redefinição foram enviadas.' });
+
+    const user = result.rows[0];
+
+    // Gera uma senha temporária segura (ex: Tryn@84920)
+    const randomDigits = Math.floor(10000 + Math.random() * 90000);
+    const tempPassword = `Tryn@${randomDigits}`;
+
+    // Hash da nova senha com bcrypt
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Atualiza a senha no banco de dados
+    await pool.query('UPDATE system_users SET password = $1 WHERE id = $2', [hashedPassword, user.id]);
+
+    // Registra no log de auditoria
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('ATUALIZACAO', $1, 'USUARIO', $2)
+      `, [`Redefinição de senha processada para ${user.email} (${user.username})`, String(user.id)]);
+    } catch (_) {}
+
+    // Envia o e-mail via SMTP
+    try {
+      const emailResult = await sendPasswordResetEmail(user.email, user.name || user.username, user.username, tempPassword);
+      if (emailResult.sent) {
+        return res.json({
+          success: true,
+          emailSent: true,
+          message: `E-mail enviado com sucesso para ${user.email}! Verifique sua caixa de entrada e spam.`
+        });
+      } else {
+        return res.json({
+          success: true,
+          emailSent: false,
+          tempPassword,
+          message: `Nova senha gerada: ${tempPassword}. (Para envio automático por e-mail, configure as variáveis SMTP no .env).`
+        });
+      }
+    } catch (mailErr) {
+      console.error('Erro ao enviar e-mail via SMTP:', mailErr);
+      return res.json({
+        success: true,
+        emailSent: false,
+        tempPassword,
+        message: `Senha temporária gerada: ${tempPassword}. (Falha no envio do e-mail SMTP: ${mailErr.message})`
+      });
+    }
   } catch (err) {
-    console.error(err);
-    res.json({ success: true, message: 'Se o e-mail informado estiver cadastrado, as instruções de redefinição foram enviadas.' });
+    console.error('Erro na rota /api/forgot-password:', err);
+    res.status(500).json({ error: 'Erro interno ao processar recuperação de senha.' });
   }
 });
 
