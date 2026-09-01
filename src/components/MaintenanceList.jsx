@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { gerarFichaManutencao } from '../utils/gerarFichaManutencao';
 
 export default function MaintenanceList({
   maintenances = [],
@@ -22,6 +23,12 @@ export default function MaintenanceList({
   const [provider, setProvider] = useState('');
   const [expectedReturn, setExpectedReturn] = useState('');
   const [ticketNotes, setTicketNotes] = useState('');
+
+  // Modal de Ficha Técnica Avulsa
+  const [isFichaAvulsaModalOpen, setIsFichaAvulsaModalOpen] = useState(false);
+  const [fichaAssetTag, setFichaAssetTag] = useState('');
+  const [fichaProvider, setFichaProvider] = useState('');
+  const [fichaIssue, setFichaIssue] = useState('');
 
   // Modal de finalização de chamado
   const [closingTicket, setClosingTicket] = useState(null);
@@ -86,6 +93,30 @@ export default function MaintenanceList({
     setClosingTicket(null);
   };
 
+  const handleDownloadTicketFicha = (ticket) => {
+    const assetObj = assets.find(a => a.tag === ticket.asset_tag || a.id === ticket.asset_id);
+    gerarFichaManutencao(ticket, assetObj);
+  };
+
+  const handleGenerateFichaAvulsaSubmit = (e) => {
+    e.preventDefault();
+    const assetObj = assets.find(a => a.tag === fichaAssetTag);
+    if (!assetObj) {
+      alert('Selecione um patrimônio para gerar a ficha técnica.');
+      return;
+    }
+    gerarFichaManutencao({
+      id: 'AVULSO',
+      asset_tag: assetObj.tag,
+      asset_name: assetObj.name,
+      provider: fichaProvider.trim() || 'Assistência Técnica Especializada',
+      issue_description: fichaIssue.trim() || 'Diagnóstico técnico e reparos gerais',
+      employee_name: assetObj.employee || 'Estoque Central',
+      status: assetObj.status
+    }, assetObj);
+    setIsFichaAvulsaModalOpen(false);
+  };
+
   // Filtra manutenções
   const filteredMaintenances = maintenances.filter(m => {
     const matchesSearch =
@@ -124,8 +155,28 @@ export default function MaintenanceList({
           <h1 className="page-title">Controle de Manutenção</h1>
           <p className="page-subtitle">Gerencie os reparos, ordens de serviço e assistência técnica de equipamentos</p>
         </div>
-        {!isReadOnly && (
-          <div className="page-header-actions">
+        <div className="page-header-actions">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setFichaAssetTag(assets.length > 0 ? assets[0].tag : '');
+              setFichaProvider('');
+              setFichaIssue('');
+              setIsFichaAvulsaModalOpen(true);
+            }}
+            title="Gerar Ficha Técnica / OS avulsa em PDF com checklist para o técnico"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span>Ficha Técnica Avulsa</span>
+          </button>
+
+          {!isReadOnly && (
             <button type="button" className="btn btn-primary btn-sm" onClick={openCreateModal}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -133,8 +184,8 @@ export default function MaintenanceList({
               </svg>
               <span>Abrir Chamado</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       {/* Grade de KPIs Resumidos */}
@@ -256,6 +307,22 @@ export default function MaintenanceList({
                     </td>
                     <td className="actions-cell">
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => handleDownloadTicketFicha(ticket)}
+                          title="Baixar Ficha Técnica / OS em PDF para o técnico assinalar"
+                          style={{ padding: '0.35rem 0.55rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                          </svg>
+                          <span>Ficha</span>
+                        </button>
+
                         {!isReadOnly && ticket.status === 'Em Aberto' ? (
                           <button
                             className="btn btn-sm btn-primary"
@@ -385,6 +452,82 @@ export default function MaintenanceList({
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Registrar Envio
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Ficha Técnica Avulsa */}
+      {isFichaAvulsaModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2>Gerar Ficha Técnica / OS Avulsa</h2>
+              <button className="modal-close-btn" onClick={() => setIsFichaAvulsaModalOpen(false)} aria-label="Fechar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <form onSubmit={handleGenerateFichaAvulsaSubmit} className="modal-form">
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-medium)', marginBottom: '1.25rem' }}>
+                Gere o documento oficial em PDF com o checklist de diagnóstico e campos para o técnico assinalar e preencher a ficha técnica.
+              </p>
+
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label htmlFor="ficha-asset">Patrimônio *</label>
+                  <select
+                    id="ficha-asset"
+                    value={fichaAssetTag}
+                    onChange={(e) => setFichaAssetTag(e.target.value)}
+                    required
+                  >
+                    {assets.map(a => (
+                      <option key={a.id} value={a.tag}>
+                        #{a.tag} - {a.name} ({a.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="ficha-provider">Assistência Técnica / Prestador</label>
+                  <input
+                    type="text"
+                    id="ficha-provider"
+                    value={fichaProvider}
+                    onChange={(e) => setFichaProvider(e.target.value)}
+                    placeholder="Ex: Oficina do Notebook, Suporte Autorizado..."
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="ficha-issue">Defeito Inicial / Observação</label>
+                  <textarea
+                    id="ficha-issue"
+                    rows="3"
+                    value={fichaIssue}
+                    onChange={(e) => setFichaIssue(e.target.value)}
+                    placeholder="Ex: Tela trincada após queda, teclado com teclas falhando, não liga..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsFichaAvulsaModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  <span>Baixar PDF da Ficha</span>
                 </button>
               </footer>
             </form>
