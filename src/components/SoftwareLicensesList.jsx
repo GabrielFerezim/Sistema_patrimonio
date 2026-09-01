@@ -18,12 +18,12 @@ export default function SoftwareLicensesList({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [statusFilter, setStatusFilter] = useState('Todos'); // 'Todos' | 'Disponível' | 'Esgotado' | 'Vencendo'
-  
+
   // Modais
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLicense, setEditingLicense] = useState(null);
   const [assigningLicense, setAssigningLicense] = useState(null);
-  
+
   // Estado para visibilidade de chaves (ID da licença -> boolean)
   const [revealedKeys, setRevealedKeys] = useState({});
   const [copiedKeyId, setCopiedKeyId] = useState(null);
@@ -59,7 +59,7 @@ export default function SoftwareLicensesList({
 
   // Categorias disponíveis
   const defaultCategories = ['Todos', 'Produtividade', 'Design & Criação', 'Sistema Operacional', 'Engenharia / Projetos', 'Segurança', 'Nuvem / Infra', 'Outros'];
-  
+
   const allCategories = useMemo(() => {
     const fromData = licenses.map(l => l.category).filter(Boolean);
     const merged = ['Todos', ...new Set([...defaultCategories.filter(c => c !== 'Todos'), ...fromData])];
@@ -301,6 +301,7 @@ export default function SoftwareLicensesList({
               </svg>
               <span>Nova Licença</span>
             </button>
+
           )}
         </div>
       </header>
@@ -456,8 +457,8 @@ export default function SoftwareLicensesList({
           <span className="filter-label">Categorias:</span>
           <div className="status-chips">
             {allCategories.map(cat => {
-              const count = cat === 'Todos' 
-                ? licenses.length 
+              const count = cat === 'Todos'
+                ? licenses.length
                 : licenses.filter(l => l.category?.toLowerCase() === cat.toLowerCase()).length;
 
               return (
@@ -968,7 +969,7 @@ export default function SoftwareLicensesList({
           {(!searchTerm && selectedCategory === 'Todos' && statusFilter === 'Todos') && (
             <div style={{ width: '100%', maxWidth: '780px', borderTop: '1px solid var(--border-color)', paddingTop: '1.75rem' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
-                💡 Ou cadastre com 1 clique usando um modelo rápido:
+                Ou cadastre com 1 clique usando um modelo rápido:
               </div>
 
               <div style={{
@@ -1009,7 +1010,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>💼</span> Microsoft 365 Business
+                    Microsoft 365 Business
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Office, Teams e 1TB Nuvem
@@ -1048,7 +1049,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>🎨</span> Adobe Creative Cloud
+                    Adobe Creative Cloud
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Design, Photoshop e Vídeo
@@ -1087,7 +1088,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>🪟</span> Windows 11 Pro OEM
+                    Windows 11 Pro OEM
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Licenças Perpétuas / OEM
@@ -1126,7 +1127,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>📐</span> AutoCAD Architecture
+                    AutoCAD Architecture
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Engenharia e Plantas
@@ -1165,7 +1166,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>🛡️</span> Antivírus & Segurança
+                    Antivírus & Segurança
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Proteção Endpoint e EDR
@@ -1204,7 +1205,7 @@ export default function SoftwareLicensesList({
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span>☁️</span> Google Workspace
+                    Google Workspace
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Gmail, Drive e Meet

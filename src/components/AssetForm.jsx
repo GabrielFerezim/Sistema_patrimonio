@@ -275,12 +275,12 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
                 onChange={handleChange}
                 className={errors.location ? 'input-error' : ''}
               >
-                <optgroup label="📦 Armazenamento">
+                <optgroup label="Armazenamento">
                   <option value="Estoque Central">Estoque Central</option>
                 </optgroup>
 
                 {spaces && spaces.length > 0 && (
-                  <optgroup label="🏢 Salas & Espaços Trynova">
+                  <optgroup label="Salas e Espaços Trynova">
                     {spaces.map(s => (
                       <option key={s.id} value={s.name}>
                         {s.name} ({s.floor})
@@ -289,7 +289,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
                   </optgroup>
                 )}
 
-                <optgroup label="👥 Setores da Empresa">
+                <optgroup label="Setores da Empresa">
                   {dynamicSectors.map(sec => (
                     <option key={sec} value={sec}>
                       {sec}
@@ -302,7 +302,7 @@ export default function AssetForm({ asset, onSave, onClose, existingTags = [], e
                   formData.location !== 'Estoque Central' &&
                   !spaces.some(s => s.name === formData.location) &&
                   !dynamicSectors.includes(formData.location) && (
-                    <optgroup label="📍 Local Atual">
+                    <optgroup label="Local Atual">
                       <option value={formData.location}>{formData.location}</option>
                     </optgroup>
                   )}

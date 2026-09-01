@@ -131,12 +131,12 @@ export default function UsersList({
   // Copiar dados do usuário
   const handleCopyCredentials = (user) => {
     const textToCopy = `*TRYNOVA - Credenciais de Acesso ao Sistema de Patrimônio*\n\n` +
-      `👤 *Nome:* ${user.name}\n` +
-      `📧 *E-mail:* ${user.email}\n` +
-      `🔑 *Usuário:* ${user.username}\n` +
-      `🔒 *Senha:* ${user.password || 'Sua senha cadastrada'}\n` +
-      `🛡️ *Perfil:* ${user.role}\n` +
-      `🌐 *Link de Acesso:* ${window.location.origin}\n\n` +
+      `*Nome:* ${user.name}\n` +
+      `*E-mail:* ${user.email}\n` +
+      `*Usuário:* ${user.username}\n` +
+      `*Senha:* ${user.password || 'Sua senha cadastrada'}\n` +
+      `*Perfil:* ${user.role}\n` +
+      `*Link de Acesso:* ${window.location.origin}\n\n` +
       `_Acesse o sistema com seu usuário e senha._`;
 
     navigator.clipboard.writeText(textToCopy);
@@ -585,7 +585,7 @@ export default function UsersList({
                       onClick={generateSecurePassword}
                       style={{ fontSize: '0.72rem', padding: '2px 8px' }}
                     >
-                      ⚡ Gerar Senha Segura
+                      Gerar Senha Segura
                     </button>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -600,12 +600,12 @@ export default function UsersList({
                     />
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn btn-secondary btn-sm"
                       onClick={() => setShowPassword(!showPassword)}
                       title={showPassword ? 'Ocultar Senha' : 'Ver Senha'}
-                      style={{ padding: '0.45rem 0.75rem' }}
+                      style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem' }}
                     >
-                      {showPassword ? '🙈' : '👁️'}
+                      {showPassword ? 'Ocultar' : 'Ver'}
                     </button>
                   </div>
                 </div>
@@ -630,7 +630,6 @@ export default function UsersList({
           <div className="modal-content" style={{ maxWidth: '520px' }}>
             <header className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.4rem' }}>✅</span>
                 <h2>Usuário Criado com Sucesso!</h2>
               </div>
               <button className="modal-close-btn" onClick={() => setCreatedUserCredentials(null)} aria-label="Fechar">
@@ -666,7 +665,7 @@ export default function UsersList({
                 className="btn btn-primary btn-sm"
                 onClick={() => handleCopyCredentials(createdUserCredentials)}
               >
-                {copySuccess ? '✓ Copiado!' : '📋 Copiar Credenciais'}
+                {copySuccess ? 'Copiado!' : 'Copiar Credenciais'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => setCreatedUserCredentials(null)}>
                 Concluir
@@ -679,7 +678,7 @@ export default function UsersList({
       {/* MODAL: EDITAR USUÁRIO */}
       {editingUser && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '580px' }}>
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
             <header className="modal-header">
               <h2>Editar Usuário: {editingUser.name}</h2>
               <button className="modal-close-btn" onClick={() => setEditingUser(null)} aria-label="Fechar">
@@ -729,16 +728,16 @@ export default function UsersList({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="edit-user-role">Perfil de Acesso *</label>
+                  <label htmlFor="edit-user-role">Nível de Acesso *</label>
                   <select
                     id="edit-user-role"
                     value={formRole}
                     onChange={(e) => setFormRole(e.target.value)}
+                    disabled={editingUser.username === 'admin'}
                   >
-                    <option value="Administrador">Administrador (Acesso Total)</option>
-                    <option value="Operador">Operador / Técnico (Gestão e Cadastros)</option>
-                    <option value="Recursos Humanos">Recursos Humanos (Colaboradores e Termos)</option>
-                    <option value="Visualizador">Visualizador (Apenas Consulta)</option>
+                    <option value="Administrador">Administrador (Total)</option>
+                    <option value="Operador">Operador (Edição e Controle)</option>
+                    <option value="Visualizador">Visualizador (Somente Leitura)</option>
                   </select>
                 </div>
 
@@ -763,7 +762,7 @@ export default function UsersList({
                       onClick={generateSecurePassword}
                       style={{ fontSize: '0.72rem', padding: '2px 8px' }}
                     >
-                      ⚡ Gerar Nova Senha
+                      Gerar Nova Senha
                     </button>
                   </div>
                   <input

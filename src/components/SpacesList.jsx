@@ -252,20 +252,7 @@ export default function SpacesList({
     }
   };
 
-  const getEquipmentCategoryIcon = (eqType) => {
-    const eq = (eqType || '').toLowerCase();
-    if (eq.includes('notebook') || eq.includes('laptop')) return '💻';
-    if (eq.includes('desktop') || eq.includes('computador') || eq.includes('pc')) return '🖥️';
-    if (eq.includes('monitor') || eq.includes('tela')) return '📺';
-    if (eq.includes('teclado') || eq.includes('mouse')) return '⌨️';
-    if (eq.includes('celular') || eq.includes('smartphone') || eq.includes('telefone')) return '📱';
-    if (eq.includes('cadeira')) return '🪑';
-    if (eq.includes('impressora')) return '🖨️';
-    if (eq.includes('servidor') || eq.includes('rede') || eq.includes('switch') || eq.includes('roteador')) return '🗄️';
-    if (eq.includes('tv') || eq.includes('projetor')) return '📽️';
-    if (eq.includes('ar') || eq.includes('climatizador')) return '❄️';
-    return '📦';
-  };
+  const getEquipmentCategoryIcon = () => '';
 
   return (
     <div className="spaces-list-container">
