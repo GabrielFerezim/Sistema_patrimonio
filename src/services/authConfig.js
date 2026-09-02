@@ -54,3 +54,16 @@ export const loginWithMicrosoftRedirect = async () => {
   await initializeMsal();
   await msalInstance.loginRedirect(loginRequest);
 };
+
+/**
+ * Limpa contas e tokens do MSAL ao realizar logout
+ */
+export const logoutMsal = async () => {
+  try {
+    sessionStorage.clear();
+    const accounts = msalInstance.getAllAccounts();
+    for (const account of accounts) {
+      await msalInstance.clearCache().catch(() => {});
+    }
+  } catch (_) {}
+};

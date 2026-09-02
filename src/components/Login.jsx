@@ -22,9 +22,27 @@ export default function Login({ onLoginSuccess }) {
   useEffect(() => {
     let isMounted = true;
 
+    // Só processa retorno de autenticação se houver tokens/código na URL
+    const hasAuthParams =
+      typeof window !== 'undefined' &&
+      (window.location.hash.includes('code=') ||
+        window.location.hash.includes('error=') ||
+        window.location.search.includes('code=') ||
+        window.location.search.includes('error='));
+
+    if (!hasAuthParams) {
+      return;
+    }
+
     const processRedirect = async () => {
       try {
         const response = await initializeMsal();
+
+        // Limpa a URL imediatamente para não re-executar após logout
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
         if (response && response.account && isMounted) {
           setIsMicrosoftLoading(true);
           setError('');

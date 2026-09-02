@@ -12,6 +12,7 @@ import SoftwareLicensesList from './components/SoftwareLicensesList';
 import AuditLogView from './components/AuditLogView';
 import UsersList from './components/UsersList';
 import Login from './components/Login';
+import { logoutMsal } from './services/authConfig';
 import './App.css';
 
 // Constantes limpas para início em produção sem dados mockados
@@ -1217,10 +1218,16 @@ export default function App() {
     addToast(`Bem-vindo de volta, ${userData.name || 'Usuário'}!`, 'success');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm('Tem certeza de que deseja sair do sistema?')) {
-      sessionStorage.removeItem('trynova_session');
+      sessionStorage.clear();
       localStorage.removeItem('trynova_session');
+      try {
+        await logoutMsal();
+      } catch (_) {}
+      if (typeof window !== 'undefined' && window.history) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       setUser(null);
       setIsLoggedIn(false);
       addToast('Sessão encerrada com segurança.', 'info');
