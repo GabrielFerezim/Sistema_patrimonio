@@ -97,13 +97,16 @@ export default function App() {
     return session ? JSON.parse(session) : null;
   });
 
-  // Gerenciador de Toasts
+  // Gerenciador de Toasts (com deduplicação automática)
   const addToast = useCallback((message, type = 'info', title = '') => {
-    const id = Date.now() + Math.random().toString(36).substring(2, 9);
-    setToasts(prev => [...prev, { id, message, type, title }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4500);
+    setToasts(prev => {
+      if (prev.some(t => t.message === message)) return prev;
+      const id = Date.now() + Math.random().toString(36).substring(2, 9);
+      setTimeout(() => {
+        setToasts(current => current.filter(t => t.id !== id));
+      }, 4500);
+      return [...prev, { id, message, type, title }];
+    });
   }, []);
 
   const removeToast = useCallback((id) => {
@@ -1206,7 +1209,7 @@ export default function App() {
     setActiveTab('assets');
   };
 
-  const handleLoginSuccess = (userData) => {
+  const handleLoginSuccess = useCallback((userData) => {
     sessionStorage.setItem('trynova_session', JSON.stringify(userData));
     localStorage.removeItem('trynova_session'); // Remove resquício antigo
     setUser(userData);
@@ -1216,7 +1219,7 @@ export default function App() {
       setActiveTab('employees');
     }
     addToast(`Bem-vindo de volta, ${userData.name || 'Usuário'}!`, 'success');
-  };
+  }, [addToast]);
 
   const handleLogout = async () => {
     if (window.confirm('Tem certeza de que deseja sair do sistema?')) {

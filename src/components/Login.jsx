@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { loginWithMicrosoftRedirect, initializeMsal } from '../services/authConfig';
 
 export default function Login({ onLoginSuccess }) {
@@ -10,6 +10,9 @@ export default function Login({ onLoginSuccess }) {
   const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
   const [entraNotice, setEntraNotice] = useState('');
 
+  // Trava para evitar disparos duplicados em React StrictMode
+  const hasProcessedRef = useRef(false);
+
   // Modal Esqueci Minha Senha
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -20,11 +23,15 @@ export default function Login({ onLoginSuccess }) {
 
   // Processa o retorno do redirecionamento da Microsoft na MESMA ABA
   useEffect(() => {
+    if (hasProcessedRef.current) return;
+
     const processRedirect = async () => {
       try {
         const response = await initializeMsal();
 
         if (response && response.account) {
+          if (hasProcessedRef.current) return;
+          hasProcessedRef.current = true;
           setIsMicrosoftLoading(true);
           setError('');
           setEntraNotice('');
