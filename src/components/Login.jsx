@@ -52,7 +52,13 @@ export default function Login({ onLoginSuccess }) {
             })
           });
 
-          const data = await res.json();
+          const text = await res.text();
+          let data = {};
+          try {
+            data = JSON.parse(text);
+          } catch (_) {
+            throw new Error('O servidor backend não respondeu com dados válidos. Certifique-se de que a API na porta 3001 está ativa.');
+          }
 
           if (!res.ok) {
             throw new Error(data.error || 'Falha ao autenticar com Microsoft Entra ID.');
