@@ -1143,6 +1143,13 @@ export default function App() {
   };
 
   const handleUpdateUser = async (id, updateData) => {
+    // Se receber o objeto já atualizado (ex: retornado de /approve ou /reject)
+    if (typeof id === 'object' && id !== null && id.id) {
+      const updated = id;
+      setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+      return updated;
+    }
+
     try {
       const response = await fetch(`/api/users/${id}`, {
         method: 'PUT',
@@ -1359,6 +1366,7 @@ export default function App() {
           onCreateUser={handleCreateUser}
           onUpdateUser={handleUpdateUser}
           onDeleteUser={handleDeleteUser}
+          addToast={addToast}
         />
       ) : (
         <AssetList

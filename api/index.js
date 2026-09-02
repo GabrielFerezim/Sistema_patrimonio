@@ -1528,6 +1528,11 @@ app.post('/api/users', async (req, res) => {
 // PUT: Atualiza usuário
 app.put('/api/users/:id', async (req, res) => {
   const { id } = req.params;
+  const numId = parseInt(id, 10);
+  if (isNaN(numId)) {
+    return res.status(400).json({ error: 'ID de usuário inválido.' });
+  }
+
   const { name, email, username, password, role, department, status } = req.body;
 
   try {

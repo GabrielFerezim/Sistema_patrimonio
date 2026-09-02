@@ -6,6 +6,7 @@ export default function UsersList({
   onCreateUser,
   onUpdateUser,
   onDeleteUser,
+  addToast = null,
   highlightText = (text) => text
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,12 +165,19 @@ export default function UsersList({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao aprovar usuário.');
 
-      if (onUpdateUser) {
+      if (onUpdateUser && data.user) {
         onUpdateUser(data.user);
       }
       setApprovingUser(null);
+      if (addToast) {
+        addToast(data.message || `Acesso aprovado para ${approvingUser.name}!`, 'success');
+      }
     } catch (err) {
-      alert(err.message);
+      if (addToast) {
+        addToast(err.message || 'Erro ao aprovar usuário.', 'error');
+      } else {
+        alert(err.message);
+      }
     } finally {
       setIsActionLoading(false);
     }
@@ -186,11 +194,18 @@ export default function UsersList({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao recusar usuário.');
 
-      if (onUpdateUser) {
+      if (onUpdateUser && data.user) {
         onUpdateUser(data.user);
       }
+      if (addToast) {
+        addToast(data.message || `Acesso de ${user.name} recusado.`, 'info');
+      }
     } catch (err) {
-      alert(err.message);
+      if (addToast) {
+        addToast(err.message || 'Erro ao recusar usuário.', 'error');
+      } else {
+        alert(err.message);
+      }
     } finally {
       setIsActionLoading(false);
     }
