@@ -4,6 +4,12 @@ FROM node:20-alpine
 # Diretório de trabalho dentro do container
 WORKDIR /app
 
+# Argumentos de build para o frontend Vite
+ARG VITE_ENTRA_CLIENT_ID=1e2dda32-51f3-42d1-8604-621a01ed4e3a
+ARG VITE_ENTRA_TENANT_ID=e917adfc-3994-4381-9ab2-0c24c940c6fe
+ENV VITE_ENTRA_CLIENT_ID=$VITE_ENTRA_CLIENT_ID
+ENV VITE_ENTRA_TENANT_ID=$VITE_ENTRA_TENANT_ID
+
 # Copia arquivos de dependências
 COPY package*.json ./
 
