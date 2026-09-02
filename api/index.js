@@ -192,6 +192,8 @@ async function initDb() {
       );
     `);
 
+    await client.query(`ALTER TABLE system_users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'local';`);
+
     // Semeia usuário Admin principal com senha criptografada bcrypt se não existir
     try {
       const adminPassHash = await bcrypt.hash('admin123', 10);
@@ -1266,14 +1268,188 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// GET: Lista todos os usuários do sistema
+// POST: Autenticação via Microsoft Entra ID (Azure AD SSO)
+app.post('/api/auth/entra', async (req, res) => {
+  const { email, name, username, entraId } = req.body;
+  if (!email || !email.trim()) {
+    return res.status(400).json({ error: 'E-mail corporativo não informado pela Microsoft.' });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = (name || cleanEmail.split('@')[0]).trim();
+  const cleanUsername = (username || cleanEmail.split('@')[0]).trim().toLowerCase();
+
+  try {
+    const userQuery = await pool.query(
+      'SELECT * FROM system_users WHERE LOWER(email) = $1',
+      [cleanEmail]
+    );
+
+    if (userQuery.rows.length > 0) {
+      const user = userQuery.rows[0];
+
+      // Se estiver aguardando aprovação do Administrador
+      if (user.status === 'Pendente') {
+        return res.json({
+          pendingApproval: true,
+          message: 'Seu cadastro foi registrado via Microsoft Entra ID e está aguardando aprovação do Administrador. Assim que for liberado, você terá acesso imediato.'
+        });
+      }
+
+      // Se foi desativado/bloqueado
+      if (user.status === 'Inativo') {
+        return res.status(403).json({
+          error: 'Acesso desativado pelo Administrador. Entre em contato com o suporte de T.I.'
+        });
+      }
+
+      // Usuário Ativo: atualiza último login e auth_provider
+      try {
+        await pool.query(
+          'UPDATE system_users SET last_login = NOW(), auth_provider = $1 WHERE id = $2',
+          ['microsoft', user.id]
+        );
+        await pool.query(`
+          INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
+          VALUES ('LOGIN_ENTRA', $1, 'USUARIO', $2, $3)
+        `, [`Usuário ${user.name} realizou login via Microsoft Entra ID`, String(user.id), user.name]);
+      } catch (_) {}
+
+      const { password: _, ...userSafe } = user;
+      return res.json({
+        ...userSafe,
+        status: 'Ativo',
+        auth_provider: 'microsoft',
+        last_login: new Date().toISOString()
+      });
+    } else {
+      // Primeiro acesso: cadastra automaticamente com status 'Pendente' para o Admin aprovar
+      const dummyHash = await bcrypt.hash(`EntraID#${Date.now()}#${Math.random()}`, 10);
+
+      // Garante que o username não colida com um existente
+      let finalUsername = cleanUsername;
+      const checkUser = await pool.query('SELECT id FROM system_users WHERE LOWER(username) = $1', [finalUsername]);
+      if (checkUser.rows.length > 0) {
+        finalUsername = `${cleanUsername}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const insertResult = await pool.query(`
+        INSERT INTO system_users (name, email, username, password, role, department, status, auth_provider, last_login)
+        VALUES ($1, $2, $3, $4, 'Visualizador', 'Geral', 'Pendente', 'microsoft', NOW())
+        RETURNING id, name, email, username, role, department, status, created_at
+      `, [cleanName, cleanEmail, finalUsername, dummyHash]);
+
+      const newUser = insertResult.rows[0];
+
+      try {
+        await pool.query(`
+          INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
+          VALUES ('SOLICITACAO_ACESSO', $1, 'USUARIO', $2, $3)
+        `, [`Novo colaborador solicitou acesso via Microsoft Entra ID: ${cleanName} (${cleanEmail})`, String(newUser.id), cleanName]);
+      } catch (_) {}
+
+      return res.json({
+        pendingApproval: true,
+        isNew: true,
+        message: 'Solicitação de acesso enviada com sucesso! Seu cadastro via Microsoft Entra ID aguarda aprovação do Administrador.'
+      });
+    }
+  } catch (err) {
+    console.error('Erro na rota /api/auth/entra:', err);
+    res.status(500).json({ error: 'Erro interno ao processar autenticação com Microsoft Entra ID.' });
+  }
+});
+
+// GET: Lista todos os usuários do sistema (com ordenação priorizando pendentes)
 app.get('/api/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, name, email, username, role, department, status, invite_sent_at, last_login, created_at FROM system_users ORDER BY name ASC');
+    const result = await pool.query(`
+      SELECT id, name, email, username, role, department, status, auth_provider, invite_sent_at, last_login, created_at 
+      FROM system_users 
+      ORDER BY CASE WHEN status = 'Pendente' THEN 0 ELSE 1 END, name ASC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao buscar usuários do sistema.' });
+  }
+});
+
+// POST: Aprova solicitação de acesso de usuário pendente
+app.post('/api/users/:id/approve', async (req, res) => {
+  const { id } = req.params;
+  const { role, department } = req.body;
+
+  try {
+    const userQuery = await pool.query('SELECT * FROM system_users WHERE id = $1', [id]);
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const user = userQuery.rows[0];
+    const assignedRole = role || user.role || 'Operador';
+    const assignedDept = department || user.department || 'Tecnologia da Informação';
+
+    const updateResult = await pool.query(`
+      UPDATE system_users
+      SET status = 'Ativo', role = $1, department = $2
+      WHERE id = $3
+      RETURNING id, name, email, username, role, department, status, auth_provider, last_login, created_at
+    `, [assignedRole, assignedDept, id]);
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('APROVACAO', $1, 'USUARIO', $2)
+      `, [`Acesso aprovado para ${user.name} (${user.email}) como ${assignedRole} - ${assignedDept}`, String(id)]);
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      message: `Acesso do colaborador ${user.name} aprovado com sucesso!`,
+      user: updateResult.rows[0]
+    });
+  } catch (err) {
+    console.error('Erro ao aprovar usuário:', err);
+    res.status(500).json({ error: 'Erro ao aprovar acesso do usuário.' });
+  }
+});
+
+// POST: Recusa solicitação de acesso de usuário pendente
+app.post('/api/users/:id/reject', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const userQuery = await pool.query('SELECT * FROM system_users WHERE id = $1', [id]);
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const user = userQuery.rows[0];
+
+    // Atualiza status para Inativo ou remove
+    const updateResult = await pool.query(`
+      UPDATE system_users
+      SET status = 'Inativo'
+      WHERE id = $1
+      RETURNING id, name, email, username, role, department, status, auth_provider, last_login, created_at
+    `, [id]);
+
+    try {
+      await pool.query(`
+        INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
+        VALUES ('REJEICAO', $1, 'USUARIO', $2)
+      `, [`Acesso recusado para o colaborador ${user.name} (${user.email})`, String(id)]);
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      message: `Acesso do colaborador ${user.name} foi recusado.`,
+      user: updateResult.rows[0]
+    });
+  } catch (err) {
+    console.error('Erro ao recusar usuário:', err);
+    res.status(500).json({ error: 'Erro ao recusar acesso do usuário.' });
   }
 });
 

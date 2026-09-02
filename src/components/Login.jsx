@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loginWithMicrosoft } from '../services/authConfig';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -6,6 +7,8 @@ export default function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
+  const [entraNotice, setEntraNotice] = useState('');
 
   // Modal Esqueci Minha Senha
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -14,6 +17,45 @@ export default function Login({ onLoginSuccess }) {
   const [forgotError, setForgotError] = useState('');
   const [tempPasswordResult, setTempPasswordResult] = useState('');
   const [isForgotLoading, setIsForgotLoading] = useState(false);
+
+  // Login via Microsoft Entra ID
+  const handleMicrosoftLogin = async () => {
+    setIsMicrosoftLoading(true);
+    setError('');
+    setEntraNotice('');
+
+    try {
+      const account = await loginWithMicrosoft();
+
+      const response = await fetch('/api/auth/entra', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: account.email,
+          name: account.name,
+          username: account.username,
+          entraId: account.entraId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao autenticar com Microsoft Entra ID.');
+      }
+
+      if (data.pendingApproval) {
+        setEntraNotice(data.message);
+        return;
+      }
+
+      onLoginSuccess(data);
+    } catch (err) {
+      setError(err.message || 'Erro ao autenticar com Microsoft Entra ID.');
+    } finally {
+      setIsMicrosoftLoading(false);
+    }
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -24,6 +66,7 @@ export default function Login({ onLoginSuccess }) {
 
     setIsLoading(true);
     setError('');
+    setEntraNotice('');
 
     try {
       const response = await fetch('/api/login', {
@@ -135,6 +178,31 @@ export default function Login({ onLoginSuccess }) {
           <p className="login-subtitle">Sistema de Gestão & Controle de Patrimônio</p>
         </div>
 
+        {/* ALERTA DE STATUS / APROVAÇÃO PENDENTE DO ENTRA ID */}
+        {entraNotice && (
+          <div className="login-entra-notice" role="status">
+            <div className="entra-notice-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div className="entra-notice-content">
+              <strong>Aguardando Aprovação de Acesso</strong>
+              <p>{entraNotice}</p>
+            </div>
+            <button
+              type="button"
+              className="entra-notice-close"
+              onClick={() => setEntraNotice('')}
+              title="Fechar"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="login-error-alert" role="alert">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -145,6 +213,35 @@ export default function Login({ onLoginSuccess }) {
             <span>{error}</span>
           </div>
         )}
+
+        {/* BOTÃO OFICIAL MICROSOFT ENTRA ID */}
+        <button
+          type="button"
+          className="microsoft-sso-btn"
+          onClick={handleMicrosoftLogin}
+          disabled={isLoading || isMicrosoftLoading}
+        >
+          {isMicrosoftLoading ? (
+            <>
+              <span className="login-spinner" style={{ borderColor: '#0078d4', borderTopColor: 'transparent', width: '18px', height: '18px' }}></span>
+              <span>Conectando com a Microsoft...</span>
+            </>
+          ) : (
+            <>
+              <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                <rect width="10.5" height="10.5" fill="#F25022"/>
+                <rect x="12.5" width="10.5" height="10.5" fill="#7FBA00"/>
+                <rect y="12.5" width="10.5" height="10.5" fill="#00A4EF"/>
+                <rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#FFB900"/>
+              </svg>
+              <span>Entrar com Microsoft Entra ID</span>
+            </>
+          )}
+        </button>
+
+        <div className="login-divider">
+          <span>ou entre com usuário e senha</span>
+        </div>
 
         <form className="login-form" onSubmit={handleLoginSubmit}>
           <div className="login-form-group">
@@ -161,7 +258,6 @@ export default function Login({ onLoginSuccess }) {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Seu usuário ou e-mail"
                 required
-                autoFocus
                 autoComplete="username"
               />
             </div>
@@ -222,7 +318,7 @@ export default function Login({ onLoginSuccess }) {
           <button
             type="submit"
             className="login-btn"
-            disabled={isLoading}
+            disabled={isLoading || isMicrosoftLoading}
           >
             {isLoading ? (
               <span className="login-spinner"></span>

@@ -19,6 +19,12 @@ export default function UsersList({
   const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  // Aprovação de Colaborador (Microsoft Entra ID)
+  const [approvingUser, setApprovingUser] = useState(null);
+  const [approveRole, setApproveRole] = useState('Operador');
+  const [approveDept, setApproveDept] = useState('Tecnologia da Informação');
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
   // Form State Usuário
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
@@ -144,8 +150,55 @@ export default function UsersList({
     setTimeout(() => setCopySuccess(false), 2500);
   };
 
+  // Aprovar solicitação de colaborador pendente
+  const handleApproveSubmit = async (e) => {
+    e.preventDefault();
+    if (!approvingUser) return;
+    setIsActionLoading(true);
+    try {
+      const res = await fetch(`/api/users/${approvingUser.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: approveRole, department: approveDept })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao aprovar usuário.');
+
+      if (onUpdateUser) {
+        onUpdateUser(data.user);
+      }
+      setApprovingUser(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // Recusar solicitação de colaborador pendente
+  const handleRejectUser = async (user) => {
+    if (!window.confirm(`Deseja realmente recusar o acesso de ${user.name} (${user.email})?`)) return;
+    setIsActionLoading(true);
+    try {
+      const res = await fetch(`/api/users/${user.id}/reject`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao recusar usuário.');
+
+      if (onUpdateUser) {
+        onUpdateUser(data.user);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   // Métricas
   const totalUsers = users.length;
+  const pendingUsers = users.filter(u => u.status === 'Pendente');
   const adminUsers = users.filter(u => u.role === 'Administrador').length;
   const operatorUsers = users.filter(u => u.role === 'Operador' || u.role === 'Técnico').length;
   const rhUsers = users.filter(u => u.role === 'Recursos Humanos' || u.role === 'RH').length;
@@ -342,12 +395,85 @@ export default function UsersList({
               >
                 <option value="Todos">Todos os Status</option>
                 <option value="Ativo">Ativo</option>
+                <option value="Pendente">Pendente de Aprovação</option>
                 <option value="Inativo">Inativo</option>
               </select>
             </div>
           </div>
         </div>
       </div>
+
+      {/* CARD: SOLICITAÇÕES PENDENTES DE APROVAÇÃO */}
+      {pendingUsers.length > 0 && (
+        <div className="pending-approvals-card">
+          <div className="pending-approvals-header">
+            <h3>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#d97706' }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              Solicitações de Acesso Pendentes ({pendingUsers.length})
+            </h3>
+            <span style={{ fontSize: '0.82rem', color: '#92400e', fontWeight: 500 }}>
+              Novos colaboradores que tentaram login corporativo via Microsoft Entra ID
+            </span>
+          </div>
+
+          <div className="pending-users-list">
+            {pendingUsers.map((pUser) => (
+              <div key={pUser.id} className="pending-user-row">
+                <div className="pending-user-info">
+                  <div className="pending-user-avatar">
+                    {pUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.92rem', color: '#1f2937' }}>
+                      {pUser.name}
+                    </strong>
+                    <span style={{ fontSize: '0.8rem', color: '#4b5563', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                      </svg>
+                      {pUser.email}
+                      <span style={{ fontSize: '0.72rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                        Microsoft Entra ID
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pending-user-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', fontSize: '0.82rem', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => {
+                      setApprovingUser(pUser);
+                      setApproveRole('Operador');
+                      setApproveDept(pUser.department || 'Tecnologia da Informação');
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Aprovar Acesso
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ color: '#dc2626', borderColor: '#fca5a5', fontSize: '0.82rem', padding: '6px 12px' }}
+                    onClick={() => handleRejectUser(pUser)}
+                  >
+                    Recusar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabela de Usuários */}
       <div className="table-card">
@@ -418,8 +544,8 @@ export default function UsersList({
 
                     {/* Status */}
                     <td>
-                      <span className={`status-badge ${(user.status || 'Ativo') === 'Ativo' ? 'in-stock' : 'in-maintenance'}`}>
-                        {user.status || 'Ativo'}
+                      <span className={`status-badge ${user.status === 'Pendente' ? 'pending' : (user.status || 'Ativo') === 'Ativo' ? 'in-stock' : 'in-maintenance'}`}>
+                        {user.status === 'Pendente' ? 'Pendente' : (user.status || 'Ativo')}
                       </span>
                     </td>
 
@@ -434,7 +560,26 @@ export default function UsersList({
 
                     {/* Ações */}
                     <td className="actions-cell" style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {user.status === 'Pendente' && (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ backgroundColor: '#16a34a', color: '#fff', padding: '0.3rem 0.65rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => {
+                              setApprovingUser(user);
+                              setApproveRole('Operador');
+                              setApproveDept(user.department || 'Tecnologia da Informação');
+                            }}
+                            title="Aprovar cadastro deste colaborador"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Aprovar
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
@@ -781,6 +926,76 @@ export default function UsersList({
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Salvar Alterações
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: APROVAR COLABORADOR PENDENTE (ENTRA ID) */}
+      {approvingUser && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '460px', width: '90%' }}>
+            <header className="modal-header">
+              <div>
+                <h2>Aprovar Colaborador</h2>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Defina o perfil de permissão e departamento para liberar o acesso.
+                </p>
+              </div>
+              <button className="modal-close-btn" onClick={() => setApprovingUser(null)} aria-label="Fechar">
+                &times;
+              </button>
+            </header>
+
+            <form onSubmit={handleApproveSubmit} className="modal-form">
+              <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>{approvingUser.name}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>{approvingUser.email}</div>
+                <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.72rem', backgroundColor: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                  Autenticado via Microsoft Entra ID
+                </span>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="approve-role">Perfil de Acesso *</label>
+                <select
+                  id="approve-role"
+                  value={approveRole}
+                  onChange={(e) => setApproveRole(e.target.value)}
+                  required
+                >
+                  <option value="Operador">Operador (Cadastro, Edição e Movimentações)</option>
+                  <option value="Administrador">Administrador (Acesso Completo)</option>
+                  <option value="Recursos Humanos">Recursos Humanos / RH (Funcionários e Termos)</option>
+                  <option value="Visualizador">Visualizador (Somente Consulta)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="approve-dept">Departamento / Setor *</label>
+                <input
+                  type="text"
+                  id="approve-dept"
+                  value={approveDept}
+                  onChange={(e) => setApproveDept(e.target.value)}
+                  placeholder="Ex: Tecnologia da Informação, Comercial, etc."
+                  required
+                />
+              </div>
+
+              <footer className="form-footer" style={{ marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setApprovingUser(null)}>
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading ? 'Liberando...' : 'Confirmar & Liberar Acesso'}
                 </button>
               </footer>
             </form>
