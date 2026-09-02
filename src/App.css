@@ -2983,21 +2983,6 @@
   transform: translateY(0);
 }
 
-.btn-forgot-password {
-  background: none;
-  border: none;
-  color: #2563eb;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.15s ease;
-}
-
-.btn-forgot-password:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
-}
 
 .login-spinner {
   width: 20px;
