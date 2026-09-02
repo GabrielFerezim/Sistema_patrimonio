@@ -197,14 +197,12 @@ async function initDb() {
     // Semeia usuário Admin principal com senha criptografada bcrypt se não existir
     try {
       const adminPassHash = await bcrypt.hash('admin123', 10);
-      const mateusPassHash = await bcrypt.hash('mateus123', 10);
       await client.query(`
         INSERT INTO system_users (name, email, username, password, role, department, status, invite_sent_at)
         VALUES 
-          ('Gabriel Ferezim', 'gabriel.ferezim@trynova.com.br', 'admin', $1, 'Administrador', 'Tecnologia da Informação', 'Ativo', NOW()),
-          ('Mateus Silva', 'mateus.silva@trynova.com.br', 'mateus', $2, 'Operador', 'Suporte de T.I', 'Ativo', NOW())
+          ('Gabriel Ferezin', 'gabriel.ferezin@trynova.com.br', 'admin', $1, 'Administrador', 'Tecnologia da Informação', 'Ativo', NOW())
         ON CONFLICT (username) DO NOTHING;
-      `, [adminPassHash, mateusPassHash]);
+      `, [adminPassHash]);
 
       // Auto-migra qualquer senha existente em texto puro para bcrypt
       const existingUsers = await client.query('SELECT id, password FROM system_users');
@@ -1754,20 +1752,6 @@ app.post('/api/forgot-password', async (req, res) => {
   }
 });
 
-// POST: Purga registros mockados do banco de dados
-app.post('/api/purge-mock-data', async (req, res) => {
-  try {
-    await pool.query(`DELETE FROM assets WHERE tag IN ('PAT-001','PAT-002','PAT-003','PAT-004','PAT-005','PAT-006','PAT-007','PAT-008','PAT-009','PAT-010','PAT-011','PAT-012')`);
-    await pool.query(`DELETE FROM employees WHERE name IN ('Thiago Alencar', 'Mariana Costa', 'Carlos Eduardo', 'Aline Schmidt')`);
-    await pool.query(`DELETE FROM licenses WHERE license_key IN ('MS365-TRYN-2025-ENTERPRISE', 'ADOBE-CC-PRO-2024', 'WIN11-PRO-OEM-VOL-9921', 'AUTODESK-ACAD-2024-BR')`);
-    await pool.query(`DELETE FROM maintenances WHERE asset_tag = 'PAT-006'`);
-    await pool.query(`DELETE FROM audit_logs WHERE description LIKE '%PAT-001%' OR description LIKE '%Inicialização do banco de dados%'`);
-    res.json({ success: true, message: 'Dados mockados removidos com sucesso!' });
-  } catch (err) {
-    console.error('Erro ao purgar dados mockados:', err);
-    res.status(500).json({ error: 'Erro ao limpar dados mockados' });
-  }
-});
 
 // Servir arquivos estáticos do frontend (gerados pelo 'npm run build')
 const distPath = path.join(__dirname, '../dist');

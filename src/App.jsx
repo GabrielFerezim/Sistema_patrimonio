@@ -62,7 +62,11 @@ export default function App() {
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem('trynova_users');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.filter(u => u.username !== 'mateus' && u.email !== 'mateus.silva@trynova.com.br');
+      }
+      return [];
     } catch (_) { return []; }
   });
 
@@ -280,16 +284,7 @@ export default function App() {
 
   useEffect(() => {
     if (users.length > 0) {
-      try {
-        const oldSaved = JSON.parse(localStorage.getItem('trynova_users') || '[]');
-        const merged = users.map(u => {
-          const match = oldSaved.find(o => o.id === u.id || o.username?.toLowerCase() === u.username?.toLowerCase() || o.email?.toLowerCase() === u.email?.toLowerCase());
-          return (match && match.password) ? { ...u, password: match.password } : u;
-        });
-        localStorage.setItem('trynova_users', JSON.stringify(merged));
-      } catch (_) {
-        localStorage.setItem('trynova_users', JSON.stringify(users));
-      }
+      localStorage.setItem('trynova_users', JSON.stringify(users));
     }
   }, [users]);
 
@@ -1130,28 +1125,16 @@ export default function App() {
         throw new Error(err.error || 'Erro ao criar usuário');
       }
       const created = await response.json();
-      const createdWithPass = { ...created, password: userData.password };
-      setUsers(prev => {
-        const updated = [createdWithPass, ...prev.filter(u => u.id !== created.id)];
-        localStorage.setItem('trynova_users', JSON.stringify(updated));
-        return updated;
-      });
+      setUsers(prev => [created, ...prev.filter(u => u.id !== created.id)]);
       addToast(`Usuário "${created.name}" criado com sucesso!`, 'success');
       if (userData.send_email) {
         addToast(`E-mail com dados de acesso disparado para ${created.email}`, 'info');
       }
       addAuditLog('CADASTRO', `Cadastrado usuário: ${created.name} (${created.email})`, String(created.id), 'USUARIO');
-      return createdWithPass;
+      return created;
     } catch (err) {
-      const localNew = { ...userData, id: Date.now(), created_at: new Date().toISOString(), status: 'Ativo' };
-      setUsers(prev => {
-        const updated = [localNew, ...prev];
-        localStorage.setItem('trynova_users', JSON.stringify(updated));
-        return updated;
-      });
-      addToast(`Usuário "${localNew.name}" cadastrado localmente!`, 'success');
-      addAuditLog('CADASTRO', `Cadastrado usuário: ${localNew.name}`, String(localNew.id), 'USUARIO');
-      return localNew;
+      addToast(err.message || 'Erro ao criar usuário', 'error');
+      throw err;
     }
   };
 
@@ -1167,25 +1150,12 @@ export default function App() {
         throw new Error(err.error || 'Erro ao atualizar usuário');
       }
       const updated = await response.json();
-      setUsers(prev => {
-        const nextUsers = prev.map(u => {
-          if (u.id === id) {
-            return { ...u, ...updated, password: updateData.password || u.password };
-          }
-          return u;
-        });
-        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
-        return nextUsers;
-      });
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updated } : u));
       addToast(`Usuário "${updated.name}" atualizado!`, 'success');
       addAuditLog('ATUALIZACAO', `Atualizado usuário: ${updated.name}`, String(id), 'USUARIO');
     } catch (err) {
-      setUsers(prev => {
-        const nextUsers = prev.map(u => u.id === id ? { ...u, ...updateData } : u);
-        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
-        return nextUsers;
-      });
-      addToast('Usuário atualizado com sucesso!', 'success');
+      addToast(err.message || 'Erro ao atualizar usuário.', 'error');
+      throw err;
     }
   };
 
@@ -1197,20 +1167,12 @@ export default function App() {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || 'Erro ao excluir usuário');
       }
-      setUsers(prev => {
-        const nextUsers = prev.filter(u => u.id !== id);
-        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
-        return nextUsers;
-      });
+      setUsers(prev => prev.filter(u => u.id !== id));
       addToast(`Usuário "${target ? target.name : id}" excluído com sucesso.`, 'info');
       addAuditLog('EXCLUSAO', `Excluído usuário: ${target ? target.name : id}`, String(id), 'USUARIO');
     } catch (err) {
-      setUsers(prev => {
-        const nextUsers = prev.filter(u => u.id !== id);
-        localStorage.setItem('trynova_users', JSON.stringify(nextUsers));
-        return nextUsers;
-      });
-      addToast(`Usuário excluído.`, 'info');
+      addToast(err.message || 'Erro ao excluir usuário.', 'error');
+      throw err;
     }
   };
 
@@ -1223,6 +1185,7 @@ export default function App() {
       roleStr === 'administrador' || 
       roleStr === 'admin' || 
       user?.username?.toLowerCase() === 'admin' || 
+      user?.email?.toLowerCase() === 'gabriel.ferezin@trynova.com.br' || 
       user?.email?.toLowerCase() === 'gabriel.ferezim@trynova.com.br' || 
       !user;
     const isUserRH = roleStr === 'recursos humanos' || roleStr === 'rh' || roleStr === 'dp';

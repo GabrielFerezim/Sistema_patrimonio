@@ -122,51 +122,14 @@ export default function Login({ onLoginSuccess }) {
         body: JSON.stringify({ username: username.trim(), password: password.trim() })
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Credenciais inválidas.');
+        throw new Error(data.error || 'Credenciais inválidas.');
       }
 
-      const userData = await response.json();
-      onLoginSuccess(userData);
+      onLoginSuccess(data);
     } catch (err) {
-      // Fallback para login offline padrão ou usuários cadastrados no localStorage
-      const cleanU = username.trim().toLowerCase();
-      const cleanP = password.trim();
-
-      try {
-        const localUsers = JSON.parse(localStorage.getItem('trynova_users') || '[]');
-        const matchedLocal = localUsers.find(
-          u => (u.username?.toLowerCase() === cleanU || u.email?.toLowerCase() === cleanU) && String(u.password).trim() === cleanP
-        );
-        if (matchedLocal) {
-          if (matchedLocal.status === 'Inativo') {
-            setError('Usuário desativado. Entre em contato com o Administrador.');
-            return;
-          }
-          const { password: _, ...safeUser } = matchedLocal;
-          onLoginSuccess(safeUser);
-          return;
-        }
-      } catch (_) {}
-
-      if (
-        (cleanU === 'admin' || cleanU === 'gabriel.ferezim@trynova.com.br' || cleanU === 'gabriel') &&
-        (cleanP === 'admin123' || cleanP === 'admin')
-      ) {
-        onLoginSuccess({
-          id: 1,
-          username: 'admin',
-          name: 'Gabriel Ferezim',
-          email: 'gabriel.ferezim@trynova.com.br',
-          role: 'Administrador',
-          department: 'Tecnologia da Informação',
-          status: 'Ativo',
-          avatar: 'G'
-        });
-        return;
-      }
-
       setError(err.message || 'Erro ao autenticar. Verifique seu usuário e senha.');
     } finally {
       setIsLoading(false);
