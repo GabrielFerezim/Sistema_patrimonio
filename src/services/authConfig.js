@@ -21,19 +21,18 @@ export const loginRequest = {
   prompt: 'select_account'
 };
 
-let msalInstance = null;
+export const msalInstance = new PublicClientApplication(msalConfig);
+let isInitialized = false;
 
 /**
  * Limpa chaves de bloqueio de interação presas no sessionStorage
  */
-const clearStuckInteractions = () => {
+export const clearStuckInteractions = () => {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
       Object.keys(sessionStorage).forEach((key) => {
-        if (key.toLowerCase().includes('interaction') || key.toLowerCase().includes('msal.')) {
-          if (key.includes('interaction.status')) {
-            sessionStorage.removeItem(key);
-          }
+        if (key.includes('interaction.status')) {
+          sessionStorage.removeItem(key);
         }
       });
     } catch (_) {}
@@ -41,21 +40,34 @@ const clearStuckInteractions = () => {
 };
 
 /**
- * Inicializa ou retorna a instância singleton do MSAL (compatível com MSAL v3)
+ * Inicializa o MSAL imediatamente no carregamento da aplicação
+ * e processa qualquer retorno de pop-up / redirecionamento
+ */
+export const initializeMsal = async () => {
+  if (!isInitialized) {
+    clearStuckInteractions();
+    await msalInstance.initialize();
+    const result = await msalInstance.handleRedirectPromise().catch((err) => {
+      console.warn('Erro ao processar redirect do MSAL:', err);
+      return null;
+    });
+    isInitialized = true;
+    return result;
+  }
+  return null;
+};
+
+/**
+ * Retorna a instância inicializada do MSAL
  */
 export const getMsalInstance = async () => {
-  if (!msalInstance) {
-    clearStuckInteractions();
-    msalInstance = new PublicClientApplication(msalConfig);
-    await msalInstance.initialize();
-    await msalInstance.handleRedirectPromise().catch(() => null);
-  }
+  await initializeMsal();
   return msalInstance;
 };
 
 /**
  * Abre o popup oficial de autenticação da Microsoft
- * e retorna os dados do usuário autenticado.
+ * e retorna os dados do usuário autenticado para a janela principal.
  */
 export const loginWithMicrosoft = async () => {
   const clientId = import.meta.env.VITE_ENTRA_CLIENT_ID;
@@ -65,9 +77,7 @@ export const loginWithMicrosoft = async () => {
     );
   }
 
-  // Previne travas de popups fechados anteriormente
   clearStuckInteractions();
-
   const msal = await getMsalInstance();
 
   try {
@@ -114,4 +124,3 @@ export const loginWithMicrosoft = async () => {
     throw new Error(error.message || 'Falha ao autenticar com a conta Microsoft.');
   }
 };
-

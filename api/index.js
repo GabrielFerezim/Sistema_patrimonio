@@ -1285,8 +1285,20 @@ app.post('/api/auth/entra', async (req, res) => {
       [cleanEmail]
     );
 
+    const isMasterAdmin = cleanEmail === 'gabriel.ferezin@trynova.com.br' || cleanEmail === 'gabriel.ferezim@trynova.com.br';
+
     if (userQuery.rows.length > 0) {
-      const user = userQuery.rows[0];
+      let user = userQuery.rows[0];
+
+      // Se for o administrador principal, garante status Ativo e Administrador
+      if (isMasterAdmin && (user.status !== 'Ativo' || user.role !== 'Administrador')) {
+        await pool.query(
+          "UPDATE system_users SET status = 'Ativo', role = 'Administrador' WHERE id = $1",
+          [user.id]
+        );
+        user.status = 'Ativo';
+        user.role = 'Administrador';
+      }
 
       // Se estiver aguardando aprovação do Administrador
       if (user.status === 'Pendente') {
@@ -1323,7 +1335,6 @@ app.post('/api/auth/entra', async (req, res) => {
         last_login: new Date().toISOString()
       });
     } else {
-      // Primeiro acesso: cadastra automaticamente com status 'Pendente' para o Admin aprovar
       const dummyHash = await bcrypt.hash(`EntraID#${Date.now()}#${Math.random()}`, 10);
 
       // Garante que o username não colida com um existente
@@ -1333,13 +1344,32 @@ app.post('/api/auth/entra', async (req, res) => {
         finalUsername = `${cleanUsername}_${Math.floor(100 + Math.random() * 900)}`;
       }
 
+      // Se for o administrador principal, cadastra como Administrador e Ativo
+      const initialRole = isMasterAdmin ? 'Administrador' : 'Visualizador';
+      const initialDept = isMasterAdmin ? 'Tecnologia da Informação' : 'Geral';
+      const initialStatus = isMasterAdmin ? 'Ativo' : 'Pendente';
+
       const insertResult = await pool.query(`
         INSERT INTO system_users (name, email, username, password, role, department, status, auth_provider, last_login)
-        VALUES ($1, $2, $3, $4, 'Visualizador', 'Geral', 'Pendente', 'microsoft', NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'microsoft', NOW())
         RETURNING id, name, email, username, role, department, status, created_at
-      `, [cleanName, cleanEmail, finalUsername, dummyHash]);
+      `, [cleanName, cleanEmail, finalUsername, dummyHash, initialRole, initialDept, initialStatus]);
 
       const newUser = insertResult.rows[0];
+
+      if (isMasterAdmin) {
+        try {
+          await pool.query(`
+            INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
+            VALUES ('LOGIN_ENTRA', $1, 'USUARIO', $2, $3)
+          `, [`Administrador ${cleanName} realizou primeiro login via Microsoft Entra ID`, String(newUser.id), cleanName]);
+        } catch (_) {}
+
+        return res.json({
+          ...newUser,
+          last_login: new Date().toISOString()
+        });
+      }
 
       try {
         await pool.query(`
@@ -1352,7 +1382,6 @@ app.post('/api/auth/entra', async (req, res) => {
         pendingApproval: true,
         isNew: true,
         message: 'Solicitação de acesso enviada com sucesso! Seu cadastro via Microsoft Entra ID aguarda aprovação do Administrador.'
-      });
     }
   } catch (err) {
     console.error('Erro na rota /api/auth/entra:', err);
