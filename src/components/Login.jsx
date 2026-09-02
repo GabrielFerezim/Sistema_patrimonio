@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { loginWithMicrosoft } from '../services/authConfig';
+import React, { useState, useEffect } from 'react';
+import { loginWithMicrosoftRedirect, initializeMsal } from '../services/authConfig';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -18,41 +18,82 @@ export default function Login({ onLoginSuccess }) {
   const [tempPasswordResult, setTempPasswordResult] = useState('');
   const [isForgotLoading, setIsForgotLoading] = useState(false);
 
-  // Login via Microsoft Entra ID
+  // Processa o retorno do redirecionamento da Microsoft na MESMA ABA
+  useEffect(() => {
+    let isMounted = true;
+
+    const processRedirect = async () => {
+      try {
+        const response = await initializeMsal();
+        if (response && response.account && isMounted) {
+          setIsMicrosoftLoading(true);
+          setError('');
+          setEntraNotice('');
+
+          const account = response.account;
+          const email = (
+            account.username ||
+            account.idTokenClaims?.email ||
+            account.idTokenClaims?.preferred_username ||
+            ''
+          ).toLowerCase().trim();
+
+          const name = account.name || account.idTokenClaims?.name || email.split('@')[0];
+          const entraId = account.localAccountId || account.homeAccountId;
+
+          const res = await fetch('/api/auth/entra', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              name,
+              username: email.split('@')[0],
+              entraId
+            })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || 'Falha ao autenticar com Microsoft Entra ID.');
+          }
+
+          if (data.pendingApproval) {
+            setEntraNotice(data.message);
+            return;
+          }
+
+          onLoginSuccess(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Erro no processamento do login Entra ID:', err);
+          setError(err.message || 'Erro ao autenticar com a Microsoft.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsMicrosoftLoading(false);
+        }
+      }
+    };
+
+    processRedirect();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [onLoginSuccess]);
+
+  // Dispara o redirecionamento para a Microsoft na MESMA ABA
   const handleMicrosoftLogin = async () => {
     setIsMicrosoftLoading(true);
     setError('');
     setEntraNotice('');
 
     try {
-      const account = await loginWithMicrosoft();
-
-      const response = await fetch('/api/auth/entra', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: account.email,
-          name: account.name,
-          username: account.username,
-          entraId: account.entraId
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Falha ao autenticar com Microsoft Entra ID.');
-      }
-
-      if (data.pendingApproval) {
-        setEntraNotice(data.message);
-        return;
-      }
-
-      onLoginSuccess(data);
+      await loginWithMicrosoftRedirect();
     } catch (err) {
-      setError(err.message || 'Erro ao autenticar com Microsoft Entra ID.');
-    } finally {
+      setError(err.message || 'Erro ao iniciar autenticação com Microsoft Entra ID.');
       setIsMicrosoftLoading(false);
     }
   };

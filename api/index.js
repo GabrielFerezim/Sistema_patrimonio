@@ -214,7 +214,7 @@ async function initDb() {
           await client.query('UPDATE system_users SET password = $1 WHERE id = $2', [hashed, u.id]);
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Views analíticas para o Power BI
     try {
@@ -324,7 +324,7 @@ app.get('/api/assets', async (req, res) => {
 // POST: Adiciona novo patrimônio
 app.post('/api/assets', async (req, res) => {
   const { tag, name, equipment, employee, location, status, condition, notes, serial_number, purchase_date, value, last_verified } = req.body;
-  
+
   if (!tag || !name || !equipment || !location) {
     return res.status(400).json({ error: 'Tag, Nome, Tipo de Equipamento e Localização são obrigatórios.' });
   }
@@ -355,7 +355,7 @@ app.post('/api/assets', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('CADASTRO', $1, 'PATRIMONIO', $2)
       `, [`Cadastrado patrimônio ${tag.trim().toUpperCase()} (${name.trim()})`, tag.trim().toUpperCase()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -372,7 +372,7 @@ app.post('/api/assets', async (req, res) => {
 app.put('/api/assets/:id', async (req, res) => {
   const { id } = req.params;
   const { tag, name, equipment, employee, location, status, condition, notes, serial_number, purchase_date, value, decommission_reason, last_verified } = req.body;
-  
+
   try {
     const result = await pool.query(`
       UPDATE assets 
@@ -396,7 +396,7 @@ app.put('/api/assets/:id', async (req, res) => {
       last_verified || null,
       id
     ]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Patrimônio não encontrado' });
     }
@@ -407,7 +407,7 @@ app.put('/api/assets/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('ATUALIZACAO', $1, 'PATRIMONIO', $2)
       `, [`Atualizado patrimônio ${tag} - Status: ${status}`, tag]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -430,7 +430,7 @@ app.post('/api/assets/:id/verify', async (req, res) => {
       WHERE id = $1
       RETURNING *
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Patrimônio não encontrado' });
     }
@@ -458,7 +458,7 @@ app.post('/api/assets/:id/decommission', async (req, res) => {
       WHERE id = $2
       RETURNING *
     `, [decommissionReason, id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Patrimônio não encontrado' });
     }
@@ -471,7 +471,7 @@ app.post('/api/assets/:id/decommission', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('BAIXA', $1, 'PATRIMONIO', $2)
       `, [`Baixa efetuada no patrimônio ${item.tag} (${item.name}). Motivo: ${decommissionReason}`, item.tag]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(item);
   } catch (err) {
@@ -493,7 +493,7 @@ app.post('/api/assets/:id/reactivate', async (req, res) => {
       WHERE id = $1
       RETURNING *
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Patrimônio não encontrado' });
     }
@@ -506,7 +506,7 @@ app.post('/api/assets/:id/reactivate', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('REATIVACAO', $1, 'PATRIMONIO', $2)
       `, [`Patrimônio ${item.tag} (${item.name}) reativado para o estoque central`, item.tag]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(item);
   } catch (err) {
@@ -530,7 +530,7 @@ app.delete('/api/assets/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('EXCLUSAO', $1, 'PATRIMONIO', $2)
       `, [`Excluído patrimônio ${tag}`, tag]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ message: 'Patrimônio excluído com sucesso' });
   } catch (err) {
@@ -577,7 +577,7 @@ app.post('/api/employees', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('CADASTRO', $1, 'FUNCIONARIO', $2)
       `, [`Cadastrado colaborador ${name.trim()} (${sector.trim()})`, name.trim()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -597,25 +597,25 @@ app.put('/api/employees/:id', async (req, res) => {
   if (!name || !name.trim() || !sector || !sector.trim()) {
     return res.status(400).json({ error: 'Nome e setor são obrigatórios.' });
   }
-  
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const oldEmpRes = await client.query('SELECT name FROM employees WHERE id = $1', [id]);
     if (oldEmpRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Funcionário não encontrado.' });
     }
     const oldName = oldEmpRes.rows[0].name;
-    
+
     const result = await client.query(`
       UPDATE employees 
       SET name = $1, sector = $2, ramal = $3, team = $4, role = $5
       WHERE id = $6
       RETURNING id, name, sector, ramal, team, role, signed_term_name, signed_term_at, (signed_term IS NOT NULL AND signed_term != '') AS has_signed_term
     `, [name.trim(), sector.trim(), ramal ? ramal.trim() : null, team ? team.trim() : 'Nenhuma', role ? role.trim() : null, id]);
-    
+
     if (oldName !== name.trim()) {
       await client.query(`
         UPDATE assets
@@ -623,7 +623,7 @@ app.put('/api/employees/:id', async (req, res) => {
         WHERE employee = $2
       `, [name.trim(), oldName]);
     }
-    
+
     await client.query('COMMIT');
     res.json(result.rows[0]);
   } catch (err) {
@@ -645,16 +645,16 @@ app.delete('/api/employees/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     const empRes = await client.query('SELECT name FROM employees WHERE id = $1', [id]);
     if (empRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Funcionário não encontrado.' });
     }
     const empName = empRes.rows[0].name;
-    
+
     await client.query('DELETE FROM employees WHERE id = $1', [id]);
-    
+
     // Equipamentos em uso voltam para o estoque
     await client.query(`
       UPDATE assets
@@ -662,7 +662,7 @@ app.delete('/api/employees/:id', async (req, res) => {
           status = CASE WHEN status = 'Em Uso' THEN 'Em Estoque' ELSE status END
       WHERE employee = $1
     `, [empName]);
-    
+
     await client.query('COMMIT');
     res.json({ message: 'Funcionário excluído com sucesso' });
   } catch (err) {
@@ -748,7 +748,7 @@ app.get('/api/maintenances', async (req, res) => {
 // POST: Abre novo chamado de manutenção
 app.post('/api/maintenances', async (req, res) => {
   const { asset_id, asset_tag, asset_name, issue_description, provider, cost, expected_return_at, notes, employee_name } = req.body;
-  
+
   if (!asset_tag || !issue_description) {
     return res.status(400).json({ error: 'Tag do patrimônio e descrição do problema são obrigatórios.' });
   }
@@ -793,7 +793,7 @@ app.post('/api/maintenances', async (req, res) => {
 app.put('/api/maintenances/:id', async (req, res) => {
   const { id } = req.params;
   const { status, closed_at, return_destination, employee_name, notes, cost, provider } = req.body;
-  
+
   let client;
   try {
     client = await pool.connect();
@@ -876,13 +876,13 @@ app.put('/api/maintenances/:id', async (req, res) => {
           INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
           VALUES ('MANUTENCAO', $1, 'PATRIMONIO', $2)
         `, [`Manutenção concluída para ${assetTagToUpdate}. Destino: ${return_destination || 'Estoque'}`, assetTagToUpdate]);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     await client.query('COMMIT');
     res.json(record || { id, status: status || 'Concluída' });
   } catch (err) {
-    if (client) await client.query('ROLLBACK').catch(() => {});
+    if (client) await client.query('ROLLBACK').catch(() => { });
     console.error('Erro ao atualizar manutenção:', err);
     res.status(500).json({ error: 'Erro ao atualizar manutenção: ' + err.message });
   } finally {
@@ -982,7 +982,7 @@ app.post('/api/spaces', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('CADASTRO', $1, 'ESPACO', $2)
       `, [`Cadastrado novo espaço: ${name.trim()} (${floor.trim()})`, name.trim()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1031,7 +1031,7 @@ app.put('/api/spaces/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('ATUALIZACAO', $1, 'ESPACO', $2)
       `, [`Atualizado espaço: ${name.trim()}`, name.trim()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -1063,7 +1063,7 @@ app.delete('/api/spaces/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('EXCLUSAO', $1, 'ESPACO', $2)
       `, [`Excluído espaço ${spaceName}. Equipamentos retornaram ao Estoque Central.`, spaceName]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ message: 'Espaço excluído com sucesso' });
   } catch (err) {
@@ -1118,7 +1118,7 @@ app.post('/api/licenses', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('CADASTRO', $1, 'LICENCA', $2)
       `, [`Cadastrada licença: ${name.trim()} (${total_seats} assentos)`, name.trim()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1161,7 +1161,7 @@ app.put('/api/licenses/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('ATUALIZACAO', $1, 'LICENCA', $2)
       `, [`Atualizada licença: ${name.trim()}`, name.trim()]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -1187,7 +1187,7 @@ app.delete('/api/licenses/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('EXCLUSAO', $1, 'LICENCA', $2)
       `, [`Excluída licença: ${licName}`, licName]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ message: 'Licença excluída com sucesso' });
   } catch (err) {
@@ -1237,7 +1237,7 @@ app.post('/api/login', async (req, res) => {
           try {
             const newHash = await bcrypt.hash(cleanPass, 10);
             await pool.query('UPDATE system_users SET password = $1 WHERE id = $2', [newHash, user.id]);
-          } catch (_) {}
+          } catch (_) { }
         }
       }
 
@@ -1255,7 +1255,7 @@ app.post('/api/login', async (req, res) => {
           INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
           VALUES ('LOGIN', $1, 'USUARIO', $2, $3)
         `, [`Usuário ${user.name} realizou login com sucesso`, String(user.id), user.name]);
-      } catch (_) {}
+      } catch (_) { }
 
       const { password: _, ...userSafe } = user;
       return res.json(userSafe);
@@ -1325,7 +1325,7 @@ app.post('/api/auth/entra', async (req, res) => {
           INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
           VALUES ('LOGIN_ENTRA', $1, 'USUARIO', $2, $3)
         `, [`Usuário ${user.name} realizou login via Microsoft Entra ID`, String(user.id), user.name]);
-      } catch (_) {}
+      } catch (_) { }
 
       const { password: _, ...userSafe } = user;
       return res.json({
@@ -1363,7 +1363,7 @@ app.post('/api/auth/entra', async (req, res) => {
             INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
             VALUES ('LOGIN_ENTRA', $1, 'USUARIO', $2, $3)
           `, [`Administrador ${cleanName} realizou primeiro login via Microsoft Entra ID`, String(newUser.id), cleanName]);
-        } catch (_) {}
+        } catch (_) { }
 
         return res.json({
           ...newUser,
@@ -1376,12 +1376,13 @@ app.post('/api/auth/entra', async (req, res) => {
           INSERT INTO audit_logs (action_type, description, entity_type, entity_id, user_name)
           VALUES ('SOLICITACAO_ACESSO', $1, 'USUARIO', $2, $3)
         `, [`Novo colaborador solicitou acesso via Microsoft Entra ID: ${cleanName} (${cleanEmail})`, String(newUser.id), cleanName]);
-      } catch (_) {}
+      } catch (_) { }
 
       return res.json({
         pendingApproval: true,
         isNew: true,
         message: 'Solicitação de acesso enviada com sucesso! Seu cadastro via Microsoft Entra ID aguarda aprovação do Administrador.'
+      });
     }
   } catch (err) {
     console.error('Erro na rota /api/auth/entra:', err);
@@ -1431,7 +1432,7 @@ app.post('/api/users/:id/approve', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('APROVACAO', $1, 'USUARIO', $2)
       `, [`Acesso aprovado para ${user.name} (${user.email}) como ${assignedRole} - ${assignedDept}`, String(id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({
       success: true,
@@ -1469,7 +1470,7 @@ app.post('/api/users/:id/reject', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('REJEICAO', $1, 'USUARIO', $2)
       `, [`Acesso recusado para o colaborador ${user.name} (${user.email})`, String(id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({
       success: true,
@@ -1514,7 +1515,7 @@ app.post('/api/users', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('CADASTRO', $1, 'USUARIO', $2)
       `, [`Cadastrado novo usuário: ${cleanName} (${cleanEmail}) como ${cleanRole}`, String(newUser.id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.status(201).json(newUser);
   } catch (err) {
@@ -1569,7 +1570,7 @@ app.put('/api/users/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('ATUALIZACAO', $1, 'USUARIO', $2)
       `, [`Atualizado cadastro de usuário: ${result.rows[0].name}`, String(id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json(result.rows[0]);
   } catch (err) {
@@ -1599,7 +1600,7 @@ app.delete('/api/users/:id', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('EXCLUSAO', $1, 'USUARIO', $2)
       `, [`Excluído usuário: ${user.name} (${user.username})`, String(id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ message: 'Usuário excluído com sucesso.' });
   } catch (err) {
@@ -1719,7 +1720,7 @@ app.post('/api/forgot-password', async (req, res) => {
         INSERT INTO audit_logs (action_type, description, entity_type, entity_id)
         VALUES ('ATUALIZACAO', $1, 'USUARIO', $2)
       `, [`Redefinição de senha processada para ${user.email} (${user.username})`, String(user.id)]);
-    } catch (_) {}
+    } catch (_) { }
 
     // Envia o e-mail via SMTP
     try {
