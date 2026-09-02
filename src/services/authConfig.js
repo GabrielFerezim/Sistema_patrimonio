@@ -23,25 +23,37 @@ export const loginRequest = {
 
 export const msalInstance = new PublicClientApplication(msalConfig);
 let isInitialized = false;
+let redirectHandled = false;
 
 /**
- * Inicializa o MSAL e processa qualquer retorno de redirecionamento
+ * Inicializa o MSAL e processa o retorno do redirecionamento
+ * (Garante que a resposta não seja reprocessada em loop no logout)
  */
 export const initializeMsal = async () => {
   if (!isInitialized) {
     await msalInstance.initialize();
     isInitialized = true;
   }
-  // Processa o resultado do redirecionamento
-  return await msalInstance.handleRedirectPromise().catch((err) => {
+
+  // Se o redirect já foi processado nesta sessão, não repete
+  if (redirectHandled) {
+    return null;
+  }
+
+  const result = await msalInstance.handleRedirectPromise().catch((err) => {
     console.warn('Erro ao processar redirect MSAL:', err);
     return null;
   });
+
+  if (result && result.account) {
+    redirectHandled = true;
+  }
+
+  return result;
 };
 
 /**
  * Inicia o fluxo de login via redirecionamento na MESMA ABA
- * (Evita pop-ups bloqueados e abas duplicadas)
  */
 export const loginWithMicrosoftRedirect = async () => {
   const clientId = import.meta.env.VITE_ENTRA_CLIENT_ID;
@@ -51,6 +63,8 @@ export const loginWithMicrosoftRedirect = async () => {
     );
   }
 
+  // Prepara para novo redirect
+  redirectHandled = false;
   await initializeMsal();
   await msalInstance.loginRedirect(loginRequest);
 };
@@ -59,6 +73,7 @@ export const loginWithMicrosoftRedirect = async () => {
  * Limpa contas e tokens do MSAL ao realizar logout
  */
 export const logoutMsal = async () => {
+  redirectHandled = true; // Impede que o retorno em cache faça auto-login ao sair
   try {
     sessionStorage.clear();
     const accounts = msalInstance.getAllAccounts();

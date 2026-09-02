@@ -20,33 +20,19 @@ export default function Login({ onLoginSuccess }) {
 
   // Processa o retorno do redirecionamento da Microsoft na MESMA ABA
   useEffect(() => {
-    let isMounted = true;
-
-    // Só processa retorno de autenticação se houver tokens/código na URL
-    const hasAuthParams =
-      typeof window !== 'undefined' &&
-      (window.location.hash.includes('code=') ||
-        window.location.hash.includes('error=') ||
-        window.location.search.includes('code=') ||
-        window.location.search.includes('error='));
-
-    if (!hasAuthParams) {
-      return;
-    }
-
     const processRedirect = async () => {
       try {
         const response = await initializeMsal();
 
-        // Limpa a URL imediatamente para não re-executar após logout
-        if (typeof window !== 'undefined' && window.history) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-
-        if (response && response.account && isMounted) {
+        if (response && response.account) {
           setIsMicrosoftLoading(true);
           setError('');
           setEntraNotice('');
+
+          // Limpa a URL imediatamente (remove #code=... ou ?code=...)
+          if (typeof window !== 'undefined' && window.history) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
 
           const account = response.account;
           const email = (
@@ -90,22 +76,14 @@ export default function Login({ onLoginSuccess }) {
           onLoginSuccess(data);
         }
       } catch (err) {
-        if (isMounted) {
-          console.error('Erro no processamento do login Entra ID:', err);
-          setError(err.message || 'Erro ao autenticar com a Microsoft.');
-        }
+        console.error('Erro no processamento do login Entra ID:', err);
+        setError(err.message || 'Erro ao autenticar com a Microsoft.');
       } finally {
-        if (isMounted) {
-          setIsMicrosoftLoading(false);
-        }
+        setIsMicrosoftLoading(false);
       }
     };
 
     processRedirect();
-
-    return () => {
-      isMounted = false;
-    };
   }, [onLoginSuccess]);
 
   // Dispara o redirecionamento para a Microsoft na MESMA ABA
