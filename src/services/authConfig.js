@@ -10,8 +10,8 @@ export const msalConfig = {
     navigateToLoginRequestUrl: false
   },
   cache: {
-    cacheLocation: 'localStorage', // Usar localStorage para preservar o estado no redirect
-    storeAuthStateInCookie: true
+    cacheLocation: 'sessionStorage', // Encerra o cache do token ao fechar a aba/navegador
+    storeAuthStateInCookie: false
   }
 };
 

@@ -82,13 +82,13 @@ export default function App() {
     return localStorage.getItem('trynova_theme') || 'light';
   });
 
-  // Autenticação
+  // Autenticação (Sessão por aba: encerra automaticamente ao fechar a aba)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return !!localStorage.getItem('trynova_session');
+    return !!sessionStorage.getItem('trynova_session');
   });
 
   const [user, setUser] = useState(() => {
-    const session = localStorage.getItem('trynova_session');
+    const session = sessionStorage.getItem('trynova_session');
     return session ? JSON.parse(session) : null;
   });
 
@@ -1243,7 +1243,8 @@ export default function App() {
   };
 
   const handleLoginSuccess = (userData) => {
-    localStorage.setItem('trynova_session', JSON.stringify(userData));
+    sessionStorage.setItem('trynova_session', JSON.stringify(userData));
+    localStorage.removeItem('trynova_session'); // Remove resquício antigo
     setUser(userData);
     setIsLoggedIn(true);
     const roleStr = String(userData?.role || '').trim().toLowerCase();
@@ -1255,6 +1256,7 @@ export default function App() {
 
   const handleLogout = () => {
     if (window.confirm('Tem certeza de que deseja sair do sistema?')) {
+      sessionStorage.removeItem('trynova_session');
       localStorage.removeItem('trynova_session');
       setUser(null);
       setIsLoggedIn(false);
