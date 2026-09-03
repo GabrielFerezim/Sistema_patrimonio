@@ -213,87 +213,17 @@ async function initDb() {
       }
     } catch (_) { }
 
-    // Views analíticas para o Power BI
+    // Garante que views legadas do Power BI sejam removidas caso ainda existam
     try {
       await client.query(`
-        CREATE OR REPLACE VIEW vw_powerbi_patrimonios AS
-        SELECT 
-          a.id AS id_patrimonio,
-          a.tag AS tag_patrimonio,
-          a.name AS nome_equipamento,
-          a.equipment AS tipo_equipamento,
-          a.location AS localizacao,
-          COALESCE(a.employee, 'Disponível / Em Estoque') AS colaborador_responsavel,
-          e.sector AS colaborador_setor,
-          e.team AS colaborador_equipe_cliente,
-          e.role AS colaborador_cargo,
-          a.status AS status_patrimonio,
-          a.condition AS condicao_conservacao,
-          a.serial_number AS numero_serie,
-          a.purchase_date AS data_aquisicao,
-          COALESCE(a.value, 0) AS valor_aquisicao_brl,
-          a.notes AS observacoes,
-          a.last_verified AS data_ultima_auditoria,
-          a.created_at AS data_cadastro
-        FROM assets a
-        LEFT JOIN employees e ON LOWER(TRIM(a.employee)) = LOWER(TRIM(e.name));
+        DROP VIEW IF EXISTS vw_powerbi_patrimonios CASCADE;
+        DROP VIEW IF EXISTS vw_powerbi_manutencoes CASCADE;
+        DROP VIEW IF EXISTS vw_powerbi_licencas CASCADE;
+        DROP VIEW IF EXISTS vw_powerbi_colaboradores CASCADE;
       `);
+    } catch (_) { }
 
-      await client.query(`
-        CREATE OR REPLACE VIEW vw_powerbi_manutencoes AS
-        SELECT 
-          m.id AS id_manutencao,
-          m.asset_tag AS tag_patrimonio,
-          m.asset_name AS nome_equipamento,
-          m.issue_description AS motivo_defeito,
-          m.provider AS assistencia_fornecedor,
-          COALESCE(m.cost, 0) AS custo_reparo_brl,
-          m.status AS status_manutencao,
-          m.opened_at AS data_abertura_chamado,
-          m.closed_at AS data_conclusao_chamado,
-          m.expected_return_at AS previsao_retorno,
-          m.return_destination AS destino_apos_reparo,
-          m.employee_name AS colaborador_vinculado
-        FROM maintenances m;
-      `);
-
-      await client.query(`
-        CREATE OR REPLACE VIEW vw_powerbi_licencas AS
-        SELECT 
-          l.id AS id_licenca,
-          l.name AS software_nome,
-          l.category AS categoria_software,
-          l.license_type AS tipo_licenca,
-          l.supplier AS fornecedor,
-          l.total_seats AS assentos_totais,
-          COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(l.assigned_to) = 'array' THEN l.assigned_to ELSE '[]'::jsonb END), 0) AS assentos_em_uso,
-          (l.total_seats - COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(l.assigned_to) = 'array' THEN l.assigned_to ELSE '[]'::jsonb END), 0)) AS assentos_disponiveis,
-          COALESCE(l.cost, 0) AS custo_total_licenca_brl,
-          l.expiration_date AS data_expiracao,
-          l.notes AS observacoes
-        FROM licenses l;
-      `);
-
-      await client.query(`
-        CREATE OR REPLACE VIEW vw_powerbi_colaboradores AS
-        SELECT 
-          e.id AS id_colaborador,
-          e.name AS nome_colaborador,
-          e.sector AS setor,
-          e.ramal AS ramal,
-          e.team AS equipe_cliente,
-          e.role AS cargo,
-          COUNT(a.id) AS total_equipamentos_em_custodia,
-          COALESCE(SUM(a.value), 0) AS valor_total_custodia_brl
-        FROM employees e
-        LEFT JOIN assets a ON LOWER(TRIM(a.employee)) = LOWER(TRIM(e.name))
-        GROUP BY e.id, e.name, e.sector, e.ramal, e.team, e.role;
-      `);
-    } catch (vErr) {
-      console.warn("Aviso ao criar views do Power BI:", vErr.message);
-    }
-
-    console.log("Tabelas e Views do Power BI verificadas/inicializadas com sucesso!");
+    console.log("Tabelas do banco de dados verificadas e inicializadas com sucesso!");
   } catch (err) {
     console.error("Erro ao inicializar banco de dados:", err);
   } finally {
