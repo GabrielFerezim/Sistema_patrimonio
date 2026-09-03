@@ -12,7 +12,8 @@ export default function AssetActionsDropdown({
   onDelete,
   userRole = 'Administrador'
 }) {
-  if (userRole === 'Visualizador') {
+  const roleStr = String(userRole || '').trim().toLowerCase();
+  if (roleStr.includes('visualizador') || roleStr === 'viewer') {
     return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Somente Leitura</span>;
   }
   const isAdmin = userRole === 'Administrador';

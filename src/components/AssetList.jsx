@@ -25,8 +25,9 @@ export default function AssetList({
   currentUser = null
 }) {
   const userRole = currentUser?.role || 'Operador';
-  const isReadOnly = userRole === 'Visualizador';
-  const isAdmin = userRole === 'Administrador';
+  const roleStr = String(userRole).trim().toLowerCase();
+  const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer';
+  const isAdmin = roleStr.includes('administrador') || roleStr === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('tag-asc');
   const [deleteConfirmAsset, setDeleteConfirmAsset] = useState(null);

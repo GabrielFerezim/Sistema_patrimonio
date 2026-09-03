@@ -57,19 +57,24 @@ export default function TopBar({
       {/* Lado Direito: Ações Rápidas, Tema e Perfil */}
       <div className="topbar-right">
         {/* Botão de Adição Rápida (Oculto para Visualizador e RH) */}
-        {user?.role !== 'Visualizador' && user?.role !== 'Recursos Humanos' && user?.role !== 'RH' && (
-          <button 
-            className="topbar-btn-quickadd" 
-            onClick={onAddNewAsset}
-            title="Cadastrar Novo Patrimônio"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Novo Patrimônio</span>
-          </button>
-        )}
+        {(() => {
+          const roleStr = String(user?.role || '').trim().toLowerCase();
+          const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+          if (isReadOnly) return null;
+          return (
+            <button 
+              className="topbar-btn-quickadd" 
+              onClick={onAddNewAsset}
+              title="Cadastrar Novo Patrimônio"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Novo Patrimônio</span>
+            </button>
+          );
+        })()}
 
         {/* Alternador de Tema */}
         <button 

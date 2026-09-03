@@ -7,8 +7,12 @@ export default function Dashboard({
   spaces = [],
   onNavigateToAssets, 
   onNavigateToTab,
-  onAddNewAsset
+  onAddNewAsset,
+  currentUser = null
 }) {
+  const roleStr = String(currentUser?.role || '').trim().toLowerCase();
+  const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+
   const isSpaceLocation = (loc) => {
     if (!loc) return false;
     const cleanLoc = loc.trim().toLowerCase();
@@ -87,15 +91,17 @@ export default function Dashboard({
           <h1>Painel de Controle Patrimonial</h1>
           <p>Visão geral em tempo real de equipamentos, alocações e disponibilidade em estoque</p>
         </div>
-        <div className="welcome-actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={onAddNewAsset}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Novo Patrimônio</span>
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="welcome-actions">
+            <button type="button" className="btn btn-primary btn-sm" onClick={onAddNewAsset}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Novo Patrimônio</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Alerta de Estoque Crítico (< 3 itens) */}

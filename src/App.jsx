@@ -303,6 +303,15 @@ export default function App() {
   }, [spaces]);
 
   const handleSaveAsset = async (savedAsset) => {
+    const roleStr = String(user?.role || '').trim().toLowerCase();
+    const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+    if (isReadOnly) {
+      addToast('Acesso somente leitura. Você não possui permissão para cadastrar ou alterar patrimônios.', 'error');
+      setIsFormOpen(false);
+      setEditingAsset(null);
+      return;
+    }
+
     try {
       const isSpace = isSpaceLocation(savedAsset.location);
       const assetToSave = {
@@ -353,11 +362,23 @@ export default function App() {
   };
 
   const handleEditAsset = (asset) => {
+    const roleStr = String(user?.role || '').trim().toLowerCase();
+    const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+    if (isReadOnly) {
+      addToast('Acesso de visualização. Não é permitido editar patrimônios.', 'warning');
+      return;
+    }
     setEditingAsset(asset);
     setIsFormOpen(true);
   };
 
   const handleDeleteAsset = async (id) => {
+    const roleStr = String(user?.role || '').trim().toLowerCase();
+    const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+    if (isReadOnly) {
+      addToast('Acesso de visualização. Não é permitido excluir patrimônios.', 'warning');
+      return;
+    }
     const target = assets.find(a => a.id === id);
     try {
       await fetch(`/api/assets/${id}`, { method: 'DELETE' });
@@ -1270,6 +1291,12 @@ export default function App() {
       toggleTheme={toggleTheme}
       user={user}
       onAddNewAsset={() => {
+        const roleStr = String(user?.role || '').trim().toLowerCase();
+        const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+        if (isReadOnly) {
+          addToast('Acesso de visualização. Não é permitido cadastrar patrimônios.', 'warning');
+          return;
+        }
         setEditingAsset(null);
         setIsFormOpen(true);
       }}
@@ -1291,9 +1318,16 @@ export default function App() {
           onNavigateToAssets={handleNavigateToAssetsWithFilter}
           onNavigateToTab={setActiveTab}
           onAddNewAsset={() => {
+            const roleStr = String(user?.role || '').trim().toLowerCase();
+            const isReadOnly = roleStr.includes('visualizador') || roleStr === 'viewer' || roleStr.includes('recursos humanos') || roleStr === 'rh';
+            if (isReadOnly) {
+              addToast('Acesso de visualização. Não é permitido cadastrar patrimônios.', 'warning');
+              return;
+            }
             setEditingAsset(null);
             setIsFormOpen(true);
           }}
+          currentUser={user}
         />
       ) : activeTab === 'spaces' ? (
         <SpacesList
